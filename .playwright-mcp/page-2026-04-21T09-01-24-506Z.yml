@@ -1,0 +1,6 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - button "打开菜单" [ref=e4]:
+      - img [ref=e5]
+    - heading "光伏巡检系统" [level=1] [ref=e6]
+  - main [ref=e7]

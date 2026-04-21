@@ -1,0 +1,19 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - button "打开菜单" [ref=e4]:
+      - img [ref=e5]
+    - heading "光伏巡检系统" [level=1] [ref=e6]
+  - main [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - heading "项目管理" [level=1] [ref=e10]
+        - button "新增项目" [ref=e11]:
+          - img [ref=e12]
+          - text: 新增项目
+      - generic [ref=e13]:
+        - generic [ref=e14]:
+          - img [ref=e15]
+          - textbox "搜索项目名称" [ref=e18]
+        - button "搜索" [ref=e19]:
+          - img [ref=e20]
+          - text: 搜索

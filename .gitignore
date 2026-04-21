@@ -1,0 +1,40 @@
+# Java
+target/
+*.class
+*.jar
+*.war
+*.ear
+.gradle/
+build/
+
+# Node.js / Frontend
+node_modules/
+dist/
+build/
+*.log
+.env*
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Spec-Kit (local agent state — keep constitution.md)
+.specify/memory/*.json
+.specify/memory/*.log
+
+# Claude Code (local only)
+.claude/settings.local.json
+
+# Playwright MCP cache
+.playwright-mcp/
+
+# Debug screenshots
+screenshots/

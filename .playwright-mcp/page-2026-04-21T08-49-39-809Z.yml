@@ -1,0 +1,93 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - button "打开菜单" [ref=e4]:
+        - img [ref=e5]
+      - heading "光伏巡检系统" [level=1] [ref=e6]
+    - main [ref=e7]:
+      - generic [ref=e8]:
+        - generic [ref=e9]:
+          - heading "项目管理" [level=1] [ref=e10]
+          - button "新增项目" [ref=e11]:
+            - img [ref=e12]
+            - text: 新增项目
+        - generic [ref=e13]:
+          - generic [ref=e14]:
+            - img [ref=e15]
+            - textbox "搜索项目名称" [ref=e18]
+          - button "搜索" [ref=e19]:
+            - img [ref=e20]
+            - text: 搜索
+        - generic [ref=e25]:
+          - generic [ref=e27] [cursor=pointer]:
+            - generic [ref=e28]:
+              - heading "测试项目" [level=3] [ref=e29]
+              - paragraph [ref=e30]: 一诺科技 · 光伏板
+              - generic [ref=e31]:
+                - generic [ref=e32]: "农户: 6"
+                - generic [ref=e33]: 2026-04-20
+            - generic [ref=e34]:
+              - button "编辑" [active] [ref=e35]:
+                - img [ref=e36]
+              - button "删除" [ref=e39]:
+                - img [ref=e40]
+          - generic [ref=e44] [cursor=pointer]:
+            - generic [ref=e45]:
+              - heading "山东济南历城区分布式光伏项目" [level=3] [ref=e46]
+              - paragraph [ref=e47]: 国网山东电力有限公司 · 户用分布式
+              - generic [ref=e48]:
+                - generic [ref=e49]: "农户: 6"
+                - generic [ref=e50]: 2026-04-20
+            - generic [ref=e51]:
+              - button "编辑" [ref=e52]:
+                - img [ref=e53]
+              - button "删除" [ref=e56]:
+                - img [ref=e57]
+          - generic [ref=e61] [cursor=pointer]:
+            - generic [ref=e62]:
+              - heading "山东青岛胶州市光伏扶贫项目" [level=3] [ref=e63]
+              - paragraph [ref=e64]: 青岛供电公司 · 村级电站
+              - generic [ref=e65]:
+                - generic [ref=e66]: "农户: 4"
+                - generic [ref=e67]: 2026-04-20
+            - generic [ref=e68]:
+              - button "编辑" [ref=e69]:
+                - img [ref=e70]
+              - button "删除" [ref=e73]:
+                - img [ref=e74]
+          - generic [ref=e78] [cursor=pointer]:
+            - generic [ref=e79]:
+              - heading "山东烟台龙口市渔光互补项目" [level=3] [ref=e80]
+              - paragraph [ref=e81]: 烟台供电公司 · 渔光互补
+              - generic [ref=e82]:
+                - generic [ref=e83]: "农户: 3"
+                - generic [ref=e84]: 2026-04-20
+            - generic [ref=e85]:
+              - button "编辑" [ref=e86]:
+                - img [ref=e87]
+              - button "删除" [ref=e90]:
+                - img [ref=e91]
+  - generic [ref=e96]:
+    - button "关闭" [ref=e97]:
+      - img [ref=e98]
+    - heading "编辑项目" [level=3] [ref=e101]
+    - generic [ref=e103]:
+      - generic [ref=e104]:
+        - generic [ref=e105]: 项目名称 *
+        - textbox "项目名称 *" [ref=e106]:
+          - /placeholder: 请输入项目名称
+          - text: 测试项目
+      - generic [ref=e107]:
+        - generic [ref=e108]: 产权公司 *
+        - textbox "产权公司 *" [ref=e109]:
+          - /placeholder: 请输入产权公司
+          - text: 一诺科技
+      - generic [ref=e110]:
+        - generic [ref=e111]: 电站类型 *
+        - textbox "电站类型 *" [ref=e112]:
+          - /placeholder: 请输入电站类型
+          - text: 光伏板
+    - generic [ref=e113]:
+      - button "取消" [ref=e114]
+      - button "删除" [ref=e115]
+      - button "保存" [ref=e116]
