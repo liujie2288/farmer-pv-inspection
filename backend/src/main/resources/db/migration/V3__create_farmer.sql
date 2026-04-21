@@ -1,0 +1,21 @@
+CREATE TABLE farmer (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    project_id BIGINT NOT NULL,
+    farmer_code VARCHAR(50) NOT NULL,
+    farmer_name VARCHAR(50) NOT NULL,
+    power_account VARCHAR(50) DEFAULT NULL,
+    inverter_sn VARCHAR(100) DEFAULT NULL,
+    inverter_brand VARCHAR(100) DEFAULT NULL,
+    module_spec VARCHAR(100) DEFAULT NULL,
+    module_count INT DEFAULT NULL,
+    capacity_kw DECIMAL(10,2) DEFAULT NULL,
+    status TINYINT NOT NULL DEFAULT 0,
+    last_inspect_time DATETIME DEFAULT NULL,
+    last_inspector_id BIGINT DEFAULT NULL,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_farmer_code (farmer_code),
+    INDEX idx_project_id (project_id),
+    INDEX idx_farmer_name (farmer_name),
+    INDEX idx_project_status (project_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
