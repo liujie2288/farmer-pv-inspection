@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, ChangeEvent } from 'react';
+import { useState, useEffect, useCallback, useRef, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Search, Plus, Upload, Trash2, Edit3, ChevronRight,
@@ -8,6 +8,7 @@ import {
   listFarmers, createFarmer, updateFarmer, deleteFarmer,
   batchDeleteFarmers, importFarmers, Farmer
 } from '@/api/farmers';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { showToast } from '@/components/ui/Toast';
 import { confirm } from '@/components/ui/Dialog';
 import EmptyState from '@/components/ui/EmptyState';
@@ -256,12 +257,12 @@ function FarmerListPage() {
     navigate(`/admin/projects/${pid}/farmers/${farmerId}`);
   };
 
-  // Load more
-  const loadMore = () => {
-    if (!loading && farmers.length < total) {
-      loadFarmers(page + 1);
-    }
-  };
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const sentinelRef = useInfiniteScroll(
+    () => loadFarmers(page + 1),
+    { hasMore: farmers.length < total, loading, root: scrollContainerRef.current },
+  );
 
   const allSelected = farmers.length > 0 && selectedIds.size === farmers.length;
 
@@ -389,7 +390,7 @@ function FarmerListPage() {
       </div>
 
       {/* Content area */}
-      <div className="flex-1 overflow-y-auto px-6">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-6">
         {loading && farmers.length === 0 ? (
           <LoadingSpinner size="lg" />
         ) : farmers.length === 0 ? (
@@ -503,16 +504,10 @@ function FarmerListPage() {
               ))}
             </div>
 
-            {/* Load more */}
-            {farmers.length < total && (
+            <div ref={sentinelRef} className="h-1" />
+            {loading && farmers.length > 0 && (
               <div className="flex justify-center py-4">
-                <button
-                  onClick={loadMore}
-                  disabled={loading}
-                  className="px-6 py-2 border border-gray-300 text-gray-600 text-sm rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? '加载中...' : '加载更多'}
-                </button>
+                <span className="text-sm text-gray-400">加载中...</span>
               </div>
             )}
           </>

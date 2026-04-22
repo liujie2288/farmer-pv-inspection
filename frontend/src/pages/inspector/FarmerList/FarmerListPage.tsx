@@ -4,6 +4,7 @@ import { ArrowLeft, Search, Info, Users } from 'lucide-react';
 import { listFarmers, Farmer } from '@/api/farmers';
 import { getProject, getProjectStats, ProjectStats } from '@/api/projects';
 import { getActivePlan, InspectPlan } from '@/api/plans';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import StatusTag from '@/components/ui/StatusTag';
 import { showToast } from '@/components/ui/Toast';
 import EmptyState from '@/components/ui/EmptyState';
@@ -66,6 +67,11 @@ function InspectorFarmerListPage() {
     setLoading(true);
     loadFarmers(1);
   }, [loadFarmers]);
+
+  const sentinelRef = useInfiniteScroll(
+    () => loadFarmers(page + 1),
+    { hasMore: farmers.length < total, loading },
+  );
 
   const handleSearch = () => {
     setLoading(true);
@@ -237,15 +243,10 @@ function InspectorFarmerListPage() {
           </div>
         )}
 
-        {/* Load More */}
-        {farmers.length > 0 && farmers.length < total && (
+        <div ref={sentinelRef} className="h-1" />
+        {loading && farmers.length > 0 && (
           <div className="text-center mt-4">
-            <button
-              onClick={() => loadFarmers(page + 1)}
-              className="text-sm text-teal hover:text-teal-dark font-medium transition-colors"
-            >
-              加载更多
-            </button>
+            <span className="text-sm text-gray-400">加载中...</span>
           </div>
         )}
 

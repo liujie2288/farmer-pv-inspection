@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, Pencil, Users, Phone, Shield } from 'lucide-react';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { listUsers, createUser, updateUser, deleteUser, toggleUserStatus, User } from '@/api/users';
 import { resetPassword } from '@/api/auth';
 import { showToast } from '@/components/ui/Toast';
@@ -316,6 +317,11 @@ function UserListPage() {
 
   const hasMore = users.length < total;
 
+  const sentinelRef = useInfiniteScroll(
+    () => loadUsers(page + 1, true),
+    { hasMore, loading },
+  );
+
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
@@ -424,16 +430,10 @@ function UserListPage() {
             ))}
           </div>
 
-          {/* Load More */}
-          {hasMore && (
+          <div ref={sentinelRef} className="h-1" />
+          {loading && users.length > 0 && (
             <div className="flex justify-center py-4">
-              <button
-                onClick={() => loadUsers(page + 1, true)}
-                disabled={loading}
-                className="rounded-lg border border-gray-300 px-6 py-2 text-sm font-medium text-gray-600 transition-colors hover:border-teal hover:text-teal disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {loading ? '加载中...' : '加载更多'}
-              </button>
+              <span className="text-sm text-gray-400">加载中...</span>
             </div>
           )}
         </>

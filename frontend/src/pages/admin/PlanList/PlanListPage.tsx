@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Globe, Clock, Users, ClipboardList } from 'lucide-react';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { listPlans, createPlan, createGlobalPlan, type InspectPlan } from '@/api/plans';
 import { listProjects, type Project } from '@/api/projects';
 import { showToast } from '@/components/ui/Toast';
@@ -235,6 +236,11 @@ function PlanListPage() {
 
   const hasMore = plans.length < total;
 
+  const sentinelRef = useInfiniteScroll(
+    () => loadPlans(page + 1, true),
+    { hasMore, loading },
+  );
+
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
@@ -348,16 +354,10 @@ function PlanListPage() {
             })}
           </div>
 
-          {/* Load More */}
-          {hasMore && (
+          <div ref={sentinelRef} className="h-1" />
+          {loading && plans.length > 0 && (
             <div className="flex justify-center py-4">
-              <button
-                onClick={() => loadPlans(page + 1, true)}
-                disabled={loading}
-                className="rounded-lg border border-gray-300 px-6 py-2 text-sm font-medium text-gray-600 transition-colors hover:border-teal hover:text-teal disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {loading ? '加载中...' : '加载更多'}
-              </button>
+              <span className="text-sm text-gray-400">加载中...</span>
             </div>
           )}
         </>

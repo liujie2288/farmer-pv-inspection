@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Pencil, Trash2, FolderOpen } from 'lucide-react';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import {
   listProjects,
   createProject,
@@ -231,6 +232,11 @@ function ProjectListPage() {
 
   const hasMore = projects.length < total;
 
+  const sentinelRef = useInfiniteScroll(
+    () => loadProjects(page + 1, true),
+    { hasMore, loading },
+  );
+
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
@@ -349,16 +355,10 @@ function ProjectListPage() {
             ))}
           </div>
 
-          {/* Load More */}
-          {hasMore && (
+          <div ref={sentinelRef} className="h-1" />
+          {loading && projects.length > 0 && (
             <div className="flex justify-center py-4">
-              <button
-                onClick={() => loadProjects(page + 1, true)}
-                disabled={loading}
-                className="rounded-lg border border-gray-300 px-6 py-2 text-sm font-medium text-gray-600 transition-colors hover:border-teal hover:text-teal disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {loading ? '加载中...' : '加载更多'}
-              </button>
+              <span className="text-sm text-gray-400">加载中...</span>
             </div>
           )}
         </>
