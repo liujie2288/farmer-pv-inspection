@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Globe, Clock, Users, ClipboardList } from 'lucide-react';
+import { Search, Plus, Globe, Clock, Users, ClipboardList, X } from 'lucide-react';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { listPlans, createPlan, createGlobalPlan, type InspectPlan } from '@/api/plans';
 import { listProjects, type Project } from '@/api/projects';
 import { showToast } from '@/components/ui/Toast';
-import { showDialog } from '@/components/ui/Dialog';
 import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
@@ -21,6 +20,202 @@ const statusConfig: Record<number, { text: string; bg: string; textClass: string
   1: { text: '进行中', bg: 'bg-teal/10', textClass: 'text-teal' },
   2: { text: '已结束', bg: 'bg-green-50', textClass: 'text-green-600' },
 };
+
+function CreatePlanDialog({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [form, setForm] = useState({
+    planName: '',
+    startTime: '',
+    endTime: '',
+    isGlobal: false,
+    projectId: 0,
+    selectedProjectIds: [] as number[],
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    listProjects({ size: 100 })
+      .then(res => setProjects(res.data.records))
+      .catch(() => {});
+  }, []);
+
+  const toggleProject = (pid: number) => {
+    setForm(prev => ({
+      ...prev,
+      selectedProjectIds: prev.selectedProjectIds.includes(pid)
+        ? prev.selectedProjectIds.filter(id => id !== pid)
+        : [...prev.selectedProjectIds, pid],
+    }));
+  };
+
+  const handleSubmit = async () => {
+    if (!form.planName || !form.startTime || !form.endTime) {
+      showToast({ icon: 'warning', content: '请填写完整信息' });
+      return;
+    }
+    try {
+      setSubmitting(true);
+      if (form.isGlobal) {
+        if (form.selectedProjectIds.length === 0) {
+          showToast({ icon: 'warning', content: '请选择至少一个项目' });
+          return;
+        }
+        await createGlobalPlan({
+          planName: form.planName,
+          projectIds: form.selectedProjectIds,
+          startTime: form.startTime,
+          endTime: form.endTime,
+        });
+      } else {
+        if (!form.projectId) {
+          showToast({ icon: 'warning', content: '请选择项目' });
+          return;
+        }
+        await createPlan({
+          planName: form.planName,
+          projectId: form.projectId,
+          startTime: form.startTime,
+          endTime: form.endTime,
+        });
+      }
+      showToast({ icon: 'success', content: '创建成功' });
+      onSuccess();
+    } catch (e: any) {
+      showToast({ icon: 'fail', content: e.message || '创建失败' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+      <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl relative animate-[fade-in_0.2s_ease-out]">
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 p-1 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-400 hover:text-gray-600"
+          aria-label="关闭"
+        >
+          <X size={18} />
+        </button>
+        <h3 className="text-lg font-bold text-navy mb-4 pr-6">创建巡检计划</h3>
+
+        <div className="text-sm text-gray-600 mb-6">
+          <div className="flex flex-col gap-4">
+            <label className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-gray-700">
+                计划名称 <span className="text-red-500">*</span>
+              </span>
+              <input
+                type="text"
+                placeholder="请输入计划名称"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+                value={form.planName}
+                onChange={e => setForm(prev => ({ ...prev, planName: e.target.value }))}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-gray-700">
+                开始时间 <span className="text-red-500">*</span>
+              </span>
+              <input
+                type="datetime-local"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+                value={form.startTime}
+                onChange={e => setForm(prev => ({ ...prev, startTime: e.target.value }))}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-gray-700">
+                结束时间 <span className="text-red-500">*</span>
+              </span>
+              <input
+                type="datetime-local"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+                value={form.endTime}
+                onChange={e => setForm(prev => ({ ...prev, endTime: e.target.value }))}
+              />
+            </label>
+
+            <div className="border-t border-gray-200 pt-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.isGlobal}
+                  onChange={e => setForm(prev => ({ ...prev, isGlobal: e.target.checked }))}
+                  className="h-4 w-4 rounded border-gray-300 text-teal focus:ring-teal"
+                />
+                <span className="text-sm font-medium text-gray-700">全局计划（多项目）</span>
+              </label>
+
+              {!form.isGlobal ? (
+                <label className="mt-3 flex flex-col gap-1">
+                  <span className="text-sm font-medium text-gray-700">
+                    关联项目 <span className="text-red-500">*</span>
+                  </span>
+                  <select
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+                    value={form.projectId || ''}
+                    onChange={e => setForm(prev => ({ ...prev, projectId: Number(e.target.value) }))}
+                  >
+                    <option value="" disabled>请选择项目</option>
+                    {projects.map(p => (
+                      <option key={p.id} value={p.id}>{p.projectName}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-400 mb-2">
+                    已选 {form.selectedProjectIds.length} 个项目
+                  </p>
+                  {projects.length === 0 ? (
+                    <p className="text-center text-sm text-gray-400 py-3">暂无项目</p>
+                  ) : (
+                    <div className="max-h-40 overflow-y-auto flex flex-col gap-1">
+                      {projects.map(p => (
+                        <label
+                          key={p.id}
+                          className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-gray-50 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={form.selectedProjectIds.includes(p.id)}
+                            onChange={() => toggleProject(p.id)}
+                            className="h-4 w-4 rounded border-gray-300 text-teal focus:ring-teal"
+                          />
+                          <span className="text-sm text-gray-700">{p.projectName}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-teal text-white hover:bg-teal-dark transition-colors disabled:opacity-50"
+          >
+            创建
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function PlanListPage() {
   const navigate = useNavigate();
@@ -64,174 +259,15 @@ function PlanListPage() {
     loadPlans(1);
   };
 
-  const openCreateDialog = async () => {
-    let projects: Project[] = [];
-    try {
-      const res = await listProjects({ size: 100 });
-      projects = res.data.records;
-    } catch {
-      /* ignore */
-    }
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
-    const form = {
-      planName: '',
-      startTime: '',
-      endTime: '',
-      isGlobal: false,
-      projectId: 0,
-      selectedProjectIds: [] as number[],
-    };
+  const openCreateDialog = () => {
+    setCreateDialogOpen(true);
+  };
 
-    const toggleProject = (pid: number) => {
-      if (form.selectedProjectIds.includes(pid)) {
-        form.selectedProjectIds = form.selectedProjectIds.filter(id => id !== pid);
-      } else {
-        form.selectedProjectIds = [...form.selectedProjectIds, pid];
-      }
-    };
-
-    const dialogContent = (
-      <div className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-gray-700">
-            计划名称 <span className="text-red-500">*</span>
-          </span>
-          <input
-            type="text"
-            placeholder="请输入计划名称"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
-            onChange={e => { form.planName = e.target.value; }}
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-gray-700">
-            开始时间 <span className="text-red-500">*</span>
-          </span>
-          <input
-            type="datetime-local"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
-            onChange={e => { form.startTime = e.target.value; }}
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium text-gray-700">
-            结束时间 <span className="text-red-500">*</span>
-          </span>
-          <input
-            type="datetime-local"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
-            onChange={e => { form.endTime = e.target.value; }}
-          />
-        </label>
-
-        <div className="border-t border-gray-200 pt-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={form.isGlobal}
-              onChange={e => {
-                form.isGlobal = e.target.checked;
-              }}
-              className="h-4 w-4 rounded border-gray-300 text-teal focus:ring-teal"
-            />
-            <span className="text-sm font-medium text-gray-700">全局计划（多项目）</span>
-          </label>
-
-          {!form.isGlobal ? (
-            <label className="mt-3 flex flex-col gap-1">
-              <span className="text-sm font-medium text-gray-700">
-                关联项目 <span className="text-red-500">*</span>
-              </span>
-              <select
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
-                onChange={e => { form.projectId = Number(e.target.value); }}
-                defaultValue=""
-              >
-                <option value="" disabled>请选择项目</option>
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>{p.projectName}</option>
-                ))}
-              </select>
-            </label>
-          ) : (
-            <div className="mt-3">
-              <p className="text-xs text-gray-400 mb-2">
-                已选 {form.selectedProjectIds.length} 个项目
-              </p>
-              {projects.length === 0 ? (
-                <p className="text-center text-sm text-gray-400 py-3">暂无项目</p>
-              ) : (
-                <div className="max-h-40 overflow-y-auto flex flex-col gap-1">
-                  {projects.map(p => (
-                    <label
-                      key={p.id}
-                      className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-gray-50 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={form.selectedProjectIds.includes(p.id)}
-                        onChange={() => toggleProject(p.id)}
-                        className="h-4 w-4 rounded border-gray-300 text-teal focus:ring-teal"
-                      />
-                      <span className="text-sm text-gray-700">{p.projectName}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-
-    await showDialog({
-      title: '创建巡检计划',
-      content: dialogContent,
-      actions: [
-        { label: '取消', onClick: () => {} },
-        {
-          label: '创建',
-          primary: true,
-          onClick: async () => {
-            if (!form.planName || !form.startTime || !form.endTime) {
-              showToast({ icon: 'warning', content: '请填写完整信息' });
-              return;
-            }
-            try {
-              if (form.isGlobal) {
-                if (form.selectedProjectIds.length === 0) {
-                  showToast({ icon: 'warning', content: '请选择至少一个项目' });
-                  return;
-                }
-                await createGlobalPlan({
-                  planName: form.planName,
-                  projectIds: form.selectedProjectIds,
-                  startTime: form.startTime,
-                  endTime: form.endTime,
-                });
-              } else {
-                if (!form.projectId) {
-                  showToast({ icon: 'warning', content: '请选择项目' });
-                  return;
-                }
-                await createPlan({
-                  planName: form.planName,
-                  projectId: form.projectId,
-                  startTime: form.startTime,
-                  endTime: form.endTime,
-                });
-              }
-              showToast({ icon: 'success', content: '创建成功' });
-              loadPlans(1);
-            } catch (e: any) {
-              showToast({ icon: 'fail', content: e.message || '创建失败' });
-            }
-          },
-        },
-      ],
-    });
+  const handleCreateSuccess = () => {
+    setCreateDialogOpen(false);
+    loadPlans(1);
   };
 
   const hasMore = plans.length < total;
@@ -361,6 +397,14 @@ function PlanListPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* Create Plan Dialog */}
+      {createDialogOpen && (
+        <CreatePlanDialog
+          onClose={() => setCreateDialogOpen(false)}
+          onSuccess={handleCreateSuccess}
+        />
       )}
     </div>
   );
