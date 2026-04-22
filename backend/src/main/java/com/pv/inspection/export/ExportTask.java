@@ -24,6 +24,10 @@ public class ExportTask {
 
     private Integer totalCount;
 
+    private Integer exportType;
+
+    private Integer processedCount;
+
     private String errorMessage;
 
     @TableField(fill = FieldFill.INSERT)

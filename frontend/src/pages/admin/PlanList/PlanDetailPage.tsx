@@ -1,7 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, CheckCircle, TrendingUp, AlertTriangle, Trophy } from 'lucide-react';
+import {
+  ArrowLeft, Users, CheckCircle, TrendingUp, AlertTriangle, Trophy,
+  FileOutput, ImageIcon, Download, RefreshCw, Loader2, CheckCircle2, XCircle, Clock,
+} from 'lucide-react';
 import { getPlanStats, finishPlan, type PlanStats } from '@/api/plans';
+import { exportPlan, listExportTasks, getExportTaskStatus, downloadExport, type ExportTaskInfo } from '@/api/export';
 import { showToast } from '@/components/ui/Toast';
 import { confirm } from '@/components/ui/Dialog';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -12,38 +16,122 @@ const statusConfig: Record<number, { text: string; bg: string; textClass: string
   2: { text: '已结束', bg: 'bg-green-50', textClass: 'text-green-600' },
 };
 
+const exportStatusMap: Record<number, { text: string; icon: React.ReactNode; color: string }> = {
+  0: { text: '导出中', icon: <Loader2 size={14} className="animate-spin" />, color: 'text-teal' },
+  1: { text: '已完成', icon: <CheckCircle2 size={14} />, color: 'text-green-600' },
+  2: { text: '失败', icon: <XCircle size={14} />, color: 'text-red-500' },
+};
+
+function formatTime(iso: string | null | undefined) {
+  if (!iso) return '-';
+  const d = new Date(iso);
+  return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function formatFileSize(bytes: number | null) {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
 function PlanDetailPage() {
   const { planId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
   const [stats, setStats] = useState<PlanStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exportTasks, setExportTasks] = useState<ExportTaskInfo[]>([]);
+  const [exporting, setExporting] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const pid = Number(planId);
+
+  const loadExportTasks = useCallback(async () => {
+    if (!pid) return;
+    try {
+      const res = await listExportTasks(pid);
+      setExportTasks(res.data || []);
+    } catch { /* ignore */ }
+  }, [pid]);
+
+  const startPolling = useCallback(() => {
+    if (pollRef.current) return;
+    pollRef.current = setInterval(async () => {
+      setExportTasks(prev => {
+        const inProgress = prev.filter(t => t.status === 0);
+        if (inProgress.length === 0) {
+          if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+          return prev;
+        }
+        Promise.all(inProgress.map(t => getExportTaskStatus(t.id).then(r => r.data).catch(() => t)))
+          .then(updated => {
+            const updatedMap = new Map(updated.map(t => [t.id, t]));
+            setExportTasks(prev => prev.map(t => updatedMap.get(t.id) || t));
+          });
+        return prev;
+      });
+    }, 2000);
+  }, []);
 
   useEffect(() => {
-    if (!planId) return;
+    if (!pid) return;
     setLoading(true);
-    getPlanStats(Number(planId))
-      .then(res => {
-        setStats(res.data);
-      })
-      .catch(e => {
-        showToast({ icon: 'fail', content: e.message || '加载计划详情失败' });
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [planId]);
+    getPlanStats(pid)
+      .then(res => setStats(res.data))
+      .catch(e => showToast({ icon: 'fail', content: e.message || '加载计划详情失败' }))
+      .finally(() => setLoading(false));
+    loadExportTasks().then(() => {
+      if (exportTasks.some(t => t.status === 0)) startPolling();
+    });
+  }, [pid]);
+
+  useEffect(() => {
+    if (exportTasks.some(t => t.status === 0)) {
+      startPolling();
+    }
+    return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+  }, [exportTasks, startPolling]);
+
+  const handleExport = async (exportType: number) => {
+    if (!pid) return;
+    const hasActive = exportTasks.some(t => t.status === 0);
+    if (hasActive) {
+      showToast({ icon: 'warning', content: '有导出任务正在进行中，请稍后' });
+      return;
+    }
+    setExporting(true);
+    try {
+      await exportPlan(pid, exportType);
+      showToast({ icon: 'success', content: '导出任务已创建' });
+      await loadExportTasks();
+      startPolling();
+    } catch (e: any) {
+      showToast({ icon: 'fail', content: e.message || '创建导出失败' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleDownload = async (taskId: number) => {
+    try {
+      const res = await downloadExport(taskId);
+      window.open(res.data.url, '_blank');
+    } catch (e: any) {
+      showToast({ icon: 'fail', content: e.message || '获取下载链接失败' });
+    }
+  };
 
   const handleFinish = async () => {
-    if (!planId) return;
+    if (!pid) return;
     const ok = await confirm({
       title: '结束计划',
       content: '确定手动结束此计划吗？此操作不可撤销。',
     });
     if (!ok) return;
     try {
-      await finishPlan(Number(planId));
+      await finishPlan(pid);
       showToast({ icon: 'success', content: '计划已结束' });
-      const res = await getPlanStats(Number(planId));
+      const res = await getPlanStats(pid);
       setStats(res.data);
     } catch (e: any) {
       showToast({ icon: 'fail', content: e.message || '操作失败' });
@@ -54,6 +142,7 @@ function PlanDetailPage() {
 
   const sc = statusConfig[stats.status] || statusConfig[0];
   const planFinished = stats.status === 2;
+  const hasActiveExport = exportTasks.some(t => t.status === 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -131,6 +220,125 @@ function PlanDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Export Section */}
+      <div className="rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden">
+        <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
+          <FileOutput size={18} className="text-teal" />
+          <h2 className="text-base font-semibold text-navy">数据导出</h2>
+        </div>
+        <div className="p-5 space-y-4">
+          {/* Export buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => handleExport(0)}
+              disabled={exporting || hasActiveExport}
+              className="flex-1 flex items-center justify-center gap-2 bg-teal text-white rounded-lg py-2.5 text-sm font-medium hover:bg-teal-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {hasActiveExport ? <Loader2 size={16} className="animate-spin" /> : <FileOutput size={16} />}
+              导出PDF报告（含照片）
+            </button>
+            <button
+              onClick={() => handleExport(1)}
+              disabled={exporting || hasActiveExport}
+              className="flex-1 flex items-center justify-center gap-2 bg-gold text-white rounded-lg py-2.5 text-sm font-medium hover:bg-gold/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {hasActiveExport ? <Loader2 size={16} className="animate-spin" /> : <ImageIcon size={16} />}
+              导出巡检照片
+            </button>
+          </div>
+          <p className="text-xs text-gray-400">
+            PDF报告: 所有巡检记录生成含照片的PDF，打包为ZIP下载 &nbsp;|&nbsp; 巡检照片: 按农户分组导出所有巡检照片
+          </p>
+
+          {/* Export history table */}
+          {exportTasks.length > 0 && (
+            <div className="mt-4 border border-gray-100 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-gray-500 text-xs">
+                    <th className="text-left px-4 py-2.5 font-medium">类型</th>
+                    <th className="text-left px-4 py-2.5 font-medium">状态</th>
+                    <th className="text-left px-4 py-2.5 font-medium">进度</th>
+                    <th className="text-left px-4 py-2.5 font-medium">大小</th>
+                    <th className="text-left px-4 py-2.5 font-medium">时间</th>
+                    <th className="text-right px-4 py-2.5 font-medium">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {exportTasks.map(task => {
+                    const st = exportStatusMap[task.status] || exportStatusMap[2];
+                    const progress = task.totalCount > 0
+                      ? Math.round((task.processedCount / task.totalCount) * 100) : 0;
+                    return (
+                      <tr key={task.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                            task.exportType === 0 ? 'bg-teal/10 text-teal' : 'bg-gold/10 text-gold'
+                          }`}>
+                            {task.exportType === 0 ? <FileOutput size={12} /> : <ImageIcon size={12} />}
+                            {task.exportType === 0 ? 'PDF' : '照片'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1 text-xs font-medium ${st.color}`}>
+                            {st.icon} {st.text}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {task.status === 0 ? (
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden min-w-[60px]">
+                                <div className="h-full bg-teal rounded-full transition-all" style={{ width: `${progress}%` }} />
+                              </div>
+                              <span className="text-xs text-gray-500 shrink-0">{task.processedCount}/{task.totalCount}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">
+                              {task.status === 1 ? `${task.totalCount}条` : '-'}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500">
+                          {task.status === 1 ? formatFileSize(task.fileSize) : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500">
+                          {formatTime(task.createTime)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {task.status === 1 && (
+                            <button
+                              onClick={() => handleDownload(task.id)}
+                              className="inline-flex items-center gap-1 text-teal hover:text-teal-dark text-xs font-medium transition-colors"
+                            >
+                              <Download size={13} /> 下载
+                            </button>
+                          )}
+                          {task.status === 2 && (
+                            <button
+                              onClick={() => handleExport(task.exportType)}
+                              className="inline-flex items-center gap-1 text-amber-600 hover:text-amber-700 text-xs font-medium transition-colors"
+                            >
+                              <RefreshCw size={13} /> 重试
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {exportTasks.length === 0 && (
+            <div className="flex flex-col items-center py-6 text-gray-400">
+              <Clock size={24} className="mb-1.5" />
+              <p className="text-xs">暂无导出记录</p>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Danger Zone: Finish Plan */}
       {!planFinished && (

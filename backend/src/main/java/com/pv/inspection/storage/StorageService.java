@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.io.InputStream;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -91,6 +94,29 @@ public class StorageService {
             );
         } catch (Exception e) {
             throw new RuntimeException("获取文件URL失败: " + e.getMessage(), e);
+        }
+    }
+
+    public String extractObjectKey(String presignedOrFullUrl) {
+        try {
+            URI uri = new URI(presignedOrFullUrl);
+            String path = uri.getPath();
+            String prefix = "/" + bucket + "/";
+            if (path.startsWith(prefix)) {
+                return path.substring(prefix.length());
+            }
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public String uploadFile(String objectName, Path filePath, String contentType) {
+        try (InputStream is = Files.newInputStream(filePath)) {
+            long size = Files.size(filePath);
+            return upload(objectName, is, size, contentType);
+        } catch (Exception e) {
+            throw new RuntimeException("大文件上传失败: " + e.getMessage(), e);
         }
     }
 }

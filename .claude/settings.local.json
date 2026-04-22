@@ -126,7 +126,14 @@
       "Bash(./mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=dev)",
       "Bash(JAVA_HOME=\"C:/Program Files/Eclipse Adoptium/jdk-17.0.16.8-hotspot\" ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev)",
       "Bash(ls /c/mysql*/bin/mysql.exe)",
-      "Bash(ls /d/mysql*/bin/mysql.exe)"
+      "Bash(ls /d/mysql*/bin/mysql.exe)",
+      "Bash(mysql -u root -proot pv_inspection -e \"SELECT COUNT\\(*\\) as cnt FROM inspect_record;\")",
+      "Bash(mysql -u root -pRoot@123 pv_inspection -e \"SELECT COUNT\\(*\\) as cnt FROM inspect_record;\")",
+      "Bash(where mysql *)",
+      "Read(//c/ProgramData/**)",
+      "Read(//c//**)",
+      "Bash(tail -30 \"C:\\\\\\\\Users\\\\\\\\ADMINI~1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\D--MyCode-farmer-pv-inspection\\\\\\\\8936a1b0-aab7-4df2-8947-7cb8724a8db5\\\\\\\\tasks\\\\\\\\b2pt5ioeg.output\")",
+      "Bash(tail -30 \"C:\\\\\\\\Users\\\\\\\\ADMINI~1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\D--MyCode-farmer-pv-inspection\\\\\\\\8936a1b0-aab7-4df2-8947-7cb8724a8db5\\\\\\\\tasks\\\\\\\\b6sgrnug7.output\")"
     ]
   }
 }
