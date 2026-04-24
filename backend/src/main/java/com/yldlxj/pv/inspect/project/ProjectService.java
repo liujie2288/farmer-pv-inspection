@@ -1,13 +1,13 @@
 package com.yldlxj.pv.inspect.project;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yldlxj.pv.inspect.common.BusinessException;
 import com.yldlxj.pv.inspect.device.InspectDevice;
 import com.yldlxj.pv.inspect.device.InspectDeviceMapper;
 import com.yldlxj.pv.inspect.farmer.FarmerMapper;
 import com.yldlxj.pv.inspect.project.dto.ProjectDto;
+import com.yldlxj.pv.inspect.project.dto.ProjectViewVo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +23,22 @@ public class ProjectService {
     private final FarmerMapper farmerMapper;
     private final InspectDeviceMapper deviceMapper;
 
-    public IPage<Project> listProjects(int page, int size, String projectName) {
+    private ProjectViewVo toViewVo(Project project) {
+        ProjectViewVo vo = new ProjectViewVo();
+        vo.setId(project.getId());
+        vo.setProjectName(project.getProjectName());
+        vo.setPropertyCompany(project.getPropertyCompany());
+        vo.setStationType(project.getStationType());
+        vo.setProvince(project.getProvince());
+        vo.setCity(project.getCity());
+        vo.setDroneCertificateUrl(project.getDroneCertificateUrl());
+        vo.setSpecialOperationCertUrl(project.getSpecialOperationCertUrl());
+        vo.setDevices(project.getDevices());
+        vo.setCreateTime(project.getCreateTime());
+        return vo;
+    }
+
+    public Page<Project> listProjects(int page, int size, String projectName) {
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
         if (projectName != null && !projectName.isEmpty()) {
             wrapper.like(Project::getProjectName, projectName);
@@ -108,16 +123,12 @@ public class ProjectService {
                         deviceMapper.updateById(d);
                     }
                 } else {
-                    InspectDevice d = new InspectDevice();
-                    d.setProjectId(id);
-                    d.setDeviceName(item.getDeviceName());
-                    d.setDeviceModel(item.getDeviceModel());
-                    deviceMapper.insert(d);
+                    deviceMapper.insert(new InspectDevice(id, item.getDeviceName(), item.getDeviceModel()));
                 }
             }
         }
 
-        existingIds.stream().filter(iid -> !submittedIds.contains(iid)).forEach(iid -> deviceMapper.deleteById(iid));
+        existingIds.stream().filter(iid -> !submittedIds.contains(iid)).forEach(deviceMapper::deleteById);
     }
 
     @Transactional
@@ -156,13 +167,14 @@ public class ProjectService {
         return stats;
     }
 
-    public Project getProjectById(Long id) {
+    public ProjectViewVo getProjectById(Long id) {
         Project project = projectMapper.selectById(id);
-        if (project != null) {
-            project.setDevices(deviceMapper.selectList(
-                new LambdaQueryWrapper<InspectDevice>().eq(InspectDevice::getProjectId, id)
-            ));
+        if (project == null) {
+            throw new BusinessException("项目不存在");
         }
-        return project;
+        project.setDevices(deviceMapper.selectList(
+            new LambdaQueryWrapper<InspectDevice>().eq(InspectDevice::getProjectId, id)
+        ));
+        return toViewVo(project);
     }
 }

@@ -18,6 +18,8 @@ public class UserService {
     private final SysUserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
 
+    private static final String DEFAULT_PASSWORD = "123456";
+
     public SysUser findByUserId(Long userId) {
         return userMapper.selectById(userId);
     }
@@ -75,9 +77,34 @@ public class UserService {
         user.setRealName(dto.getRealName());
         user.setPhone(dto.getPhone());
         user.setRole(dto.getRole());
-        user.setStatus(dto.getStatus());
 
         userMapper.updateById(user);
+    }
+
+    public void changePassword(Long userId, String password) {
+        SysUser sysUser = userMapper.selectById(userId);
+        if (sysUser != null) {
+            sysUser.setPassword(passwordEncoder.encode(password));
+            sysUser.setNeedResetPwd(false);
+            userMapper.updateById(sysUser);
+        }
+    }
+
+    public void resetPassword(Long userId) {
+        SysUser user = userMapper.selectById(userId);
+        if (user != null) {
+            user.setPassword(passwordEncoder.encode(DEFAULT_PASSWORD));
+            user.setNeedResetPwd(true);
+            userMapper.updateById(user);
+        }
+    }
+
+    public void toggleStatus(Long id, Integer status) {
+        SysUser user = userMapper.selectById(id);
+        if (user != null) {
+            user.setStatus(status);
+            userMapper.updateById(user);
+        }
     }
 
     public void deleteUser(Long id) {
@@ -86,14 +113,5 @@ public class UserService {
             throw new BusinessException("用户不存在");
         }
         userMapper.deleteById(id);
-    }
-
-    public void toggleStatus(Long id, Integer status) {
-        SysUser user = userMapper.selectById(id);
-        if (user == null) {
-            throw new BusinessException("用户不存在");
-        }
-        user.setStatus(status);
-        userMapper.updateById(user);
     }
 }

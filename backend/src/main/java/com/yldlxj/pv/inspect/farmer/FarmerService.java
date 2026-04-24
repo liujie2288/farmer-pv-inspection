@@ -209,7 +209,7 @@ public class FarmerService {
         int count = farmerMapper.countByProjectId(projectId);
         Project project = projectMapper.selectById(projectId);
         if (project != null) {
-            project.setFarmerCount(count);
+            // project.setFarmerCount(count);
             projectMapper.updateById(project);
         }
     }

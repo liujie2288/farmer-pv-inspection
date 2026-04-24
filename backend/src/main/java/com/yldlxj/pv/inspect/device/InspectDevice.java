@@ -15,4 +15,13 @@ public class InspectDevice extends BaseEntity {
     private String deviceName;
 
     private String deviceModel;
+
+    public InspectDevice() {
+    }
+
+    public InspectDevice(Long projectId, String deviceName, String deviceModel) {
+        this.projectId = projectId;
+        this.deviceName = deviceName;
+        this.deviceModel = deviceModel;
+    }
 }

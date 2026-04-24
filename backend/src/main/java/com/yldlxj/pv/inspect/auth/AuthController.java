@@ -25,7 +25,6 @@ import javax.validation.Valid;
 public class AuthController {
 
     private final JwtUtil jwtUtil;
-    private final AuthService authService;
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
 
@@ -91,13 +90,13 @@ public class AuthController {
             return ApiResponse.error(456, "原密码错误");
         }
 
-        authService.changePassword(user.getId(), dto.getNewPassword());
+        userService.changePassword(user.getId(), dto.getNewPassword());
         return ApiResponse.success();
     }
 
     @PostMapping("/reset-password")
     public ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordDto dto) {
-        authService.resetPassword(dto.getUserId());
+        userService.resetPassword(dto.getUserId());
         return ApiResponse.success();
     }
 }

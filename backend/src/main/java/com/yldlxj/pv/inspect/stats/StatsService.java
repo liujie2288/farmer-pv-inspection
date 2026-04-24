@@ -25,7 +25,7 @@ public class StatsService {
     public Map<String, Object> getGlobalStats() {
         List<Project> projects = projectMapper.selectList(null);
         int totalProjects = projects.size();
-        int totalFarmers = projects.stream().mapToInt(Project::getFarmerCount).sum();
+        int totalFarmers = 0;
 
         // Count inspected farmers globally
         Long totalInspected = 0L;

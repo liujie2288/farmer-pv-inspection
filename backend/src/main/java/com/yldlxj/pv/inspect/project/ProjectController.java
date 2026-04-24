@@ -1,14 +1,19 @@
 package com.yldlxj.pv.inspect.project;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yldlxj.pv.inspect.common.ApiResponse;
+import com.yldlxj.pv.inspect.common.PageDto;
+import com.yldlxj.pv.inspect.convert.ProjectConvert;
 import com.yldlxj.pv.inspect.project.dto.ProjectDto;
+import com.yldlxj.pv.inspect.project.dto.ProjectViewVo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/projects")
@@ -18,11 +23,22 @@ public class ProjectController {
     private final ProjectService projectService;
 
     @GetMapping
-    public ApiResponse<IPage<Project>> listProjects(
+    public ApiResponse<PageDto<ProjectViewVo>> listProjects(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String projectName) {
-        return ApiResponse.success(projectService.listProjects(page, size, projectName));
+
+        Page<Project> projectPage = projectService.listProjects(page, size, projectName);
+
+        return ApiResponse.success(PageDto.of(ProjectConvert.INSTANCE.toVoList(projectPage.getRecords()),
+                projectPage.getTotal(),
+                projectPage.getCurrent(),
+                projectPage.getSize()));
+    }
+
+    @GetMapping("/{id}")
+    public ApiResponse<ProjectViewVo> getProject(@PathVariable Long id) {
+        return ApiResponse.success(projectService.getProjectById(id));
     }
 
     @PostMapping

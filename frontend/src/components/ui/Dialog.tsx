@@ -119,7 +119,7 @@ function DialogContainer() {
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={closeTop} />
-      <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl relative animate-[fade-in_0.2s_ease-out]" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl relative animate-[fade-in_0.2s_ease-out] max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={closeTop}
           className="absolute top-3 right-3 p-1 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-400 hover:text-gray-600"
@@ -128,10 +128,10 @@ function DialogContainer() {
           <X size={18} />
         </button>
         {dialog.title && (
-          <h3 className="text-lg font-bold text-navy mb-4 pr-6">{dialog.title}</h3>
+          <h3 className="text-lg font-bold text-navy mb-4 pr-6 shrink-0">{dialog.title}</h3>
         )}
-        <div className="text-sm text-gray-600 mb-6">{dialog.content}</div>
-        <div className="flex gap-3 justify-end">
+        <div className="text-sm text-gray-600 mb-6 overflow-y-auto flex-1 min-h-0">{dialog.content}</div>
+        <div className="flex gap-3 justify-end shrink-0">
           {dialog.actions?.map((action, i) => (
             <button
               key={i}

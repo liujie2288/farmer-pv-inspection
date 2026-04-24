@@ -19,6 +19,7 @@ import LoginPage from '@/pages/login/LoginPage';
 import ProfilePage from '@/pages/profile/ProfilePage';
 import UserListPage from '@/pages/admin/UserList/UserListPage';
 import ProjectListPage from '@/pages/admin/ProjectList/ProjectListPage';
+import ProjectFormPage from '@/pages/admin/ProjectForm/ProjectFormPage';
 import FarmerListPage from '@/pages/admin/FarmerList/FarmerListPage';
 import FarmerDetailPage from '@/pages/admin/FarmerList/FarmerDetailPage';
 import PlanListPage from '@/pages/admin/PlanList/PlanListPage';
@@ -53,6 +54,8 @@ function AdminRoutes() {
           {useRoutes([
             { path: '/', element: <DashboardPage /> },
             { path: '/projects', element: <ProjectListPage /> },
+            { path: '/projects/new', element: <ProjectFormPage /> },
+            { path: '/projects/:projectId/edit', element: <ProjectFormPage /> },
             { path: '/projects/:projectId/farmers', element: <FarmerListPage /> },
             { path: '/projects/:projectId/farmers/:farmerId', element: <FarmerDetailPage /> },
             { path: '/plans', element: <PlanListPage /> },

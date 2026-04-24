@@ -20,7 +20,4 @@ public class UserUpdateDto {
 
     @NotBlank(message = "角色不能为空")
     private String role;
-
-    @NotNull(message = "状态不能为空")
-    private Integer status;
 }

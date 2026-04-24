@@ -12,31 +12,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AuthService {
 
-    private final SysUserMapper userMapper;
-    private final PasswordEncoder passwordEncoder;
-
-    private static final String DEFAULT_PASSWORD = "123456";
-
-    public void changePassword(Long userId, String password) {
-        SysUser sysUser = userMapper.selectById(userId);
-        if (sysUser != null) {
-            sysUser.setPassword(passwordEncoder.encode(password));
-            sysUser.setNeedResetPwd(false);
-            userMapper.updateById(sysUser);
-        }
-    }
-
-    public void resetPassword(Long userId) {
-        SysUser user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new BusinessException("用户不存在");
-        }
-
-        user.setPassword(passwordEncoder.encode(DEFAULT_PASSWORD));
-        user.setNeedResetPwd(true);
-        userMapper.updateById(user);
-    }
-
     public Long getCurrentUserId() {
         SysUser user = SecurityUtils.getCurrentUser();
         if (user == null) {
