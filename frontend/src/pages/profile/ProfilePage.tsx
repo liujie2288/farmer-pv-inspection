@@ -94,6 +94,7 @@ function ProfilePage() {
             changePassword({ oldPassword: oldPwd, newPassword: newPwd })
               .then(() => {
                 showToast({ icon: 'success', content: '密码修改成功' });
+                getCurrentUser().then(res => setUser(res.data)).catch(() => {});
                 closeRef.current?.();
               })
               .catch((e: any) => {
@@ -156,22 +157,24 @@ function ProfilePage() {
             <h2 className="text-sm font-semibold text-navy">账号设置</h2>
           </div>
           <div className="divide-y divide-gray-50">
-            <button
-              onClick={openChangePasswordDialog}
-              className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-            >
-              <div className="flex items-center gap-2.5 text-sm text-gray-700">
-                <KeyRound size={16} className="text-gray-400" />
-                <span>修改密码</span>
-              </div>
-              <ChevronRight size={16} className="text-gray-400" />
-            </button>
+            <div className={user?.needResetPwd ? 'border-2 border-red-500 m-1 rounded-lg animate-[blink-border_2s_ease-in-out_infinite]' : ''}>
+              <button
+                onClick={openChangePasswordDialog}
+                className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center gap-2.5 text-sm text-gray-700">
+                  <KeyRound size={16} className="text-gray-400" />
+                  <span>修改密码</span>
+                </div>
+                <ChevronRight size={16} className="text-gray-400" />
+              </button>
+            </div>
             <button
               onClick={handleLogout}
               className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
             >
-              <div className="flex items-center gap-2.5 text-sm text-red-600">
-                <LogOut size={16} />
+              <div className="flex items-center gap-2.5 text-sm text-gray-700">
+                <LogOut size={16} className="text-gray-400" />
                 <span>退出登录</span>
               </div>
               <ChevronRight size={16} className="text-gray-400" />

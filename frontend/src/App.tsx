@@ -1,6 +1,7 @@
-import React from 'react';
-import { useRoutes, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useRoutes, Navigate, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
+import { showToast } from '@/components/ui/Toast';
 import { RoleGuard } from '@/router';
 import AppShell from '@/components/layout/AppShell';
 import {
@@ -92,6 +93,14 @@ function InspectorRoutes() {
 
 function App() {
   const user = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user?.needResetPwd && !window.location.pathname.endsWith('/profile')) {
+      navigate(user.role === 'admin' ? '/admin/profile' : '/profile', { replace: true });
+      showToast({ icon: 'warning', content: '请先修改密码' });
+    }
+  }, [user?.needResetPwd]);
 
   const routes = useRoutes([
     { path: '/login', element: user ? <Navigate to={user.role === 'admin' ? '/admin' : '/'} replace /> : <LoginPage /> },

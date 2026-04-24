@@ -3,6 +3,8 @@ import { X, LogOut, User } from 'lucide-react';
 import { useSidebar } from './SidebarContext';
 import { useAuthStore } from '@/store/authStore';
 import { useNavigate } from 'react-router-dom';
+import { getCurrentUser } from '@/api/auth';
+import { showToast } from '@/components/ui/Toast';
 import type { LucideIcon } from 'lucide-react';
 
 export interface MenuItem {
@@ -17,12 +19,24 @@ interface SidebarProps {
 
 export default function Sidebar({ menuItems }: SidebarProps) {
   const { isOpen, close, isDesktop } = useSidebar();
-  const { user, logout } = useAuthStore();
+  const { user, logout, setUser } = useAuthStore();
   const navigate = useNavigate();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleMenuClick = () => {
+    close();
+    getCurrentUser().then(res => {
+      const u = res.data;
+      setUser(u);
+      if (u.needResetPwd) {
+        navigate(u.role === 'admin' ? '/admin/profile' : '/profile', { replace: true });
+        showToast({ icon: 'warning', content: '请先修改密码' });
+      }
+    }).catch(() => {});
   };
 
   const navContent = (
@@ -56,7 +70,7 @@ export default function Sidebar({ menuItems }: SidebarProps) {
             key={item.path}
             to={item.path}
             end
-            onClick={close}
+            onClick={handleMenuClick}
             className={({ isActive }) =>
               `flex items-center gap-3 px-6 py-3 text-sm transition-colors ${
                 isActive
