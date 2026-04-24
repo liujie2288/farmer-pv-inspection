@@ -45,9 +45,6 @@ export default function TopBar({ title = '光伏巡检系统' }: TopBarProps) {
             </div>
             <div className="text-sm">
               <span className="font-medium">{user.realName}</span>
-              <span className="ml-2 text-white/60 text-xs">
-                {user.role === 'admin' ? '管理员' : '巡检员'}
-              </span>
             </div>
             <button
               onClick={handleLogout}

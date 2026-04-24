@@ -133,7 +133,8 @@
       "Read(//c/ProgramData/**)",
       "Read(//c//**)",
       "Bash(tail -30 \"C:\\\\\\\\Users\\\\\\\\ADMINI~1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\D--MyCode-farmer-pv-inspection\\\\\\\\8936a1b0-aab7-4df2-8947-7cb8724a8db5\\\\\\\\tasks\\\\\\\\b2pt5ioeg.output\")",
-      "Bash(tail -30 \"C:\\\\\\\\Users\\\\\\\\ADMINI~1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\D--MyCode-farmer-pv-inspection\\\\\\\\8936a1b0-aab7-4df2-8947-7cb8724a8db5\\\\\\\\tasks\\\\\\\\b6sgrnug7.output\")"
+      "Bash(tail -30 \"C:\\\\\\\\Users\\\\\\\\ADMINI~1\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\claude\\\\\\\\D--MyCode-farmer-pv-inspection\\\\\\\\8936a1b0-aab7-4df2-8947-7cb8724a8db5\\\\\\\\tasks\\\\\\\\b6sgrnug7.output\")",
+      "Bash(npm -v)"
     ]
   }
 }

@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff, Zap, ShieldCheck } from 'lucide-react';
-import { login, changePassword } from '@/api/auth';
+import { login, getCurrentUser, changePassword } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 import { showToast } from '@/components/ui/Toast';
 
 function LoginPage() {
   const navigate = useNavigate();
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const setUser = useAuthStore((s) => s.setUser);
   const [loading, setLoading] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [loginData, setLoginData] = useState<{ username: string; password: string } | null>(null);
@@ -25,11 +25,12 @@ function LoginPage() {
     }
     setLoading(true);
     try {
-      const res = await login({ username, password });
-      const { token, ...user } = res.data;
-      setAuth(token, user);
+      await login({ username, password });
+      const userRes = await getCurrentUser();
+      const user = userRes.data;
+      setUser(user);
 
-      if (user.firstLogin) {
+      if (user.needResetPwd) {
         setLoginData({ username, password });
         setShowChangePassword(true);
         showToast({ icon: 'warning', content: '首次登录，请修改密码' });

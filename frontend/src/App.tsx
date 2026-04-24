@@ -91,11 +91,10 @@ function InspectorRoutes() {
 }
 
 function App() {
-  const token = useAuthStore((s) => s.token);
   const user = useAuthStore((s) => s.user);
 
   const routes = useRoutes([
-    { path: '/login', element: token ? <Navigate to={user?.role === 'admin' ? '/admin' : '/'} replace /> : <LoginPage /> },
+    { path: '/login', element: user ? <Navigate to={user.role === 'admin' ? '/admin' : '/'} replace /> : <LoginPage /> },
     { path: '/admin/*', element: <AdminRoutes /> },
     { path: '/*', element: <InspectorRoutes /> },
   ]);

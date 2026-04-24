@@ -7,7 +7,7 @@ export interface User {
   phone: string | null;
   role: 'admin' | 'inspector';
   status: number;
-  firstLogin: boolean;
+  needResetPwd: boolean;
   createTime: string;
 }
 
@@ -21,8 +21,7 @@ export interface PageResult<T> {
 export interface UserListParams {
   page?: number;
   size?: number;
-  username?: string;
-  realName?: string;
+  keyword?: string;
   role?: string;
   status?: number;
 }

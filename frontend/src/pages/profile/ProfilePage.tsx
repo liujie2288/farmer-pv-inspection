@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, KeyRound, LogOut, Info, ChevronRight } from 'lucide-react';
+import { KeyRound, LogOut, Info, ChevronRight, CircleUser, Contact, Phone, Shield } from 'lucide-react';
 import { changePassword } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 import { showToast } from '@/components/ui/Toast';
@@ -10,8 +9,6 @@ function ProfilePage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  const [oldPassword, setOldPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
 
   const handleLogout = async () => {
     const ok = await confirm({ content: '确定退出登录吗？' });
@@ -22,8 +19,8 @@ function ProfilePage() {
   };
 
   const openChangePasswordDialog = () => {
-    setOldPassword('');
-    setNewPassword('');
+    let oldPwd = '';
+    let newPwd = '';
     showDialog({
       title: '修改密码',
       content: (
@@ -32,8 +29,7 @@ function ProfilePage() {
             <label className="block text-xs text-gray-500 mb-1">原密码</label>
             <input
               type="password"
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
+              onChange={(e) => { oldPwd = e.target.value; }}
               placeholder="请输入原密码"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal transition-colors"
             />
@@ -42,9 +38,8 @@ function ProfilePage() {
             <label className="block text-xs text-gray-500 mb-1">新密码</label>
             <input
               type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="请输入新密码（至少6位）"
+              onChange={(e) => { newPwd = e.target.value; }}
+              placeholder="至少6位，需包含字母和数字"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal transition-colors"
             />
           </div>
@@ -55,27 +50,30 @@ function ProfilePage() {
         {
           label: '确定',
           primary: true,
-          onClick: handleChangePassword,
+          onClick: () => {
+            if (!oldPwd || !newPwd) {
+              showToast({ icon: 'fail', content: '请填写完整' });
+              return false;
+            }
+            if (newPwd.length < 6) {
+              showToast({ icon: 'fail', content: '新密码至少6位' });
+              return false;
+            }
+            if (!/[a-zA-Z]/.test(newPwd) || !/[0-9]/.test(newPwd)) {
+              showToast({ icon: 'fail', content: '密码必须包含字母和数字' });
+              return false;
+            }
+            if (oldPwd === newPwd) {
+              showToast({ icon: 'fail', content: '新密码不能与原密码相同' });
+              return false;
+            }
+            changePassword({ oldPassword: oldPwd, newPassword: newPwd })
+              .then(() => showToast({ icon: 'success', content: '密码修改成功' }))
+              .catch((e: any) => showToast({ icon: 'fail', content: e.message || '修改失败' }));
+          },
         },
       ],
     });
-  };
-
-  const handleChangePassword = async () => {
-    if (!oldPassword || !newPassword) {
-      showToast({ icon: 'fail', content: '请填写完整' });
-      return;
-    }
-    if (newPassword.length < 6) {
-      showToast({ icon: 'fail', content: '新密码至少6位' });
-      return;
-    }
-    try {
-      await changePassword({ oldPassword, newPassword });
-      showToast({ icon: 'success', content: '密码修改成功' });
-    } catch (e: any) {
-      showToast({ icon: 'fail', content: e.message || '修改失败' });
-    }
   };
 
   const roleLabel = user?.role === 'admin' ? '管理员' : '巡检员';
@@ -91,21 +89,28 @@ function ProfilePage() {
           <div className="divide-y divide-gray-50">
             <div className="flex items-center justify-between px-4 py-3.5">
               <div className="flex items-center gap-2.5 text-sm text-gray-500">
-                <User size={16} className="text-gray-400" />
-                <span>姓名</span>
-              </div>
-              <span className="text-sm font-medium text-gray-900">{user?.realName}</span>
-            </div>
-            <div className="flex items-center justify-between px-4 py-3.5">
-              <div className="flex items-center gap-2.5 text-sm text-gray-500">
-                <User size={16} className="text-gray-400" />
+                <CircleUser size={16} className="text-gray-400" />
                 <span>账号</span>
               </div>
               <span className="text-sm font-medium text-gray-900">{user?.username}</span>
             </div>
             <div className="flex items-center justify-between px-4 py-3.5">
               <div className="flex items-center gap-2.5 text-sm text-gray-500">
-                <User size={16} className="text-gray-400" />
+                <Contact size={16} className="text-gray-400" />
+                <span>姓名</span>
+              </div>
+              <span className="text-sm font-medium text-gray-900">{user?.realName}</span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-3.5">
+              <div className="flex items-center gap-2.5 text-sm text-gray-500">
+                <Phone size={16} className="text-gray-400" />
+                <span>电话</span>
+              </div>
+              <span className="text-sm font-medium text-gray-900">{user?.phone || '-'}</span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-3.5">
+              <div className="flex items-center gap-2.5 text-sm text-gray-500">
+                <Shield size={16} className="text-gray-400" />
                 <span>角色</span>
               </div>
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal/10 text-teal">

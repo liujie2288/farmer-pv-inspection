@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, Pencil, Users, Phone, Shield } from 'lucide-react';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
-import { listUsers, createUser, updateUser, deleteUser, toggleUserStatus, User } from '@/api/users';
+import { listUsers, createUser, updateUser, toggleUserStatus, User } from '@/api/users';
 import { resetPassword } from '@/api/auth';
 import { showToast } from '@/components/ui/Toast';
 import { showDialog, confirm } from '@/components/ui/Dialog';
@@ -49,7 +49,7 @@ function UserListPage() {
         const res = await listUsers({
           page: p,
           size: 20,
-          username: searchText || undefined,
+          keyword: searchText || undefined,
         });
         const records = res.data.records;
         setUsers(prev => (append ? [...prev, ...records] : records));
@@ -76,7 +76,9 @@ function UserListPage() {
   /* ---- create dialog ---- */
 
   const openCreateDialog = async () => {
-    const form: CreateForm = { ...emptyCreateForm };
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+    const form: CreateForm = { ...emptyCreateForm, password: dateStr };
 
     const updateField = (field: keyof CreateForm, value: string) => {
       form[field] = value;
@@ -92,21 +94,23 @@ function UserListPage() {
             </span>
             <input
               type="text"
-              placeholder="请输入用户名"
+              maxLength={30}
+              placeholder="请输入用户名（最多30字符）"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
               onChange={e => updateField('username', e.target.value)}
             />
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-sm font-medium text-gray-700">
-              密码 <span className="text-red-500">*</span>
+              初始密码
             </span>
             <input
-              type="password"
-              placeholder="请输入密码（至少6位）"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+              type="text"
+              defaultValue={dateStr}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
               onChange={e => updateField('password', e.target.value)}
             />
+            <span className="text-xs text-gray-400">默认为当前日期，用户首次登录需修改密码</span>
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-sm font-medium text-gray-700">
@@ -114,7 +118,8 @@ function UserListPage() {
             </span>
             <input
               type="text"
-              placeholder="请输入真实姓名"
+              maxLength={20}
+              placeholder="请输入真实姓名（最多20字符）"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
               onChange={e => updateField('realName', e.target.value)}
             />
@@ -123,7 +128,8 @@ function UserListPage() {
             <span className="text-sm font-medium text-gray-700">联系电话</span>
             <input
               type="text"
-              placeholder="请输入联系电话"
+              maxLength={20}
+              placeholder="请输入联系电话（最多20字符）"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
               onChange={e => updateField('phone', e.target.value)}
             />
@@ -149,22 +155,36 @@ function UserListPage() {
         {
           label: '创建',
           primary: true,
-          onClick: async () => {
+          onClick: () => {
             if (!form.username || !form.password || !form.realName || !form.role) {
               showToast({ icon: 'warning', content: '请填写完整信息' });
-              return;
+              return false;
             }
-            if (form.password.length < 6) {
-              showToast({ icon: 'fail', content: '密码至少6位' });
-              return;
+            if (!/^[a-z0-9_]{2,30}$/.test(form.username)) {
+              showToast({ icon: 'fail', content: '用户名只能包含小写字母、数字和下划线，2-30个字符' });
+              return false;
             }
-            try {
-              await createUser(form);
-              showToast({ icon: 'success', content: '创建成功' });
-              loadUsers(1);
-            } catch (e: any) {
-              showToast({ icon: 'fail', content: e.message || '创建失败' });
+            if (form.realName.length > 20) {
+              showToast({ icon: 'fail', content: '真实姓名最多20个字符' });
+              return false;
             }
+            if (form.phone && form.phone.length > 20) {
+              showToast({ icon: 'fail', content: '联系电话最多20个字符' });
+              return false;
+            }
+            if (form.phone && !/^[\d\s\-()+]+$/.test(form.phone)) {
+              showToast({ icon: 'fail', content: '联系电话只能包含数字、空格、-、()、+' });
+              return false;
+            }
+            createUser(form)
+              .then(() => {
+                showToast({ icon: 'success', content: '创建成功' });
+                loadUsers(1);
+              })
+              .catch((e: any) => {
+                showToast({ icon: 'fail', content: e.message || '创建失败' });
+                return false;
+              });
           },
         },
       ],
@@ -185,7 +205,10 @@ function UserListPage() {
       (form as any)[field] = value;
     };
 
+    const closeRef: { current?: () => void } = {};
+
     await showDialog({
+      closeRef,
       title: '编辑用户',
       content: (
         <div className="flex flex-col gap-4">
@@ -195,6 +218,7 @@ function UserListPage() {
             </span>
             <input
               type="text"
+              maxLength={20}
               defaultValue={user.realName}
               placeholder="请输入真实姓名"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
@@ -205,6 +229,7 @@ function UserListPage() {
             <span className="text-sm font-medium text-gray-700">联系电话</span>
             <input
               type="text"
+              maxLength={20}
               defaultValue={user.phone || ''}
               placeholder="请输入联系电话"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
@@ -222,37 +247,9 @@ function UserListPage() {
               <option value="inspector">巡检员</option>
             </select>
           </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-gray-700">状态</span>
-            <select
-              defaultValue={String(user.status)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
-              onChange={e => updateField('status', Number(e.target.value))}
-            >
-              <option value="1">启用</option>
-              <option value="0">禁用</option>
-            </select>
-          </label>
 
           {/* Danger zone */}
           <div className="flex gap-2 pt-2 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={async () => {
-                const ok = await confirm({ content: `确定删除用户"${user.realName}"吗？` });
-                if (!ok) return;
-                try {
-                  await deleteUser(user.id);
-                  showToast({ icon: 'success', content: '删除成功' });
-                  loadUsers(1);
-                } catch (e: any) {
-                  showToast({ icon: 'fail', content: e.message || '删除失败' });
-                }
-              }}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-            >
-              删除用户
-            </button>
             <button
               type="button"
               onClick={async () => {
@@ -261,6 +258,7 @@ function UserListPage() {
                 try {
                   await resetPassword(user.id);
                   showToast({ icon: 'success', content: '密码已重置' });
+                  closeRef.current?.();
                 } catch (e: any) {
                   showToast({ icon: 'fail', content: e.message || '重置失败' });
                 }
@@ -277,6 +275,7 @@ function UserListPage() {
                   await toggleUserStatus(user.id, newStatus);
                   showToast({ icon: 'success', content: newStatus === 1 ? '已启用' : '已禁用' });
                   loadUsers(1);
+                  closeRef.current?.();
                 } catch (e: any) {
                   showToast({ icon: 'fail', content: e.message || '操作失败' });
                 }
@@ -297,18 +296,24 @@ function UserListPage() {
         {
           label: '保存',
           primary: true,
-          onClick: async () => {
+          onClick: () => {
             if (!form.realName || !form.role) {
               showToast({ icon: 'warning', content: '请填写完整信息' });
-              return;
+              return false;
             }
-            try {
-              await updateUser(user.id, form);
-              showToast({ icon: 'success', content: '修改成功' });
-              loadUsers(1);
-            } catch (e: any) {
-              showToast({ icon: 'fail', content: e.message || '修改失败' });
+            if (form.phone && !/^[\d\s\-()+]+$/.test(form.phone)) {
+              showToast({ icon: 'fail', content: '联系电话只能包含数字、空格、-、()、+' });
+              return false;
             }
+            updateUser(user.id, form)
+              .then(() => {
+                showToast({ icon: 'success', content: '修改成功' });
+                loadUsers(1);
+              })
+              .catch((e: any) => {
+                showToast({ icon: 'fail', content: e.message || '修改失败' });
+                return false;
+              });
           },
         },
       ],
@@ -344,7 +349,7 @@ function UserListPage() {
             type="text"
             value={searchText}
             onChange={e => setSearchText(e.target.value)}
-            placeholder="搜索用户名"
+            placeholder="搜索用户名/姓名/手机号"
             className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
           />
         </div>

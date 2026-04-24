@@ -9,9 +9,8 @@ interface RoleGuardProps {
 
 export function RoleGuard({ children, role }: RoleGuardProps) {
     const user = useAuthStore((s) => s.user);
-    const token = useAuthStore((s) => s.token);
 
-    if (!token || !user) {
+    if (!user) {
         return <Navigate to="/login" replace />;
     }
     if (user.role !== role) {
@@ -21,8 +20,8 @@ export function RoleGuard({ children, role }: RoleGuardProps) {
 }
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-    const token = useAuthStore((s) => s.token);
-    if (!token) {
+    const user = useAuthStore((s) => s.user);
+    if (!user) {
         return <Navigate to="/login" replace />;
     }
     return <>{children}</>;

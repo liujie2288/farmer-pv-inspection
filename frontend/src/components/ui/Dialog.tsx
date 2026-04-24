@@ -6,13 +6,14 @@ interface DialogAction {
   label: string;
   primary?: boolean;
   danger?: boolean;
-  onClick: () => void;
+  onClick: () => boolean | void;
 }
 
 interface DialogConfig {
   title?: string;
   content: React.ReactNode;
   actions?: DialogAction[];
+  closeRef?: { current?: () => void };
 }
 
 interface DialogInstance extends DialogConfig {
@@ -32,7 +33,8 @@ function wrapWithClose(actions: DialogAction[], close: () => void): DialogAction
   return actions.map(action => ({
     ...action,
     onClick: () => {
-      action.onClick();
+      const result = action.onClick();
+      if (result === false) return;
       close();
     },
   }));
@@ -45,6 +47,7 @@ export function showDialog(config: DialogConfig): Promise<void> {
       notify(currentDialogs.filter(d => d.id !== id));
       resolve();
     };
+    if (config.closeRef) config.closeRef.current = close;
     const actions = config.actions
       ? wrapWithClose(config.actions, close)
       : [
@@ -116,7 +119,7 @@ function DialogContainer() {
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={closeTop} />
-      <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl relative animate-[fade-in_0.2s_ease-out]">
+      <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl relative animate-[fade-in_0.2s_ease-out]" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={closeTop}
           className="absolute top-3 right-3 p-1 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-400 hover:text-gray-600"

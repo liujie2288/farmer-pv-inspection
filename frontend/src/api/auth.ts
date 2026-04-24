@@ -5,13 +5,13 @@ export interface LoginParams {
   password: string;
 }
 
-export interface LoginResult {
-  token: string;
-  userId: number;
+export interface UserInfo {
+  id: number;
   username: string;
   realName: string;
+  phone: string;
   role: 'admin' | 'inspector';
-  firstLogin: boolean;
+  needResetPwd: boolean;
 }
 
 export interface ChangePasswordParams {
@@ -20,7 +20,11 @@ export interface ChangePasswordParams {
 }
 
 export function login(params: LoginParams) {
-  return client.post<any, { code: number; data: LoginResult }>('/auth/login', params);
+  return client.post<any, { code: number }>('/auth/login', params);
+}
+
+export function getCurrentUser() {
+  return client.get<any, { code: number; data: UserInfo }>('/auth/me');
 }
 
 export function changePassword(params: ChangePasswordParams) {
@@ -29,4 +33,8 @@ export function changePassword(params: ChangePasswordParams) {
 
 export function resetPassword(userId: number) {
   return client.post<any, { code: number }>('/auth/reset-password', { userId });
+}
+
+export function logout() {
+  return client.post<any, { code: number }>('/auth/logout');
 }
