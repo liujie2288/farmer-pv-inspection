@@ -4,13 +4,16 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yldlxj.pv.inspect.common.BusinessException;
+import com.yldlxj.pv.inspect.device.InspectDevice;
+import com.yldlxj.pv.inspect.device.InspectDeviceMapper;
 import com.yldlxj.pv.inspect.farmer.FarmerMapper;
 import com.yldlxj.pv.inspect.project.dto.ProjectDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -18,6 +21,7 @@ public class ProjectService {
 
     private final ProjectMapper projectMapper;
     private final FarmerMapper farmerMapper;
+    private final InspectDeviceMapper deviceMapper;
 
     public IPage<Project> listProjects(int page, int size, String projectName) {
         LambdaQueryWrapper<Project> wrapper = new LambdaQueryWrapper<>();
@@ -28,6 +32,7 @@ public class ProjectService {
         return projectMapper.selectPage(new Page<>(page, size), wrapper);
     }
 
+    @Transactional
     public Long createProject(ProjectDto dto) {
         Long count = projectMapper.selectCount(
                 new LambdaQueryWrapper<Project>().eq(Project::getProjectName, dto.getProjectName())
@@ -40,11 +45,26 @@ public class ProjectService {
         project.setProjectName(dto.getProjectName());
         project.setPropertyCompany(dto.getPropertyCompany());
         project.setStationType(dto.getStationType());
-        project.setFarmerCount(0);
+        project.setProvince(dto.getProvince());
+        project.setCity(dto.getCity());
+        project.setDroneCertificateUrl(dto.getDroneCertificateUrl());
+        project.setSpecialOperationCertUrl(dto.getSpecialOperationCertUrl());
         projectMapper.insert(project);
+
+        if (dto.getDevices() != null) {
+            for (ProjectDto.DeviceItem item : dto.getDevices()) {
+                InspectDevice device = new InspectDevice();
+                device.setProjectId(project.getId());
+                device.setDeviceName(item.getDeviceName());
+                device.setDeviceModel(item.getDeviceModel());
+                deviceMapper.insert(device);
+            }
+        }
+
         return project.getId();
     }
 
+    @Transactional
     public void updateProject(Long id, ProjectDto dto) {
         Project project = projectMapper.selectById(id);
         if (project == null) {
@@ -64,9 +84,43 @@ public class ProjectService {
         project.setProjectName(dto.getProjectName());
         project.setPropertyCompany(dto.getPropertyCompany());
         project.setStationType(dto.getStationType());
+        project.setProvince(dto.getProvince());
+        project.setCity(dto.getCity());
+        project.setDroneCertificateUrl(dto.getDroneCertificateUrl());
+        project.setSpecialOperationCertUrl(dto.getSpecialOperationCertUrl());
         projectMapper.updateById(project);
+
+        // Sync devices: items with id → update, items without id → insert, missing ids → delete
+        List<InspectDevice> existing = deviceMapper.selectList(
+            new LambdaQueryWrapper<InspectDevice>().eq(InspectDevice::getProjectId, id)
+        );
+        Set<Long> existingIds = existing.stream().map(InspectDevice::getId).collect(Collectors.toSet());
+        Set<Long> submittedIds = new HashSet<>();
+
+        if (dto.getDevices() != null) {
+            for (ProjectDto.DeviceItem item : dto.getDevices()) {
+                if (item.getId() != null) {
+                    submittedIds.add(item.getId());
+                    InspectDevice d = deviceMapper.selectById(item.getId());
+                    if (d != null && d.getProjectId().equals(id)) {
+                        d.setDeviceName(item.getDeviceName());
+                        d.setDeviceModel(item.getDeviceModel());
+                        deviceMapper.updateById(d);
+                    }
+                } else {
+                    InspectDevice d = new InspectDevice();
+                    d.setProjectId(id);
+                    d.setDeviceName(item.getDeviceName());
+                    d.setDeviceModel(item.getDeviceModel());
+                    deviceMapper.insert(d);
+                }
+            }
+        }
+
+        existingIds.stream().filter(iid -> !submittedIds.contains(iid)).forEach(iid -> deviceMapper.deleteById(iid));
     }
 
+    @Transactional
     public void deleteProject(Long id) {
         Project project = projectMapper.selectById(id);
         if (project == null) {
@@ -79,6 +133,7 @@ public class ProjectService {
         }
 
         projectMapper.deleteById(id);
+        deviceMapper.delete(new LambdaQueryWrapper<InspectDevice>().eq(InspectDevice::getProjectId, id));
     }
 
     public Map<String, Object> getProjectStats(Long id) {
@@ -102,6 +157,12 @@ public class ProjectService {
     }
 
     public Project getProjectById(Long id) {
-        return projectMapper.selectById(id);
+        Project project = projectMapper.selectById(id);
+        if (project != null) {
+            project.setDevices(deviceMapper.selectList(
+                new LambdaQueryWrapper<InspectDevice>().eq(InspectDevice::getProjectId, id)
+            ));
+        }
+        return project;
     }
 }

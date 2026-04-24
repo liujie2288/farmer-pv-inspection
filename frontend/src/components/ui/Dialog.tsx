@@ -6,7 +6,7 @@ interface DialogAction {
   label: string;
   primary?: boolean;
   danger?: boolean;
-  onClick: () => boolean | void;
+  onClick: () => boolean | void | Promise<boolean | void>;
 }
 
 interface DialogConfig {

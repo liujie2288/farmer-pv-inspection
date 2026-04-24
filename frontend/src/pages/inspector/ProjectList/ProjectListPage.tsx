@@ -104,7 +104,7 @@ function InspectorProjectListPage() {
                 {/* Farmer count */}
                 <div className="flex items-center gap-1.5 mt-2 text-sm text-gray-600">
                   <Users size={14} className="text-gray-400" />
-                  <span>{project.farmerCount} 户</span>
+                  <span>{project.stats?.farmerCount ?? '-'} 户</span>
                 </div>
 
                 {/* Completion rate progress bar */}

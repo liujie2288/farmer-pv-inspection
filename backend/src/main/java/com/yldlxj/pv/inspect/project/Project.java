@@ -2,8 +2,11 @@ package com.yldlxj.pv.inspect.project;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.yldlxj.pv.inspect.common.BaseEntity;
+import com.yldlxj.pv.inspect.device.InspectDevice;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+
+import java.util.List;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -16,5 +19,14 @@ public class Project extends BaseEntity {
 
     private String stationType;
 
-    private Integer farmerCount;
+    private String province;
+
+    private String city;
+
+    private String droneCertificateUrl;
+
+    private String specialOperationCertUrl;
+
+    @TableField(exist = false)
+    private List<InspectDevice> devices;
 }

@@ -5,8 +5,18 @@ export interface Project {
   projectName: string;
   propertyCompany: string;
   stationType: string;
-  farmerCount: number;
+  province: string;
+  city: string;
+  droneCertificateUrl: string;
+  specialOperationCertUrl: string;
+  devices: DeviceItem[];
   createTime: string;
+}
+
+export interface DeviceItem {
+  id?: number;
+  deviceName: string;
+  deviceModel: string;
 }
 
 export interface ProjectStats {
@@ -21,11 +31,11 @@ export function listProjects(params?: { page?: number; size?: number; projectNam
   return client.get<any, { code: number; data: { records: Project[]; total: number } }>('/projects', { params });
 }
 
-export function createProject(data: { projectName: string; propertyCompany: string; stationType: string }) {
+export function createProject(data: { projectName: string; propertyCompany: string; stationType: string; province?: string; city?: string; droneCertificateUrl?: string; specialOperationCertUrl?: string; devices?: DeviceItem[] }) {
   return client.post<any, { code: number; data: { id: number } }>('/projects', data);
 }
 
-export function updateProject(id: number, data: { projectName: string; propertyCompany: string; stationType: string }) {
+export function updateProject(id: number, data: { projectName: string; propertyCompany: string; stationType: string; province?: string; city?: string; droneCertificateUrl?: string; specialOperationCertUrl?: string; devices?: DeviceItem[] }) {
   return client.put<any, { code: number }>(`/projects/${id}`, data);
 }
 

@@ -8,22 +8,98 @@ import {
   updateProject,
   deleteProject,
   type Project,
+  type DeviceItem,
 } from '@/api/projects';
 import { showToast } from '@/components/ui/Toast';
 import { showDialog, confirm } from '@/components/ui/Dialog';
 import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
+function DeviceListEditor({ initial, onChange }: { initial: DeviceItem[]; onChange: (devices: DeviceItem[]) => void }) {
+  const [devices, setDevices] = useState<DeviceItem[]>(initial.map(d => ({ ...d })));
+  const update = (list: DeviceItem[]) => {
+    setDevices(list);
+    onChange(list);
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-gray-700">检测设备</span>
+        <button
+          type="button"
+          className="text-xs text-teal hover:text-teal-dark"
+          onClick={() => update([...devices, { deviceName: '', deviceModel: '' }])}
+        >
+          + 添加设备
+        </button>
+      </div>
+      {devices.map((d, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <input
+            type="text"
+            value={d.deviceName}
+            placeholder="设备名称"
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+            onChange={e => {
+              const list = [...devices];
+              list[i] = { ...list[i], deviceName: e.target.value };
+              update(list);
+            }}
+          />
+          <input
+            type="text"
+            value={d.deviceModel}
+            placeholder="设备型号"
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+            onChange={e => {
+              const list = [...devices];
+              list[i] = { ...list[i], deviceModel: e.target.value };
+              update(list);
+            }}
+          />
+          <button
+            type="button"
+            className="p-2 text-gray-400 hover:text-red-500 shrink-0"
+            onClick={() => update(devices.filter((_, j) => j !== i))}
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const PROVINCES = [
+  '北京', '天津', '河北', '山西', '内蒙古',
+  '辽宁', '吉林', '黑龙江', '上海', '江苏',
+  '浙江', '安徽', '福建', '江西', '山东',
+  '河南', '湖北', '湖南', '广东', '广西',
+  '海南', '重庆', '四川', '贵州', '云南',
+  '西藏', '陕西', '甘肃', '青海', '宁夏',
+  '新疆', '台湾', '香港', '澳门',
+];
+
 interface FormState {
   projectName: string;
   propertyCompany: string;
   stationType: string;
+  province: string;
+  city: string;
+  droneCertificateUrl: string;
+  specialOperationCertUrl: string;
+  devices: DeviceItem[];
 }
 
 const emptyForm: FormState = {
   projectName: '',
   propertyCompany: '',
   stationType: '',
+  province: '',
+  city: '',
+  droneCertificateUrl: '',
+  specialOperationCertUrl: '',
+  devices: [],
 };
 
 function ProjectListPage() {
@@ -69,8 +145,8 @@ function ProjectListPage() {
   const openCreateDialog = async () => {
     const form: FormState = { ...emptyForm };
 
-    const updateField = (field: keyof FormState, value: string) => {
-      form[field] = value;
+    const updateField = (field: string, value: string) => {
+      (form as any)[field] = value;
     };
 
     await showDialog({
@@ -110,6 +186,48 @@ function ProjectListPage() {
               onChange={e => updateField('stationType', e.target.value)}
             />
           </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-gray-700">省份</span>
+            <select
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+              onChange={e => updateField('province', e.target.value)}
+            >
+              <option value="">请选择省份</option>
+              {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-gray-700">城市</span>
+            <input
+              type="text"
+              placeholder="请输入城市"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+              onChange={e => updateField('city', e.target.value)}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-gray-700">民用无人机驾驶合格证</span>
+            <input
+              type="text"
+              placeholder="图片URL地址"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+              onChange={e => updateField('droneCertificateUrl', e.target.value)}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-gray-700">特种作业操作证</span>
+            <input
+              type="text"
+              placeholder="图片URL地址"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+              onChange={e => updateField('specialOperationCertUrl', e.target.value)}
+            />
+          </label>
+          {/* 检测设备 */}
+          <DeviceListEditor
+            initial={[]}
+            onChange={list => { form.devices = list; }}
+          />
         </div>
       ),
       actions: [
@@ -140,10 +258,15 @@ function ProjectListPage() {
       projectName: project.projectName,
       propertyCompany: project.propertyCompany,
       stationType: project.stationType,
+      province: project.province || '',
+      city: project.city || '',
+      droneCertificateUrl: project.droneCertificateUrl || '',
+      specialOperationCertUrl: project.specialOperationCertUrl || '',
+      devices: (project.devices || []).map(d => ({ ...d })),
     };
 
-    const updateField = (field: keyof FormState, value: string) => {
-      form[field] = value;
+    const updateField = (field: string, value: string) => {
+      (form as any)[field] = value;
     };
 
     await showDialog({
@@ -186,6 +309,51 @@ function ProjectListPage() {
               onChange={e => updateField('stationType', e.target.value)}
             />
           </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-gray-700">省份</span>
+            <select
+              defaultValue={project.province || ''}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+              onChange={e => updateField('province', e.target.value)}
+            >
+              <option value="">请选择省份</option>
+              {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-gray-700">城市</span>
+            <input
+              type="text"
+              defaultValue={project.city || ''}
+              placeholder="请输入城市"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+              onChange={e => updateField('city', e.target.value)}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-gray-700">民用无人机驾驶合格证</span>
+            <input
+              type="text"
+              defaultValue={project.droneCertificateUrl || ''}
+              placeholder="图片URL地址"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+              onChange={e => updateField('droneCertificateUrl', e.target.value)}
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-medium text-gray-700">特种作业操作证</span>
+            <input
+              type="text"
+              defaultValue={project.specialOperationCertUrl || ''}
+              placeholder="图片URL地址"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+              onChange={e => updateField('specialOperationCertUrl', e.target.value)}
+            />
+          </label>
+          <DeviceListEditor
+            initial={project.devices || []}
+            onChange={list => { form.devices = list; }}
+          />
         </div>
       ),
       actions: [
@@ -300,9 +468,11 @@ function ProjectListPage() {
                       {p.propertyCompany} &middot; {p.stationType}
                     </p>
                     <div className="mt-3 flex items-center gap-3">
-                      <span className="inline-flex items-center rounded-full bg-teal/10 px-2.5 py-0.5 text-xs font-medium text-teal">
-                        农户: {p.farmerCount ?? 0}
-                      </span>
+                      {p.province && (
+                        <span className="inline-flex items-center rounded-full bg-teal/10 px-2.5 py-0.5 text-xs font-medium text-teal">
+                          {[p.province, p.city].filter(Boolean).join(' · ')}
+                        </span>
+                      )}
                       {p.createTime && (
                         <span className="text-xs text-gray-400">
                           {p.createTime.substring(0, 10)}
