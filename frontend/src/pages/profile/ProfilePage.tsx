@@ -1,14 +1,22 @@
 import { useNavigate } from 'react-router-dom';
 import { KeyRound, LogOut, Info, ChevronRight, CircleUser, Contact, Phone, Shield } from 'lucide-react';
-import { changePassword } from '@/api/auth';
+import { changePassword, getCurrentUser } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 import { showToast } from '@/components/ui/Toast';
 import { confirm, showDialog } from '@/components/ui/Dialog';
+import { useEffect } from 'react';
 
 function ProfilePage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const setUser = useAuthStore((s) => s.setUser);
   const logout = useAuthStore((s) => s.logout);
+
+  useEffect(() => {
+    getCurrentUser()
+      .then(res => setUser(res.data))
+      .catch(() => {});
+  }, []);
 
   const handleLogout = async () => {
     const ok = await confirm({ content: '确定退出登录吗？' });
@@ -21,7 +29,10 @@ function ProfilePage() {
   const openChangePasswordDialog = () => {
     let oldPwd = '';
     let newPwd = '';
+    let confirmPwd = '';
+    const closeRef: { current?: () => void } = {};
     showDialog({
+      closeRef,
       title: '修改密码',
       content: (
         <div className="space-y-4">
@@ -43,6 +54,15 @@ function ProfilePage() {
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal transition-colors"
             />
           </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">确认新密码</label>
+            <input
+              type="password"
+              onChange={(e) => { confirmPwd = e.target.value; }}
+              placeholder="请再次输入新密码"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal transition-colors"
+            />
+          </div>
         </div>
       ),
       actions: [
@@ -51,7 +71,7 @@ function ProfilePage() {
           label: '确定',
           primary: true,
           onClick: () => {
-            if (!oldPwd || !newPwd) {
+            if (!oldPwd || !newPwd || !confirmPwd) {
               showToast({ icon: 'fail', content: '请填写完整' });
               return false;
             }
@@ -67,9 +87,19 @@ function ProfilePage() {
               showToast({ icon: 'fail', content: '新密码不能与原密码相同' });
               return false;
             }
+            if (newPwd !== confirmPwd) {
+              showToast({ icon: 'fail', content: '两次输入的新密码不一致' });
+              return false;
+            }
             changePassword({ oldPassword: oldPwd, newPassword: newPwd })
-              .then(() => showToast({ icon: 'success', content: '密码修改成功' }))
-              .catch((e: any) => showToast({ icon: 'fail', content: e.message || '修改失败' }));
+              .then(() => {
+                showToast({ icon: 'success', content: '密码修改成功' });
+                closeRef.current?.();
+              })
+              .catch((e: any) => {
+                showToast({ icon: 'fail', content: e.message || '修改失败' });
+              });
+            return false;
           },
         },
       ],

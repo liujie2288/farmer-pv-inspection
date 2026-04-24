@@ -82,7 +82,16 @@ public class AuthController {
 
     @PostMapping("/change-password")
     public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordDto dto) {
-        authService.changePassword(dto);
+        SysUser user = SecurityUtils.getCurrentUser();
+        if (user == null) {
+            return ApiResponse.error(401, "登录已过期，请重新登录");
+        } else if (dto.getNewPassword().equals(user.getPassword())) {
+            return ApiResponse.error(456, "新密码不能与原密码相同");
+        } else if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
+            return ApiResponse.error(456, "原密码错误");
+        }
+
+        authService.changePassword(user.getId(), dto.getNewPassword());
         return ApiResponse.success();
     }
 

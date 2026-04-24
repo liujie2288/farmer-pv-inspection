@@ -23,10 +23,15 @@ client.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      if (!error.config.url?.startsWith('/auth/')) {
+      const url = error.config.url || '';
+      if (!url.startsWith('/auth/login')) {
         useAuthStore.getState().logout();
         window.location.href = '/login';
       }
+    }
+    if (error.response?.status === 403) {
+      const message = error.response?.data?.message || '无权限访问';
+      return Promise.reject(new Error(message));
     }
     const message = error.response?.data?.message || '网络错误，请稍后重试';
     return Promise.reject(new Error(message));
