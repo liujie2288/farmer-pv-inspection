@@ -7,6 +7,7 @@ import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { showToast } from '@/components/ui/Toast';
 import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import StatusTag from '@/components/ui/StatusTag';
 
 type FilterStatus = 'all' | 'uninspected' | 'inspected';
 
@@ -44,7 +45,7 @@ function InspectorStationListPage() {
         page: p,
         size: 50,
         keyword: searchText || undefined,
-        status: statusParam,
+        inspectStatus: statusParam,
       });
       setStations(prev => p === 1 ? res.data.records : [...prev, ...res.data.records]);
       setTotal(res.data.total);
@@ -188,8 +189,9 @@ function InspectorStationListPage() {
                 className="bg-white rounded-lg px-4 py-3 flex justify-between items-center border-b border-gray-50 last:border-b-0"
               >
                 <div className="flex-1 min-w-0 mr-3">
-                  <div className="text-sm font-medium text-gray-900 truncate">
-                    {station.ownerName}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-900 truncate">{station.ownerName}</span>
+                    <StatusTag inspected={station.status === 1} />
                   </div>
                   <div className="text-xs text-gray-400 mt-1">
                     {station.stationCode}

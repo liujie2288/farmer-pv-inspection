@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yldlxj.pv.inspect.station.StationMapper">
+
+    <resultMap id="stationViewVo" type="com.yldlxj.pv.inspect.station.dto.StationViewVo">
+        <id column="id" property="id"/>
+        <result column="project_id" property="projectId"/>
+        <result column="station_code" property="stationCode"/>
+        <result column="owner_name" property="ownerName"/>
+        <result column="address" property="address"/>
+        <result column="power_account" property="powerAccount"/>
+        <result column="inverter_sn" property="inverterSn"/>
+        <result column="inverter_brand" property="inverterBrand"/>
+        <result column="module_spec" property="moduleSpec"/>
+        <result column="module_count" property="moduleCount"/>
+        <result column="capacity_kw" property="capacityKw"/>
+        <result column="longitude" property="longitude"/>
+        <result column="latitude" property="latitude"/>
+        <result column="last_inspect_record_id" property="lastInspectRecordId"/>
+        <result column="last_inspect_time" property="lastInspectTime"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <select id="listByProjectId" resultMap="stationViewVo">
+        SELECT s.*,
+            CASE WHEN EXISTS (
+                SELECT 1 FROM inspect_record r
+                WHERE r.station_id = s.id AND r.plan_project_id = #{planProjectId}
+            ) THEN 1 ELSE 0 END AS status
+        FROM station s
+        WHERE s.project_id = #{projectId}
+        <if test="keyword != null and keyword != ''">
+            AND (s.owner_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR s.station_code LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="inspectStatus != null and inspectStatus == 1">
+            AND EXISTS (
+                SELECT 1 FROM inspect_record r
+                WHERE r.station_id = s.id AND r.plan_project_id = #{planProjectId}
+            )
+        </if>
+        <if test="inspectStatus != null and inspectStatus == 0">
+            AND NOT EXISTS (
+                SELECT 1 FROM inspect_record r
+                WHERE r.station_id = s.id AND r.plan_project_id = #{planProjectId}
+            )
+        </if>
+        ORDER BY s.station_code ASC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByProjectIdFiltered" resultType="long">
+        SELECT COUNT(*)
+        FROM station s
+        WHERE s.project_id = #{projectId}
+        <if test="keyword != null and keyword != ''">
+            AND (s.owner_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR s.station_code LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        <if test="inspectStatus != null and inspectStatus == 1">
+            AND EXISTS (
+                SELECT 1 FROM inspect_record r
+                WHERE r.station_id = s.id AND r.plan_project_id = #{planProjectId}
+            )
+        </if>
+        <if test="inspectStatus != null and inspectStatus == 0">
+            AND NOT EXISTS (
+                SELECT 1 FROM inspect_record r
+                WHERE r.station_id = s.id AND r.plan_project_id = #{planProjectId}
+            )
+        </if>
+    </select>
+
+    <select id="listByProjectIdNoPlan" resultMap="stationViewVo">
+        SELECT s.*, 0 AS status
+        FROM station s
+        WHERE s.project_id = #{projectId}
+        <if test="keyword != null and keyword != ''">
+            AND (s.owner_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR s.station_code LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY s.station_code ASC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countByProjectIdFilteredNoPlan" resultType="long">
+        SELECT COUNT(*)
+        FROM station s
+        WHERE s.project_id = #{projectId}
+        <if test="keyword != null and keyword != ''">
+            AND (s.owner_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR s.station_code LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+    </select>
+
+</mapper>

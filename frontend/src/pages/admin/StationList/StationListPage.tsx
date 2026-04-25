@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Search, Plus, Upload, Trash2, ChevronRight,
-  Users, FileSpreadsheet, X
+  ChevronLeft, ChevronRightIcon, Users, FileSpreadsheet, X
 } from 'lucide-react';
 import {
   listStations, createStation,
@@ -54,6 +54,7 @@ function StationListPage() {
   const navigate = useNavigate();
   const pid = Number(projectId);
 
+  const PAGE_SIZE = 20;
   const [stations, setStations] = useState<Station[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -72,19 +73,21 @@ function StationListPage() {
   const [showImport, setShowImport] = useState(false);
 
   // Load stations
-  const loadStations = useCallback(async (p: number = 1) => {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const loadStations = useCallback(async (p: number = 1, append: boolean = false) => {
     setLoading(true);
     try {
       const res = await listStations(pid, {
         page: p,
-        size: 20,
+        size: PAGE_SIZE,
         keyword: searchText || undefined,
-        status: statusFilter,
+        inspectStatus: statusFilter,
       });
-      if (p === 1) {
-        setStations(res.data.records);
-      } else {
+      if (append) {
         setStations(prev => [...prev, ...res.data.records]);
+      } else {
+        setStations(res.data.records);
       }
       setTotal(res.data.total);
       setPage(p);
@@ -212,14 +215,22 @@ function StationListPage() {
     navigate(`/admin/projects/${pid}/stations/${stationId}`);
   };
 
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  const sentinelRef = useInfiniteScroll(
-    () => loadStations(page + 1),
-    { hasMore: stations.length < total, loading, root: scrollContainerRef.current },
-  );
-
   const allSelected = stations.length > 0 && selectedIds.size === stations.length;
+
+  // Desktop pagination
+  const goToPage = (p: number) => {
+    if (p < 1 || p > totalPages) return;
+    setSelectedIds(new Set());
+    loadStations(p, false);
+  };
+
+  // Mobile infinite scroll
+  const pageRef = useRef(1);
+  pageRef.current = page;
+  const mobileSentinelRef = useInfiniteScroll(
+    () => loadStations(pageRef.current + 1, true),
+    { hasMore: stations.length < total, loading },
+  );
 
   // Reusable form fields renderer
   const formFields: { key: keyof StationFormState; label: string; placeholder: string; required?: boolean; type?: string; integer?: boolean }[] = [
@@ -341,14 +352,14 @@ function StationListPage() {
           <div className="w-24">户主姓名</div>
           <div className="w-32">发电户号</div>
           <div className="w-20">状态</div>
-          <div className="w-28">逆变器品牌</div>
-          <div className="w-28">最后巡检</div>
+          <div className="w-28">逆变器品牌型号</div>
+          <div className="w-28">最后巡检时间</div>
           <div className="flex-1 text-right">操作</div>
         </div>
       </div>
 
       {/* Content area */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-6">
+      <div className="flex-1 overflow-y-auto px-6">
         {loading && stations.length === 0 ? (
           <LoadingSpinner size="lg" />
         ) : stations.length === 0 ? (
@@ -380,9 +391,7 @@ function StationListPage() {
                     <StatusTag inspected={f.status === 1} />
                   </div>
                   <div className="w-28 text-sm text-gray-500 truncate">{f.inverterBrand || '-'}</div>
-                  <div className="w-28 text-sm text-gray-500">
-                    {f.lastInspectTime || '-'}
-                  </div>
+                  <div className="w-28 text-sm text-gray-500 whitespace-nowrap">{f.lastInspectTime || '-'}</div>
                   <div className="flex-1 flex items-center justify-end" onClick={e => e.stopPropagation()}>
                     <button
                       onClick={() => goToDetail(f.id)}
@@ -432,17 +441,85 @@ function StationListPage() {
                   </div>
                 </div>
               ))}
+              <div ref={mobileSentinelRef} className="h-1" />
+              {loading && stations.length > 0 && (
+                <div className="flex justify-center py-4">
+                  <span className="text-sm text-gray-400">加载中...</span>
+                </div>
+              )}
+              {stations.length > 0 && !loading && (
+                <div className="text-center text-xs text-gray-400 py-2">
+                  共 {total} 条记录
+                </div>
+              )}
             </div>
-
-            <div ref={sentinelRef} className="h-1" />
-            {loading && stations.length > 0 && (
-              <div className="flex justify-center py-4">
-                <span className="text-sm text-gray-400">加载中...</span>
-              </div>
-            )}
           </>
         )}
       </div>
+
+      {/* Pagination — desktop only */}
+      {total > 0 && (
+        <div className="hidden lg:flex px-6 py-3 border-t border-gray-100 items-center justify-between">
+          <span className="text-sm text-gray-400">
+            共 {total} 条，第 {page}/{totalPages} 页
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => goToPage(1)}
+              disabled={page <= 1}
+              className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              首页
+            </button>
+            <button
+              onClick={() => goToPage(page - 1)}
+              disabled={page <= 1}
+              className="p-1 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+              .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('...');
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, idx) =>
+                typeof p === 'string' ? (
+                  <span key={`ellipsis-${idx}`} className="px-1 text-sm text-gray-400">...</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => goToPage(p)}
+                    className={`min-w-[32px] h-8 text-sm rounded transition-colors ${
+                      p === page
+                        ? 'bg-teal text-white font-medium'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
+              )
+            }
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page >= totalPages}
+              className="p-1 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRightIcon size={18} />
+            </button>
+            <button
+              onClick={() => goToPage(totalPages)}
+              disabled={page >= totalPages}
+              className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              末页
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Create Dialog */}
       {showCreate && (

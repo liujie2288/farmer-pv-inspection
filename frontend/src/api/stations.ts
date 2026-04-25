@@ -24,7 +24,7 @@ export interface StationDetail extends Station {
 }
 
 export function listStations(projectId: number, params?: {
-  page?: number; size?: number; keyword?: string; status?: number;
+  page?: number; size?: number; keyword?: string; inspectStatus?: number;
 }) {
   return client.get<any, { code: number; data: { records: Station[]; total: number } }>(
     `/projects/${projectId}/stations`, { params }

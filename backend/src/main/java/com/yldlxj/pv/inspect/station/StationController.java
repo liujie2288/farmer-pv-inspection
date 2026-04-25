@@ -21,8 +21,13 @@ public class StationController {
     private final StationService stationService;
 
     @GetMapping
-    public ApiResponse<PageDto<StationViewVo>> listStations(@PathVariable Long projectId, @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int size, @RequestParam(required = false) String keyword) {
-        return ApiResponse.success(stationService.listStations(projectId, page, size, keyword));
+    public ApiResponse<PageDto<StationViewVo>> listStations(
+            @PathVariable Long projectId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer inspectStatus) {
+        return ApiResponse.success(stationService.listStations(projectId, page, size, keyword, inspectStatus));
     }
 
     @PostMapping

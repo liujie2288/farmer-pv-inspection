@@ -42,16 +42,36 @@ public class StationService {
     private final UserService userService;
     private final ProjectService projectService;
 
-    public PageDto<StationViewVo> listStations(Long projectId, int page, int size, String keyword) {
-        LambdaQueryWrapper<Station> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Station::getProjectId, projectId);
-        if (keyword != null && !keyword.isEmpty()) {
-            wrapper.and(w -> w.like(Station::getOwnerName, keyword).or().like(Station::getStationCode, keyword));
+    public PageDto<StationViewVo> listStations(Long projectId, int page, int size, String keyword, Integer inspectStatus) {
+        PlanProjectViewVo activePlan = planMapper.findActiveByProjectId(projectId);
+        int offset = (page - 1) * size;
+
+        List<StationViewVo> records;
+        long total;
+
+        if (activePlan != null) {
+            Long planProjectId = activePlan.getId();
+            // 有活跃计划且筛选已巡检，但没有记录 → 直接返回空
+            if (inspectStatus != null && inspectStatus == InspectStatus.INSPECTED.getCode()) {
+                long recordCount = inspectRecordMapper.selectCount(
+                        new LambdaQueryWrapper<InspectRecord>().eq(InspectRecord::getPlanProjectId, planProjectId)
+                );
+                if (recordCount == 0) {
+                    return PageDto.of(Collections.emptyList(), 0, page, size);
+                }
+            }
+            records = stationMapper.listByProjectId(projectId, planProjectId, keyword, inspectStatus, offset, size);
+            total = stationMapper.countByProjectIdFiltered(projectId, planProjectId, keyword, inspectStatus);
+        } else {
+            // 无活跃计划：所有电站都是未巡检状态
+            if (inspectStatus != null && inspectStatus == InspectStatus.INSPECTED.getCode()) {
+                return PageDto.of(Collections.emptyList(), 0, page, size);
+            }
+            records = stationMapper.listByProjectIdNoPlan(projectId, keyword, offset, size);
+            total = stationMapper.countByProjectIdFilteredNoPlan(projectId, keyword);
         }
-        wrapper.orderByAsc(Station::getStationCode);
-        IPage<Station> stationPage = stationMapper.selectPage(new Page<>(page, size), wrapper);
-        return PageDto.of(StationConvert.INSTANCE.toVoList(stationPage.getRecords()),
-                stationPage.getTotal(), stationPage.getCurrent(), stationPage.getSize());
+
+        return PageDto.of(records, total, page, size);
     }
 
     public Long createStation(Long projectId, StationDto dto) {

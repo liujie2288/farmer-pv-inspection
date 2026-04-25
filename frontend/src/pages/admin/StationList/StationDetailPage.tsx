@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { User, Settings, ClipboardList, ChevronLeft, FileText, Edit3, Trash2, X } from 'lucide-react';
+import { User, Settings, ClipboardList, ChevronLeft, FileText, Edit3, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import {
   getStationDetail, updateStation, deleteStation, StationDetail
 } from '@/api/stations';
@@ -12,13 +12,33 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 interface InfoRowProps {
   label: string;
   value: React.ReactNode;
+  expandable?: boolean;
 }
 
-function InfoRow({ label, value }: InfoRowProps) {
+function InfoRow({ label, value, expandable }: InfoRowProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (!expandable) {
+    return (
+      <div className="flex items-center justify-between py-3 px-4 border-b border-gray-100 last:border-b-0">
+        <span className="text-sm text-gray-500">{label}</span>
+        <span className="text-sm text-gray-900 font-medium text-right max-w-[60%] truncate">{value}</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-center justify-between py-3 px-4 border-b border-gray-100 last:border-b-0">
-      <span className="text-sm text-gray-500">{label}</span>
-      <span className="text-sm text-gray-900 font-medium text-right max-w-[60%] truncate">{value}</span>
+    <div
+      className="flex items-center justify-between py-3 px-4 border-b border-gray-100 last:border-b-0 cursor-pointer hover:bg-gray-50/50 transition-colors"
+      onClick={() => setExpanded(!expanded)}
+    >
+      <span className="text-sm text-gray-500 shrink-0">{label}</span>
+      <div className="flex items-center gap-1.5 max-w-[70%]">
+        <span className={`text-sm text-gray-900 font-medium text-right ${expanded ? '' : 'line-clamp-2'}`}>
+          {value}
+        </span>
+        {expanded ? <ChevronUp size={14} className="text-gray-400 shrink-0" /> : <ChevronDown size={14} className="text-gray-400 shrink-0" />}
+      </div>
     </div>
   );
 }
@@ -200,7 +220,7 @@ function StationDetailPage({ readOnly }: { readOnly?: boolean } = {}) {
       <SectionCard title="基本信息" icon={<User size={16} />}>
         <InfoRow label="电站编号" value={detail.stationCode} />
         <InfoRow label="户主姓名" value={detail.ownerName} />
-        <InfoRow label="装机地址" value={detail.address || '-'} />
+        <InfoRow label="装机地址" value={detail.address || '-'} expandable />
         <InfoRow label="所属项目" value={detail.projectName} />
         <InfoRow label="发电户号" value={detail.powerAccount || '-'} />
         <InfoRow label="巡检状态" value={<StatusTag inspected={detail.status === 1} />} />
