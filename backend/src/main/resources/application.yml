@@ -12,6 +12,7 @@ mybatis-plus:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     db-config:
+      enum-scan-package: com.yldlxj.pv.inspect
       id-type: auto
       logic-delete-field: deleted
       logic-delete-value: 1
@@ -25,6 +26,7 @@ server:
 jwt:
   secret: ${JWT_SECRET:pv-inspection-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
   expiration: 7200000
+  cookie-secure: ${JWT_COOKIE_SECURE:true}
 
 minio:
   endpoint: ${MINIO_ENDPOINT:http://localhost:9000}

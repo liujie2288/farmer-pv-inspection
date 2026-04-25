@@ -1,15 +1,15 @@
 package com.yldlxj.pv.inspect.plan;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.yldlxj.pv.inspect.common.ApiResponse;
-import com.yldlxj.pv.inspect.plan.dto.GlobalPlanDto;
+import com.yldlxj.pv.inspect.common.PageDto;
 import com.yldlxj.pv.inspect.plan.dto.PlanDto;
+import com.yldlxj.pv.inspect.plan.dto.PlanViewVo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.Map;
 
 @RestController
@@ -20,9 +20,9 @@ public class PlanController {
     private final PlanService planService;
 
     @GetMapping
-    public ApiResponse<IPage<Map<String, Object>>> listPlans(
+    public ApiResponse<PageDto<PlanViewVo>> listPlans(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String planName,
             @RequestParam(required = false) Long projectId,
             @RequestParam(required = false) Integer status) {
@@ -35,31 +35,25 @@ public class PlanController {
         return ApiResponse.created(planService.createPlan(dto));
     }
 
-    @PostMapping("/global")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<Map<String, Object>> createGlobalPlan(@Valid @RequestBody GlobalPlanDto dto) {
-        return ApiResponse.created(planService.createGlobalPlan(dto));
-    }
-
-    @PutMapping("/{id}")
+    @PutMapping("/{planGroupId}")
     public ApiResponse<Void> updatePlan(
-            @PathVariable Long id,
+            @PathVariable Long planGroupId,
             @RequestBody Map<String, String> body) {
-        LocalDateTime startTime = body.get("startTime") != null ? LocalDateTime.parse(body.get("startTime")) : null;
-        LocalDateTime endTime = body.get("endTime") != null ? LocalDateTime.parse(body.get("endTime")) : null;
-        planService.updatePlan(id, startTime, endTime);
+        LocalDate startTime = body.get("startTime") != null ? LocalDate.parse(body.get("startTime")) : null;
+        LocalDate endTime = body.get("endTime") != null ? LocalDate.parse(body.get("endTime")) : null;
+        planService.updatePlan(planGroupId, startTime, endTime);
         return ApiResponse.success();
     }
 
-    @PutMapping("/{id}/finish")
-    public ApiResponse<Void> finishPlan(@PathVariable Long id) {
-        planService.finishPlan(id);
+    @PutMapping("/{planGroupId}/finish")
+    public ApiResponse<Void> finishPlan(@PathVariable Long planGroupId) {
+        planService.finishPlan(planGroupId);
         return ApiResponse.success();
     }
 
-    @GetMapping("/{id}/stats")
-    public ApiResponse<Map<String, Object>> getPlanStats(@PathVariable Long id) {
-        return ApiResponse.success(planService.getPlanStats(id));
+    @GetMapping("/{planGroupId}/stats")
+    public ApiResponse<Map<String, Object>> getPlanStats(@PathVariable Long planGroupId) {
+        return ApiResponse.success(planService.getPlanStats(planGroupId));
     }
 
     @GetMapping("/active")

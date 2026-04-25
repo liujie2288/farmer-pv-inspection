@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Globe, Clock, Users, ClipboardList, X } from 'lucide-react';
+import { Search, Plus, Clock, Users, ClipboardList, X } from 'lucide-react';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
-import { listPlans, createPlan, createGlobalPlan, type InspectPlan } from '@/api/plans';
+import { listPlans, createPlan, type InspectPlan } from '@/api/plans';
 import { listProjects, type Project } from '@/api/projects';
 import { showToast } from '@/components/ui/Toast';
 import EmptyState from '@/components/ui/EmptyState';
@@ -23,14 +23,17 @@ const statusConfig: Record<number, { text: string; bg: string; textClass: string
 
 function CreatePlanDialog({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [projects, setProjects] = useState<Project[]>([]);
+  const now = new Date();
+  const quarter = Math.floor(now.getMonth() / 3) + 1;
+  const defaultPlanName = `${now.getFullYear()}年第${quarter}季度巡检`;
+
   const [form, setForm] = useState({
-    planName: '',
-    startTime: '',
+    planName: defaultPlanName,
+    startTime: `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`,
     endTime: '',
-    isGlobal: false,
-    projectId: 0,
     selectedProjectIds: [] as number[],
   });
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -49,35 +52,22 @@ function CreatePlanDialog({ onClose, onSuccess }: { onClose: () => void; onSucce
   };
 
   const handleSubmit = async () => {
-    if (!form.planName || !form.startTime || !form.endTime) {
-      showToast({ icon: 'warning', content: '请填写完整信息' });
+    if (!form.planName || form.planName.length > 30 || !form.startTime || !form.endTime || form.endTime < todayStr) {
+      showToast({ icon: 'warning', content: form.planName.length > 30 ? '计划名称不能超过30字' : form.endTime < todayStr ? '结束时间不能早于今天' : '请填写完整信息' });
+      return;
+    }
+    if (form.selectedProjectIds.length === 0) {
+      showToast({ icon: 'warning', content: '请选择至少一个项目' });
       return;
     }
     try {
       setSubmitting(true);
-      if (form.isGlobal) {
-        if (form.selectedProjectIds.length === 0) {
-          showToast({ icon: 'warning', content: '请选择至少一个项目' });
-          return;
-        }
-        await createGlobalPlan({
-          planName: form.planName,
-          projectIds: form.selectedProjectIds,
-          startTime: form.startTime,
-          endTime: form.endTime,
-        });
-      } else {
-        if (!form.projectId) {
-          showToast({ icon: 'warning', content: '请选择项目' });
-          return;
-        }
-        await createPlan({
-          planName: form.planName,
-          projectId: form.projectId,
-          startTime: form.startTime,
-          endTime: form.endTime,
-        });
-      }
+      await createPlan({
+        planName: form.planName,
+        projectIds: form.selectedProjectIds,
+        startTime: form.startTime,
+        endTime: form.endTime,
+      });
       showToast({ icon: 'success', content: '创建成功' });
       onSuccess();
     } catch (e: any) {
@@ -108,6 +98,7 @@ function CreatePlanDialog({ onClose, onSuccess }: { onClose: () => void; onSucce
               </span>
               <input
                 type="text"
+                maxLength={30}
                 placeholder="请输入计划名称"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
                 value={form.planName}
@@ -120,7 +111,7 @@ function CreatePlanDialog({ onClose, onSuccess }: { onClose: () => void; onSucce
                 开始时间 <span className="text-red-500">*</span>
               </span>
               <input
-                type="datetime-local"
+                type="date"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
                 value={form.startTime}
                 onChange={e => setForm(prev => ({ ...prev, startTime: e.target.value }))}
@@ -132,7 +123,8 @@ function CreatePlanDialog({ onClose, onSuccess }: { onClose: () => void; onSucce
                 结束时间 <span className="text-red-500">*</span>
               </span>
               <input
-                type="datetime-local"
+                type="date"
+                min={todayStr}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
                 value={form.endTime}
                 onChange={e => setForm(prev => ({ ...prev, endTime: e.target.value }))}
@@ -140,57 +132,30 @@ function CreatePlanDialog({ onClose, onSuccess }: { onClose: () => void; onSucce
             </label>
 
             <div className="border-t border-gray-200 pt-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.isGlobal}
-                  onChange={e => setForm(prev => ({ ...prev, isGlobal: e.target.checked }))}
-                  className="h-4 w-4 rounded border-gray-300 text-teal focus:ring-teal"
-                />
-                <span className="text-sm font-medium text-gray-700">全局计划（多项目）</span>
-              </label>
-
-              {!form.isGlobal ? (
-                <label className="mt-3 flex flex-col gap-1">
-                  <span className="text-sm font-medium text-gray-700">
-                    关联项目 <span className="text-red-500">*</span>
-                  </span>
-                  <select
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
-                    value={form.projectId || ''}
-                    onChange={e => setForm(prev => ({ ...prev, projectId: Number(e.target.value) }))}
-                  >
-                    <option value="" disabled>请选择项目</option>
-                    {projects.map(p => (
-                      <option key={p.id} value={p.id}>{p.projectName}</option>
-                    ))}
-                  </select>
-                </label>
+              <p className="text-sm font-medium text-gray-700 mb-2">
+                关联项目 <span className="text-red-500">*</span>
+                <span className="text-xs text-gray-400 ml-2">
+                  已选 {form.selectedProjectIds.length} 个
+                </span>
+              </p>
+              {projects.length === 0 ? (
+                <p className="text-center text-sm text-gray-400 py-3">暂无项目</p>
               ) : (
-                <div className="mt-3">
-                  <p className="text-xs text-gray-400 mb-2">
-                    已选 {form.selectedProjectIds.length} 个项目
-                  </p>
-                  {projects.length === 0 ? (
-                    <p className="text-center text-sm text-gray-400 py-3">暂无项目</p>
-                  ) : (
-                    <div className="max-h-40 overflow-y-auto flex flex-col gap-1">
-                      {projects.map(p => (
-                        <label
-                          key={p.id}
-                          className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-gray-50 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={form.selectedProjectIds.includes(p.id)}
-                            onChange={() => toggleProject(p.id)}
-                            className="h-4 w-4 rounded border-gray-300 text-teal focus:ring-teal"
-                          />
-                          <span className="text-sm text-gray-700">{p.projectName}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
+                <div className="max-h-40 overflow-y-auto flex flex-col gap-1">
+                  {projects.map(p => (
+                    <label
+                      key={p.id}
+                      className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.selectedProjectIds.includes(p.id)}
+                        onChange={() => toggleProject(p.id)}
+                        className="h-4 w-4 rounded border-gray-300 text-teal focus:ring-teal"
+                      />
+                      <span className="text-sm text-gray-700">{p.projectName}</span>
+                    </label>
+                  ))}
                 </div>
               )}
             </div>
@@ -261,10 +226,6 @@ function PlanListPage() {
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
-  const openCreateDialog = () => {
-    setCreateDialogOpen(true);
-  };
-
   const handleCreateSuccess = () => {
     setCreateDialogOpen(false);
     loadPlans(1);
@@ -283,7 +244,7 @@ function PlanListPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-navy">巡检计划</h1>
         <button
-          onClick={openCreateDialog}
+          onClick={() => setCreateDialogOpen(true)}
           className="flex items-center gap-2 rounded-lg bg-teal px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-teal-dark"
         >
           <Plus size={16} />
@@ -336,14 +297,13 @@ function PlanListPage() {
         <EmptyState icon={ClipboardList} message="暂无巡检计划" />
       ) : (
         <>
-          {/* Plan Cards */}
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {plans.map(plan => {
               const sc = statusConfig[plan.status] || statusConfig[0];
               return (
                 <div
                   key={plan.id}
-                  onClick={() => navigate(`/admin/plans/${plan.id}`)}
+                  onClick={() => navigate(`/admin/plans/${plan.planGroupId}`)}
                   className="group cursor-pointer rounded-xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-teal/30 hover:shadow-md"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -355,15 +315,12 @@ function PlanListPage() {
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${sc.bg} ${sc.textClass}`}>
                           {sc.text}
                         </span>
-                        {plan.isGlobal && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-gold/10 px-2.5 py-0.5 text-xs font-medium text-gold">
-                            <Globe size={12} />
-                            全局
-                          </span>
-                        )}
                       </div>
                       <p className="mt-1.5 text-sm text-gray-500">
-                        {plan.projectName || '全局'}
+                        {plan.projectName}
+                      </p>
+                      <p className="mt-1 text-xs text-gray-400">
+                        {plan.startTime} ~ {plan.endTime}
                       </p>
                     </div>
                   </div>
@@ -371,13 +328,12 @@ function PlanListPage() {
                   <div className="mt-3 flex items-center gap-4 border-t border-gray-50 pt-3">
                     <div className="flex items-center gap-1.5 text-sm text-gray-500">
                       <Users size={14} className="text-gray-400" />
-                      <span>{plan.inspectedCount}/{plan.farmerCount}</span>
+                      <span>{plan.inspectedCount}/{plan.inverterCount}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-sm text-gray-500">
                       <Clock size={14} className="text-gray-400" />
                       <span>{plan.completionRate}%</span>
                     </div>
-                    {/* Completion progress bar */}
                     <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
                       <div
                         className="h-full rounded-full bg-teal transition-all"

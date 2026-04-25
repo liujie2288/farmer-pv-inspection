@@ -20,12 +20,12 @@ import ProfilePage from '@/pages/profile/ProfilePage';
 import UserListPage from '@/pages/admin/UserList/UserListPage';
 import ProjectListPage from '@/pages/admin/ProjectList/ProjectListPage';
 import ProjectFormPage from '@/pages/admin/ProjectForm/ProjectFormPage';
-import FarmerListPage from '@/pages/admin/FarmerList/FarmerListPage';
-import FarmerDetailPage from '@/pages/admin/FarmerList/FarmerDetailPage';
+import InverterListPage from '@/pages/admin/InverterList/InverterListPage';
+import InverterDetailPage from '@/pages/admin/InverterList/InverterDetailPage';
 import PlanListPage from '@/pages/admin/PlanList/PlanListPage';
 import PlanDetailPage from '@/pages/admin/PlanList/PlanDetailPage';
 import InspectorProjectListPage from '@/pages/inspector/ProjectList/ProjectListPage';
-import InspectorFarmerListPage from '@/pages/inspector/FarmerList/FarmerListPage';
+import InspectorInverterListPage from '@/pages/inspector/InverterList/InverterListPage';
 import InspectionFormPage from '@/pages/inspector/InspectionForm/InspectionFormPage';
 import DashboardPage from '@/pages/admin/Dashboard/DashboardPage';
 import RecordListPage from '@/pages/records/RecordListPage';
@@ -56,10 +56,10 @@ function AdminRoutes() {
             { path: '/projects', element: <ProjectListPage /> },
             { path: '/projects/new', element: <ProjectFormPage /> },
             { path: '/projects/:projectId/edit', element: <ProjectFormPage /> },
-            { path: '/projects/:projectId/farmers', element: <FarmerListPage /> },
-            { path: '/projects/:projectId/farmers/:farmerId', element: <FarmerDetailPage /> },
+            { path: '/projects/:projectId/inverters', element: <InverterListPage /> },
+            { path: '/projects/:projectId/inverters/:inverterId', element: <InverterDetailPage /> },
             { path: '/plans', element: <PlanListPage /> },
-            { path: '/plans/:planId', element: <PlanDetailPage /> },
+            { path: '/plans/:planGroupId', element: <PlanDetailPage /> },
             { path: '/users', element: <UserListPage /> },
             { path: '/records', element: <RecordListPage /> },
             { path: '/records/:recordId', element: <RecordDetailPage /> },
@@ -80,8 +80,8 @@ function InspectorRoutes() {
         <React.Suspense fallback={<LoadingSpinner />}>
           {useRoutes([
             { path: '/', element: <InspectorProjectListPage /> },
-            { path: '/projects/:projectId/farmers', element: <InspectorFarmerListPage /> },
-            { path: '/projects/:projectId/farmers/:farmerId/inspect', element: <InspectionFormPage /> },
+            { path: '/projects/:projectId/inverters', element: <InspectorInverterListPage /> },
+            { path: '/projects/:projectId/inverters/:inverterId/inspect', element: <InspectionFormPage /> },
             { path: '/records', element: <RecordListPage /> },
             { path: '/records/:recordId', element: <RecordDetailPage /> },
             { path: '/records/:recordId/edit', element: <InspectionFormPage /> },

@@ -9,6 +9,7 @@ export interface Project {
   city: string;
   droneCertificateUrl: string;
   specialOperationCertUrl: string;
+  sectionIds: string;
   devices: DeviceItem[];
   createTime: string;
 }
@@ -20,7 +21,7 @@ export interface DeviceItem {
 }
 
 export interface ProjectStats {
-  farmerCount: number;
+  inverterCount: number;
   inspectedCount: number;
   uninspectedCount: number;
   completionRate: number;
@@ -31,11 +32,11 @@ export function listProjects(params?: { page?: number; size?: number; projectNam
   return client.get<any, { code: number; data: { records: Project[]; total: number } }>('/projects', { params });
 }
 
-export function createProject(data: { projectName: string; propertyCompany: string; stationType: string; province?: string; city?: string; droneCertificateUrl?: string; specialOperationCertUrl?: string; devices?: DeviceItem[] }) {
+export function createProject(data: { projectName: string; propertyCompany: string; stationType: string; province?: string; city?: string; droneCertificateUrl?: string; specialOperationCertUrl?: string; sectionIds?: string; devices?: DeviceItem[] }) {
   return client.post<any, { code: number; data: { id: number } }>('/projects', data);
 }
 
-export function updateProject(id: number, data: { projectName: string; propertyCompany: string; stationType: string; province?: string; city?: string; droneCertificateUrl?: string; specialOperationCertUrl?: string; devices?: DeviceItem[] }) {
+export function updateProject(id: number, data: { projectName: string; propertyCompany: string; stationType: string; province?: string; city?: string; droneCertificateUrl?: string; specialOperationCertUrl?: string; sectionIds?: string; devices?: DeviceItem[] }) {
   return client.put<any, { code: number }>(`/projects/${id}`, data);
 }
 

@@ -89,7 +89,7 @@ function InspectorProjectListPage() {
             return (
               <div
                 key={project.id}
-                onClick={() => navigate(`/projects/${project.id}/farmers`)}
+                onClick={() => navigate(`/projects/${project.id}/inverters`)}
                 className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow cursor-pointer"
               >
                 {/* Project name */}
@@ -101,10 +101,10 @@ function InspectorProjectListPage() {
                   <span>{project.propertyCompany} · {project.stationType}</span>
                 </div>
 
-                {/* Farmer count */}
+                {/* Inverter count */}
                 <div className="flex items-center gap-1.5 mt-2 text-sm text-gray-600">
                   <Users size={14} className="text-gray-400" />
-                  <span>{project.stats?.farmerCount ?? '-'} 户</span>
+                  <span>{project.stats?.inverterCount ?? '-'} 台</span>
                 </div>
 
                 {/* Completion rate progress bar */}

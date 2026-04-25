@@ -4,16 +4,18 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yldlxj.pv.inspect.common.BusinessException;
-import com.yldlxj.pv.inspect.farmer.FarmerMapper;
-import com.yldlxj.pv.inspect.plan.dto.GlobalPlanDto;
+import com.yldlxj.pv.inspect.common.PageDto;
+import com.yldlxj.pv.inspect.convert.PlanConvert;
+import com.yldlxj.pv.inspect.inverter.InverterMapper;
 import com.yldlxj.pv.inspect.plan.dto.PlanDto;
+import com.yldlxj.pv.inspect.plan.dto.PlanViewVo;
 import com.yldlxj.pv.inspect.project.Project;
 import com.yldlxj.pv.inspect.project.ProjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -23,9 +25,9 @@ public class PlanService {
 
     private final InspectPlanMapper planMapper;
     private final ProjectMapper projectMapper;
-    private final FarmerMapper farmerMapper;
+    private final InverterMapper inverterMapper;
 
-    public IPage<Map<String, Object>> listPlans(int page, int size, String planName, Long projectId, Integer status) {
+    public PageDto<PlanViewVo> listPlans(int page, int size, String planName, Long projectId, Integer status) {
         LambdaQueryWrapper<InspectPlan> wrapper = new LambdaQueryWrapper<>();
         if (planName != null && !planName.isEmpty()) {
             wrapper.like(InspectPlan::getPlanName, planName);
@@ -36,186 +38,153 @@ public class PlanService {
         if (status != null) {
             wrapper.eq(InspectPlan::getStatus, status);
         }
-        // Only show top-level plans
-        wrapper.eq(InspectPlan::getParentId, 0);
-        wrapper.orderByDesc(InspectPlan::getCreateTime);
+        wrapper.orderByDesc(InspectPlan::getEndTime)
+               .orderByDesc(InspectPlan::getPlanGroupId)
+               .orderByAsc(InspectPlan::getProjectId);
 
         IPage<InspectPlan> planPage = planMapper.selectPage(new Page<>(page, size), wrapper);
 
-        // Convert to response with additional fields
-        IPage<Map<String, Object>> result = planPage.convert(this::toPlanResponse);
-        return result;
+        // Batch load project names
+        List<Long> projectIds = planPage.getRecords().stream()
+                .map(InspectPlan::getProjectId)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, String> projectNameMap = projectIds.isEmpty() ? Collections.emptyMap() :
+                projectMapper.selectBatchIds(projectIds).stream()
+                        .collect(Collectors.toMap(Project::getId, Project::getProjectName));
+
+        List<PlanViewVo> vos = PlanConvert.INSTANCE.toVoList(planPage.getRecords());
+        vos.forEach(vo -> {
+            vo.setProjectName(projectNameMap.getOrDefault(vo.getProjectId(), "未知项目"));
+            double rate = vo.getInverterCount() != null && vo.getInverterCount() > 0
+                    ? (vo.getInspectedCount() * 100.0 / vo.getInverterCount()) : 0;
+            vo.setCompletionRate(Math.round(rate * 100.0) / 100.0);
+        });
+
+        return PageDto.of(vos, planPage.getTotal(), planPage.getCurrent(), planPage.getSize());
     }
 
     @Transactional
     public Map<String, Object> createPlan(PlanDto dto) {
-        validateProject(dto.getProjectId());
-        validateTimeRange(dto.getStartTime(), dto.getEndTime());
-        checkOneActiveConstraint(dto.getProjectId());
-
-        int farmerCount = farmerMapper.countByProjectId(dto.getProjectId());
-
-        InspectPlan plan = new InspectPlan();
-        plan.setPlanName(dto.getPlanName());
-        plan.setProjectId(dto.getProjectId());
-        plan.setStartTime(dto.getStartTime());
-        plan.setEndTime(dto.getEndTime());
-        plan.setStatus(0); // 未开始
-        plan.setParentId(0L);
-        plan.setFarmerCount(farmerCount);
-        plan.setInspectedCount(0);
-
-        // Auto-start if start time has passed
-        if (!dto.getStartTime().isAfter(LocalDateTime.now())) {
-            plan.setStatus(1);
-        }
-
-        planMapper.insert(plan);
-        return Map.of("id", plan.getId());
-    }
-
-    @Transactional
-    public Map<String, Object> createGlobalPlan(GlobalPlanDto dto) {
         validateTimeRange(dto.getStartTime(), dto.getEndTime());
 
-        // Check one-active for all projects
         for (Long pid : dto.getProjectIds()) {
             validateProject(pid);
             checkOneActiveConstraint(pid);
         }
 
-        // Create parent plan
-        InspectPlan parent = new InspectPlan();
-        parent.setPlanName(dto.getPlanName());
-        parent.setProjectId(null);
-        parent.setStartTime(dto.getStartTime());
-        parent.setEndTime(dto.getEndTime());
-        parent.setStatus(0);
-        parent.setParentId(0L);
-        parent.setFarmerCount(0);
-        parent.setInspectedCount(0);
+        int initialStatus = !dto.getStartTime().isAfter(LocalDate.now()) ? 1 : 0;
 
-        if (!dto.getStartTime().isAfter(LocalDateTime.now())) {
-            parent.setStatus(1);
+        // Insert first plan to get auto-generated ID as planGroupId
+        Long firstPid = dto.getProjectIds().get(0);
+        InspectPlan firstPlan = new InspectPlan();
+        firstPlan.setPlanName(dto.getPlanName());
+        firstPlan.setProjectId(firstPid);
+        firstPlan.setStartTime(dto.getStartTime());
+        firstPlan.setEndTime(dto.getEndTime());
+        firstPlan.setStatus(initialStatus);
+        firstPlan.setInverterCount(inverterMapper.countByProjectId(firstPid));
+        firstPlan.setInspectedCount(0);
+        firstPlan.setPlanGroupId(0L); // temporary
+        planMapper.insert(firstPlan);
+
+        Long planGroupId = firstPlan.getId();
+        firstPlan.setPlanGroupId(planGroupId);
+        planMapper.updateById(firstPlan);
+
+        // Insert remaining plans
+        List<Long> planIds = new ArrayList<>();
+        planIds.add(planGroupId);
+
+        for (int i = 1; i < dto.getProjectIds().size(); i++) {
+            Long pid = dto.getProjectIds().get(i);
+            InspectPlan plan = new InspectPlan();
+            plan.setPlanGroupId(planGroupId);
+            plan.setPlanName(dto.getPlanName());
+            plan.setProjectId(pid);
+            plan.setStartTime(dto.getStartTime());
+            plan.setEndTime(dto.getEndTime());
+            plan.setStatus(initialStatus);
+            plan.setInverterCount(inverterMapper.countByProjectId(pid));
+            plan.setInspectedCount(0);
+            planMapper.insert(plan);
+            planIds.add(plan.getId());
         }
 
-        planMapper.insert(parent);
-
-        // Create sub-plans for each project
-        List<Long> subPlanIds = new ArrayList<>();
-        int totalFarmers = 0;
-        for (Long pid : dto.getProjectIds()) {
-            int farmerCount = farmerMapper.countByProjectId(pid);
-            totalFarmers += farmerCount;
-
-            InspectPlan sub = new InspectPlan();
-            sub.setPlanName(dto.getPlanName() + " - " + getProjectName(pid));
-            sub.setProjectId(pid);
-            sub.setStartTime(dto.getStartTime());
-            sub.setEndTime(dto.getEndTime());
-            sub.setStatus(parent.getStatus());
-            sub.setParentId(parent.getId());
-            sub.setFarmerCount(farmerCount);
-            sub.setInspectedCount(0);
-
-            planMapper.insert(sub);
-            subPlanIds.add(sub.getId());
-        }
-
-        // Update parent totals
-        parent.setFarmerCount(totalFarmers);
-        planMapper.updateById(parent);
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("parentPlanId", parent.getId());
-        result.put("subPlanIds", subPlanIds);
-        return result;
+        return Map.of("planGroupId", planGroupId, "planIds", planIds);
     }
 
-    public void updatePlan(Long id, LocalDateTime startTime, LocalDateTime endTime) {
-        InspectPlan plan = planMapper.selectById(id);
-        if (plan == null) {
+    @Transactional
+    public void updatePlan(Long planGroupId, LocalDate startTime, LocalDate endTime) {
+        List<InspectPlan> plans = planMapper.selectList(
+                new LambdaQueryWrapper<InspectPlan>().eq(InspectPlan::getPlanGroupId, planGroupId)
+        );
+        if (plans.isEmpty()) {
             throw new BusinessException("计划不存在");
         }
-        if (plan.getStatus() == 2) {
+        if (plans.get(0).getStatus() == 2) {
             throw new BusinessException("已结束的计划不可修改");
         }
 
-        if (startTime != null) plan.setStartTime(startTime);
-        if (endTime != null) plan.setEndTime(endTime);
-        validateTimeRange(plan.getStartTime(), plan.getEndTime());
-        planMapper.updateById(plan);
-
-        // Also update sub-plans if this is a global plan
-        if (plan.getParentId() == 0 && plan.getProjectId() == null) {
-            List<InspectPlan> subs = planMapper.selectList(
-                    new LambdaQueryWrapper<InspectPlan>().eq(InspectPlan::getParentId, id)
-            );
-            for (InspectPlan sub : subs) {
-                if (startTime != null) sub.setStartTime(startTime);
-                if (endTime != null) sub.setEndTime(endTime);
-                planMapper.updateById(sub);
-            }
+        for (InspectPlan plan : plans) {
+            if (startTime != null) plan.setStartTime(startTime);
+            if (endTime != null) plan.setEndTime(endTime);
+            validateTimeRange(plan.getStartTime(), plan.getEndTime());
+            planMapper.updateById(plan);
         }
     }
 
     @Transactional
-    public void finishPlan(Long id) {
-        InspectPlan plan = planMapper.selectById(id);
-        if (plan == null) {
+    public void finishPlan(Long planGroupId) {
+        List<InspectPlan> plans = planMapper.selectList(
+                new LambdaQueryWrapper<InspectPlan>().eq(InspectPlan::getPlanGroupId, planGroupId)
+        );
+        if (plans.isEmpty()) {
             throw new BusinessException("计划不存在");
         }
-        if (plan.getStatus() == 2) {
-            throw new BusinessException("计划已结束");
-        }
-        plan.setStatus(2);
-        planMapper.updateById(plan);
 
-        // Also finish sub-plans
-        if (plan.getParentId() == 0) {
-            List<InspectPlan> subs = planMapper.selectList(
-                    new LambdaQueryWrapper<InspectPlan>().eq(InspectPlan::getParentId, id)
-            );
-            for (InspectPlan sub : subs) {
-                sub.setStatus(2);
-                planMapper.updateById(sub);
-            }
+        for (InspectPlan plan : plans) {
+            if (plan.getStatus() == 2) continue;
+            plan.setStatus(2);
+            planMapper.updateById(plan);
         }
     }
 
-    public Map<String, Object> getPlanStats(Long id) {
-        InspectPlan plan = planMapper.selectById(id);
-        if (plan == null) {
+    public Map<String, Object> getPlanStats(Long planGroupId) {
+        List<InspectPlan> plans = planMapper.selectList(
+                new LambdaQueryWrapper<InspectPlan>().eq(InspectPlan::getPlanGroupId, planGroupId)
+        );
+        if (plans.isEmpty()) {
             throw new BusinessException("计划不存在");
         }
 
+        int totalInverters = plans.stream().mapToInt(InspectPlan::getInverterCount).sum();
+        int totalInspected = plans.stream().mapToInt(InspectPlan::getInspectedCount).sum();
+        double rate = totalInverters > 0 ? (totalInspected * 100.0 / totalInverters) : 0;
+
         Map<String, Object> stats = new HashMap<>();
-        stats.put("planName", plan.getPlanName());
-        stats.put("status", plan.getStatus());
-        stats.put("farmerCount", plan.getFarmerCount());
-        stats.put("inspectedCount", plan.getInspectedCount());
-        double rate = plan.getFarmerCount() > 0 ? (plan.getInspectedCount() * 100.0 / plan.getFarmerCount()) : 0;
+        stats.put("planGroupId", planGroupId);
+        stats.put("planName", plans.get(0).getPlanName());
+        stats.put("status", plans.stream().mapToInt(InspectPlan::getStatus).max().orElse(0));
+        stats.put("inverterCount", totalInverters);
+        stats.put("inspectedCount", totalInspected);
         stats.put("completionRate", Math.round(rate * 100.0) / 100.0);
 
-        // Project ranking for global plans
-        if (plan.getProjectId() == null && plan.getParentId() == 0) {
-            List<InspectPlan> subs = planMapper.selectList(
-                    new LambdaQueryWrapper<InspectPlan>().eq(InspectPlan::getParentId, id)
-            );
-            List<Map<String, Object>> ranking = subs.stream().map(sub -> {
-                Map<String, Object> item = new HashMap<>();
-                item.put("projectId", sub.getProjectId());
-                item.put("projectName", getProjectName(sub.getProjectId()));
-                double subRate = sub.getFarmerCount() > 0 ? (sub.getInspectedCount() * 100.0 / sub.getFarmerCount()) : 0;
-                item.put("completionRate", Math.round(subRate * 100.0) / 100.0);
-                return item;
-            }).sorted((a, b) -> Double.compare((Double) b.get("completionRate"), (Double) a.get("completionRate")))
-              .collect(Collectors.toList());
-            stats.put("projectRanking", ranking);
-        } else {
-            stats.put("projectRanking", Collections.emptyList());
-        }
+        List<Map<String, Object>> ranking = plans.stream().map(plan -> {
+            Map<String, Object> item = new HashMap<>();
+            item.put("planId", plan.getId());
+            item.put("projectId", plan.getProjectId());
+            item.put("projectName", getProjectName(plan.getProjectId()));
+            item.put("inverterCount", plan.getInverterCount());
+            item.put("inspectedCount", plan.getInspectedCount());
+            item.put("status", plan.getStatus());
+            double subRate = plan.getInverterCount() > 0 ? (plan.getInspectedCount() * 100.0 / plan.getInverterCount()) : 0;
+            item.put("completionRate", Math.round(subRate * 100.0) / 100.0);
+            return item;
+        }).sorted((a, b) -> Double.compare((Double) b.get("completionRate"), (Double) a.get("completionRate")))
+          .collect(Collectors.toList());
 
+        stats.put("projectRanking", ranking);
         return stats;
     }
 
@@ -228,35 +197,36 @@ public class PlanService {
         );
     }
 
-    /**
-     * Auto-transition plan statuses based on time
-     */
-    @org.springframework.scheduling.annotation.Scheduled(cron = "0 */5 * * * *")
+    @org.springframework.scheduling.annotation.Scheduled(cron = "5 0 * * * *")
     @Transactional
     public void autoTransitionStatus() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate today = LocalDate.now();
 
-        // 未开始 → 进行中
         List<InspectPlan> toStart = planMapper.selectList(
                 new LambdaQueryWrapper<InspectPlan>()
                         .eq(InspectPlan::getStatus, 0)
-                        .le(InspectPlan::getStartTime, now)
+                        .le(InspectPlan::getStartTime, today)
         );
         for (InspectPlan plan : toStart) {
             plan.setStatus(1);
             planMapper.updateById(plan);
         }
 
-        // 进行中 → 已结束
         List<InspectPlan> toEnd = planMapper.selectList(
                 new LambdaQueryWrapper<InspectPlan>()
                         .eq(InspectPlan::getStatus, 1)
-                        .lt(InspectPlan::getEndTime, now)
+                        .lt(InspectPlan::getEndTime, today)
         );
         for (InspectPlan plan : toEnd) {
             plan.setStatus(2);
             planMapper.updateById(plan);
         }
+    }
+
+    @org.springframework.scheduling.annotation.Scheduled(cron = "0 2 * * * *")
+    @Transactional
+    public void autoTransitionStatusRetry() {
+        autoTransitionStatus();
     }
 
     private void validateProject(Long projectId) {
@@ -265,7 +235,7 @@ public class PlanService {
         }
     }
 
-    private void validateTimeRange(LocalDateTime start, LocalDateTime end) {
+    private void validateTimeRange(LocalDate start, LocalDate end) {
         if (end.isBefore(start) || end.isEqual(start)) {
             throw new BusinessException("结束时间必须晚于开始时间");
         }
@@ -287,21 +257,4 @@ public class PlanService {
         return p != null ? p.getProjectName() : "未知项目";
     }
 
-    private Map<String, Object> toPlanResponse(InspectPlan plan) {
-        Map<String, Object> map = new HashMap<>();
-        map.put("id", plan.getId());
-        map.put("planName", plan.getPlanName());
-        map.put("projectId", plan.getProjectId());
-        map.put("projectName", plan.getProjectId() != null ? getProjectName(plan.getProjectId()) : null);
-        map.put("startTime", plan.getStartTime());
-        map.put("endTime", plan.getEndTime());
-        map.put("status", plan.getStatus());
-        map.put("farmerCount", plan.getFarmerCount());
-        map.put("inspectedCount", plan.getInspectedCount());
-        double rate = plan.getFarmerCount() > 0 ? (plan.getInspectedCount() * 100.0 / plan.getFarmerCount()) : 0;
-        map.put("completionRate", Math.round(rate * 100.0) / 100.0);
-        map.put("parentId", plan.getParentId());
-        map.put("isGlobal", plan.getProjectId() == null && plan.getParentId() == 0);
-        return map;
-    }
 }

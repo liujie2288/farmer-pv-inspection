@@ -5,7 +5,7 @@ import com.yldlxj.pv.inspect.common.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -14,17 +14,17 @@ public class InspectPlan extends BaseEntity {
 
     private String planName;
 
+    private Long planGroupId;
+
     private Long projectId;
 
-    private LocalDateTime startTime;
+    private LocalDate startTime;
 
-    private LocalDateTime endTime;
+    private LocalDate endTime;
 
     private Integer status;
 
-    private Long parentId;
-
-    private Integer farmerCount;
+    private Integer inverterCount;
 
     private Integer inspectedCount;
 }

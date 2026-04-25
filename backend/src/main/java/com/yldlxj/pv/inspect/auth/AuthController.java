@@ -45,9 +45,9 @@ public class AuthController {
         // 构建 Cookie
         ResponseCookie cookie = ResponseCookie.from("accessToken", jwtToken) // Cookie 名称
                 .httpOnly(true)         // 关键：防止 JS 读取，防止 XSS 攻击
-                .secure(true)           // 关键：仅在 HTTPS 环境下传输
+                .secure(jwtUtil.isCookieSecure())   // 开发环境(HTTP)设false，生产环境(HTTPS)设true
+                .maxAge(jwtUtil.getExpiration()/1000) // 过期时间 (秒)
                 .path("/")              // 作用域
-                .maxAge(3600)           // 过期时间 (秒)，建议与 JWT 有效期一致
                 .sameSite("Lax")
                 .build();
 
@@ -61,7 +61,7 @@ public class AuthController {
     public ApiResponse<Void> logout(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from("accessToken", "")
                 .httpOnly(true)
-                .secure(true)
+                .secure(jwtUtil.isCookieSecure())
                 .path("/")
                 .maxAge(0)
                 .sameSite("Lax")

@@ -17,6 +17,7 @@ public class ProjectViewVo {
     private String city;
     private String droneCertificateUrl;
     private String specialOperationCertUrl;
+    private String sectionIds;
     private List<InspectDevice> devices;
     private LocalDateTime createTime;
 }

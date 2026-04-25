@@ -2,8 +2,8 @@ package com.yldlxj.pv.inspect.export;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.yldlxj.pv.inspect.common.BusinessException;
-import com.yldlxj.pv.inspect.farmer.Farmer;
-import com.yldlxj.pv.inspect.farmer.FarmerMapper;
+import com.yldlxj.pv.inspect.inverter.Inverter;
+import com.yldlxj.pv.inspect.inverter.InverterMapper;
 import com.yldlxj.pv.inspect.inspection.InspectChecklistTemplate;
 import com.yldlxj.pv.inspect.inspection.InspectChecklistTemplateMapper;
 import com.yldlxj.pv.inspect.inspection.InspectRecord;
@@ -39,7 +39,7 @@ public class ExportService {
     private final PdfReportService pdfReportService;
     private final StorageService storageService;
     private final ExportAsyncRunner asyncRunner;
-    private final FarmerMapper farmerMapper;
+    private final InverterMapper inverterMapper;
     private final ProjectMapper projectMapper;
     private final SysUserMapper userMapper;
     private final InspectPlanMapper planMapper;
@@ -83,7 +83,7 @@ public class ExportService {
             List<InspectRecord> records = recordMapper.selectList(
                     new LambdaQueryWrapper<InspectRecord>()
                             .eq(InspectRecord::getPlanId, task.getPlanId())
-                            .orderByAsc(InspectRecord::getFarmerId)
+                            .orderByAsc(InspectRecord::getInverterId)
             );
 
             ExportDataContext ctx = batchLoadContext(records);
@@ -151,9 +151,9 @@ public class ExportService {
         int processed = 0;
         for (InspectRecord record : records) {
             byte[] pdf = pdfReportService.generatePdf(record, ctx);
-            Farmer farmer = ctx.getFarmers().get(record.getFarmerId());
-            String fileName = farmer != null
-                    ? farmer.getFarmerCode() + "_" + farmer.getFarmerName() + ".pdf"
+            Inverter inverter = ctx.getInverters().get(record.getInverterId());
+            String fileName = inverter != null
+                    ? inverter.getInverterCode() + "_" + inverter.getOwnerName() + ".pdf"
                     : "record_" + record.getId() + ".pdf";
             zos.putNextEntry(new ZipEntry(fileName));
             zos.write(pdf);
@@ -171,17 +171,17 @@ public class ExportService {
                                        ExportDataContext ctx, ExportTask task) throws IOException {
         int processed = 0;
         for (InspectRecord record : records) {
-            Farmer farmer = ctx.getFarmers().get(record.getFarmerId());
-            String farmerDir = farmer != null
-                    ? farmer.getFarmerCode() + "_" + farmer.getFarmerName() + "/"
-                    : "unknown_" + record.getFarmerId() + "/";
+            Inverter inverter = ctx.getInverters().get(record.getInverterId());
+            String inverterDir = inverter != null
+                    ? inverter.getInverterCode() + "_" + inverter.getOwnerName() + "/"
+                    : "unknown_" + record.getInverterId() + "/";
 
             Map<String, Object> photoUrls = record.getPhotoUrls();
             if (photoUrls != null) {
                 for (Map.Entry<String, Object> entry : photoUrls.entrySet()) {
                     int sectionId = Integer.parseInt(entry.getKey());
                     String sectionName = ctx.getSectionNameMap().getOrDefault(sectionId, "section_" + sectionId);
-                    String sectionDir = farmerDir + "section_" + sectionId + "_" + sectionName + "/";
+                    String sectionDir = inverterDir + "section_" + sectionId + "_" + sectionName + "/";
 
                     Object val = entry.getValue();
                     if (!(val instanceof List)) continue;
@@ -232,13 +232,13 @@ public class ExportService {
         }
 
         Long planId = records.get(0).getPlanId();
-        Set<Long> farmerIds = records.stream().map(InspectRecord::getFarmerId).collect(Collectors.toSet());
+        Set<Long> inverterIds = records.stream().map(InspectRecord::getInverterId).collect(Collectors.toSet());
         Set<Long> projectIds = records.stream().map(InspectRecord::getProjectId).collect(Collectors.toSet());
         Set<Long> inspectorIds = records.stream().map(InspectRecord::getInspectorId).collect(Collectors.toSet());
 
         InspectPlan plan = planMapper.selectById(planId);
-        Map<Long, Farmer> farmers = farmerMapper.selectBatchIds(farmerIds)
-                .stream().collect(Collectors.toMap(Farmer::getId, Function.identity()));
+        Map<Long, Inverter> inverters = inverterMapper.selectBatchIds(inverterIds)
+                .stream().collect(Collectors.toMap(Inverter::getId, Function.identity()));
         Map<Long, Project> projects = projectMapper.selectBatchIds(projectIds)
                 .stream().collect(Collectors.toMap(Project::getId, Function.identity()));
         Map<Long, SysUser> users = userMapper.selectBatchIds(inspectorIds)
@@ -251,12 +251,12 @@ public class ExportService {
             sectionNameMap.putIfAbsent(t.getSectionId(), t.getSectionName());
         }
 
-        return new ExportDataContext(plan, farmers, projects, users, sectionNameMap);
+        return new ExportDataContext(plan, inverters, projects, users, sectionNameMap);
     }
 
     private ExportDataContext buildSingleContext(InspectRecord record) {
         InspectPlan plan = planMapper.selectById(record.getPlanId());
-        Farmer farmer = farmerMapper.selectById(record.getFarmerId());
+        Inverter inverter = inverterMapper.selectById(record.getInverterId());
         Project project = projectMapper.selectById(record.getProjectId());
         SysUser user = userMapper.selectById(record.getInspectorId());
 
@@ -266,10 +266,10 @@ public class ExportService {
             sectionNameMap.putIfAbsent(t.getSectionId(), t.getSectionName());
         }
 
-        Map<Long, Farmer> farmers = farmer != null ? Map.of(farmer.getId(), farmer) : Map.of();
+        Map<Long, Inverter> inverters = inverter != null ? Map.of(inverter.getId(), inverter) : Map.of();
         Map<Long, Project> projects = project != null ? Map.of(project.getId(), project) : Map.of();
         Map<Long, SysUser> users = user != null ? Map.of(user.getId(), user) : Map.of();
 
-        return new ExportDataContext(plan, farmers, projects, users, sectionNameMap);
+        return new ExportDataContext(plan, inverters, projects, users, sectionNameMap);
     }
 }

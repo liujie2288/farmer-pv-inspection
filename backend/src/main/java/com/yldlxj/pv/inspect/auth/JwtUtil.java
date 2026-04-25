@@ -20,11 +20,22 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private long expiration;
 
+    @Value("${jwt.cookie-secure:true}")
+    private boolean cookieSecure;
+
     private Key key;
 
     @PostConstruct
     public void init() {
         this.key = Keys.hmacShaKeyFor(secret.getBytes());
+    }
+
+    public long getExpiration() {
+        return expiration;
+    }
+
+    public boolean isCookieSecure() {
+        return cookieSecure;
     }
 
     public String generateToken(Long userId, String username, String role) {

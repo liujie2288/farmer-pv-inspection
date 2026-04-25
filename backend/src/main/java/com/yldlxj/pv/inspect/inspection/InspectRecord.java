@@ -16,7 +16,7 @@ public class InspectRecord extends BaseEntity {
 
     private Long planId;
 
-    private Long farmerId;
+    private Long inverterId;
 
     private Long inspectorId;
 

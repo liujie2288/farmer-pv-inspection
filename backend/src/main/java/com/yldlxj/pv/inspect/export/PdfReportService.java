@@ -1,6 +1,6 @@
 package com.yldlxj.pv.inspect.export;
 
-import com.yldlxj.pv.inspect.farmer.Farmer;
+import com.yldlxj.pv.inspect.inverter.Inverter;
 import com.yldlxj.pv.inspect.inspection.InspectRecord;
 import com.yldlxj.pv.inspect.plan.InspectPlan;
 import com.yldlxj.pv.inspect.project.Project;
@@ -47,7 +47,7 @@ public class PdfReportService {
             PdfFont font = PdfFontFactory.createFont("STSong-Light", "UniGB-UCS2-H");
 
             InspectPlan plan = ctx.getPlan();
-            Farmer farmer = ctx.getFarmers().get(record.getFarmerId());
+            Inverter inverter = ctx.getInverters().get(record.getInverterId());
             Project project = ctx.getProjects().get(record.getProjectId());
             SysUser inspector = ctx.getUsers().get(record.getInspectorId());
 
@@ -61,8 +61,8 @@ public class PdfReportService {
             Table infoTable = new Table(2);
             infoTable.setWidth(UnitValue.createPercentValue(100));
             addInfoRow(infoTable, font, "项目名称", project != null ? project.getProjectName() : "");
-            addInfoRow(infoTable, font, "农户姓名", farmer != null ? farmer.getFarmerName() : "");
-            addInfoRow(infoTable, font, "农户编号", farmer != null ? farmer.getFarmerCode() : "");
+            addInfoRow(infoTable, font, "户主姓名", inverter != null ? inverter.getOwnerName() : "");
+            addInfoRow(infoTable, font, "逆变器编号", inverter != null ? inverter.getInverterCode() : "");
             addInfoRow(infoTable, font, "巡检计划", plan != null ? plan.getPlanName() : "");
             addInfoRow(infoTable, font, "巡检人员", inspector != null ? inspector.getRealName() : "");
             addInfoRow(infoTable, font, "巡检时间", record.getCreateTime() != null ?

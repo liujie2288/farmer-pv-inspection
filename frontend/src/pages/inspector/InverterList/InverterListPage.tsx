@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, Info, Users } from 'lucide-react';
-import { listFarmers, Farmer } from '@/api/farmers';
+import { listInverters, Inverter } from '@/api/inverters';
 import { getProject, getProjectStats, ProjectStats } from '@/api/projects';
 import { getActivePlan, InspectPlan } from '@/api/plans';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
@@ -12,14 +12,14 @@ import { showDialog } from '@/components/ui/Dialog';
 
 type FilterStatus = 'all' | 'uninspected' | 'inspected';
 
-function InspectorFarmerListPage() {
+function InspectorInverterListPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const pid = Number(projectId);
 
   const [projectName, setProjectName] = useState('');
   const [stats, setStats] = useState<ProjectStats | null>(null);
-  const [farmers, setFarmers] = useState<Farmer[]>([]);
+  const [inverters, setInverters] = useState<Inverter[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [searchText, setSearchText] = useState('');
@@ -45,19 +45,19 @@ function InspectorFarmerListPage() {
     ? undefined
     : filterStatus === 'inspected' ? 1 : 0;
 
-  const loadFarmers = useCallback(async (p: number = 1) => {
+  const loadInverters = useCallback(async (p: number = 1) => {
     try {
-      const res = await listFarmers(pid, {
+      const res = await listInverters(pid, {
         page: p,
         size: 50,
-        farmerName: searchText || undefined,
+        keyword: searchText || undefined,
         status: statusParam,
       });
-      setFarmers(prev => p === 1 ? res.data.records : [...prev, ...res.data.records]);
+      setInverters(prev => p === 1 ? res.data.records : [...prev, ...res.data.records]);
       setTotal(res.data.total);
       setPage(p);
     } catch (e: any) {
-      showToast({ icon: 'fail', content: e.message || '加载农户列表失败' });
+      showToast({ icon: 'fail', content: e.message || '加载逆变器列表失败' });
     } finally {
       setLoading(false);
     }
@@ -65,26 +65,26 @@ function InspectorFarmerListPage() {
 
   useEffect(() => {
     setLoading(true);
-    loadFarmers(1);
-  }, [loadFarmers]);
+    loadInverters(1);
+  }, [loadInverters]);
 
   const sentinelRef = useInfiniteScroll(
-    () => loadFarmers(page + 1),
-    { hasMore: farmers.length < total, loading },
+    () => loadInverters(page + 1),
+    { hasMore: inverters.length < total, loading },
   );
 
   const handleSearch = () => {
     setLoading(true);
-    loadFarmers(1);
+    loadInverters(1);
   };
 
   const handleFilterChange = (status: FilterStatus) => {
     setFilterStatus(status);
   };
 
-  const handleInspect = (farmerId: number) => {
+  const handleInspect = (inverterId: number) => {
     const params = activePlan ? `?planId=${activePlan.id}` : '';
-    navigate(`/projects/${pid}/farmers/${farmerId}/inspect${params}`);
+    navigate(`/projects/${pid}/inverters/${inverterId}/inspect${params}`);
   };
 
   const handleShowProjectInfo = () => {
@@ -94,8 +94,8 @@ function InspectorFarmerListPage() {
       content: (
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-500">农户总数</span>
-            <span className="font-medium">{stats.farmerCount}</span>
+            <span className="text-gray-500">逆变器总数</span>
+            <span className="font-medium">{stats.inverterCount}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500">已巡检</span>
@@ -140,7 +140,7 @@ function InspectorFarmerListPage() {
             <ArrowLeft size={20} className="text-gray-600" />
           </button>
           <h1 className="ml-2 text-base font-semibold text-gray-900 truncate flex-1">
-            {projectName || '农户列表'}
+            {projectName || '逆变器列表'}
           </h1>
           <button
             onClick={handleShowProjectInfo}
@@ -157,8 +157,8 @@ function InspectorFarmerListPage() {
         {stats && (
           <div className="flex gap-4 bg-white rounded-xl p-3 mb-3 text-sm">
             <div className="flex-1 text-center">
-              <div className="text-lg font-bold text-gray-900">{stats.farmerCount}</div>
-              <div className="text-gray-500 text-xs mt-0.5">农户总数</div>
+              <div className="text-lg font-bold text-gray-900">{stats.inverterCount}</div>
+              <div className="text-gray-500 text-xs mt-0.5">逆变器总数</div>
             </div>
             <div className="flex-1 text-center border-l border-gray-100">
               <div className="text-lg font-bold text-green-600">{stats.inspectedCount}</div>
@@ -176,7 +176,7 @@ function InspectorFarmerListPage() {
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="搜索农户姓名或编号"
+            placeholder="搜索户主姓名或编号"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -201,34 +201,34 @@ function InspectorFarmerListPage() {
           ))}
         </div>
 
-        {/* Farmer List */}
-        {loading && farmers.length === 0 ? (
+        {/* Inverter List */}
+        {loading && inverters.length === 0 ? (
           <div className="flex justify-center py-16 text-gray-400 text-sm">加载中...</div>
-        ) : farmers.length === 0 ? (
+        ) : inverters.length === 0 ? (
           <EmptyState
             icon={Users}
-            message="暂无农户数据"
+            message="暂无逆变器数据"
           />
         ) : (
           <div className="bg-white rounded-xl overflow-hidden">
-            {farmers.map(farmer => (
+            {inverters.map(inverter => (
               <div
-                key={farmer.id}
+                key={inverter.id}
                 className="bg-white rounded-lg px-4 py-3 flex justify-between items-center border-b border-gray-50 last:border-b-0"
               >
                 <div className="flex-1 min-w-0 mr-3">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-gray-900 truncate">
-                      {farmer.farmerName}
+                      {inverter.ownerName}
                     </span>
-                    <StatusTag inspected={farmer.status === 1} />
+                    <StatusTag inspected={inverter.status === 1} />
                   </div>
                   <div className="text-xs text-gray-400 mt-1">
-                    {farmer.farmerCode}
+                    {inverter.inverterCode}
                   </div>
                 </div>
                 <button
-                  onClick={() => handleInspect(farmer.id)}
+                  onClick={() => handleInspect(inverter.id)}
                   disabled={!activePlan}
                   className={
                     activePlan
@@ -244,14 +244,14 @@ function InspectorFarmerListPage() {
         )}
 
         <div ref={sentinelRef} className="h-1" />
-        {loading && farmers.length > 0 && (
+        {loading && inverters.length > 0 && (
           <div className="text-center mt-4">
             <span className="text-sm text-gray-400">加载中...</span>
           </div>
         )}
 
         {/* Total count */}
-        {farmers.length > 0 && (
+        {inverters.length > 0 && (
           <div className="text-center text-xs text-gray-400 mt-3">
             共 {total} 条记录
           </div>
@@ -261,4 +261,4 @@ function InspectorFarmerListPage() {
   );
 }
 
-export default InspectorFarmerListPage;
+export default InspectorInverterListPage;

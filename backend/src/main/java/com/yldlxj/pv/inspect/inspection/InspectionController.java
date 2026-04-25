@@ -27,7 +27,7 @@ public class InspectionController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<Map<String, Long>> submitRecord(@RequestBody Map<String, Object> body) {
         Long planId = Long.valueOf(body.get("planId").toString());
-        Long farmerId = Long.valueOf(body.get("farmerId").toString());
+        Long inverterId = Long.valueOf(body.get("farmerId").toString());
         Long projectId = Long.valueOf(body.get("projectId").toString());
         @SuppressWarnings("unchecked")
         Map<String, Object> checklistResult = (Map<String, Object>) body.get("checklistResult");
@@ -36,7 +36,7 @@ public class InspectionController {
         BigDecimal longitude = body.get("longitude") != null ? new BigDecimal(body.get("longitude").toString()) : BigDecimal.ZERO;
         BigDecimal latitude = body.get("latitude") != null ? new BigDecimal(body.get("latitude").toString()) : BigDecimal.ZERO;
 
-        Long id = inspectionService.submitRecord(planId, farmerId, projectId, checklistResult, photoUrls, longitude, latitude);
+        Long id = inspectionService.submitRecord(planId, inverterId, projectId, checklistResult, photoUrls, longitude, latitude);
         return ApiResponse.created(Map.of("id", id));
     }
 
@@ -60,13 +60,13 @@ public class InspectionController {
 
     @GetMapping
     public ApiResponse<IPage<Map<String, Object>>> listRecords(
-            @RequestParam(required = false) Long farmerId,
+            @RequestParam(required = false) Long inverterId,
             @RequestParam(required = false) Long planId,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Integer status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ApiResponse.success(inspectionService.listRecords(farmerId, planId, keyword, status, page, size));
+        return ApiResponse.success(inspectionService.listRecords(inverterId, planId, keyword, status, page, size));
     }
 
     @PostMapping("/photos/upload")

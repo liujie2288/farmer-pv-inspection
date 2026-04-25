@@ -6,8 +6,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yldlxj.pv.inspect.auth.AuthService;
 import com.yldlxj.pv.inspect.common.BusinessException;
 import com.yldlxj.pv.inspect.common.ForbiddenException;
-import com.yldlxj.pv.inspect.farmer.Farmer;
-import com.yldlxj.pv.inspect.farmer.FarmerMapper;
+import com.yldlxj.pv.inspect.inverter.Inverter;
+import com.yldlxj.pv.inspect.inverter.InverterMapper;
 import com.yldlxj.pv.inspect.plan.InspectPlan;
 import com.yldlxj.pv.inspect.plan.InspectPlanMapper;
 import com.yldlxj.pv.inspect.storage.StorageService;
@@ -33,7 +33,7 @@ public class InspectionService {
 
     private final InspectRecordMapper recordMapper;
     private final InspectPlanMapper planMapper;
-    private final FarmerMapper farmerMapper;
+    private final InverterMapper inverterMapper;
     private final SysUserMapper userMapper;
     private final ProjectMapper projectMapper;
     private final AuthService authService;
@@ -41,7 +41,7 @@ public class InspectionService {
     private final WatermarkService watermarkService;
 
     @Transactional
-    public Long submitRecord(Long planId, Long farmerId, Long projectId,
+    public Long submitRecord(Long planId, Long inverterId, Long projectId,
                               Map<String, Object> checklistResult,
                               Map<String, Object> photoUrls,
                               BigDecimal longitude, BigDecimal latitude) {
@@ -56,26 +56,26 @@ public class InspectionService {
             throw new BusinessException("当前巡检计划未在进行中");
         }
 
-        // Validate farmer exists in project
-        Farmer farmer = farmerMapper.selectById(farmerId);
-        if (farmer == null || !farmer.getProjectId().equals(projectId)) {
-            throw new BusinessException("农户不存在");
+        // Validate inverter exists in project
+        Inverter inverter = inverterMapper.selectById(inverterId);
+        if (inverter == null || !inverter.getProjectId().equals(projectId)) {
+            throw new BusinessException("逆变器不存在");
         }
 
         // Check duplicate
         Long existing = recordMapper.selectCount(
                 new LambdaQueryWrapper<InspectRecord>()
                         .eq(InspectRecord::getPlanId, planId)
-                        .eq(InspectRecord::getFarmerId, farmerId)
+                        .eq(InspectRecord::getInverterId, inverterId)
                         .eq(InspectRecord::getInspectorId, inspectorId)
         );
         if (existing > 0) {
-            throw new BusinessException("您已提交过该农户的巡检记录");
+            throw new BusinessException("您已提交过该逆变器的巡检记录");
         }
 
         InspectRecord record = new InspectRecord();
         record.setPlanId(planId);
-        record.setFarmerId(farmerId);
+        record.setInverterId(inverterId);
         record.setInspectorId(inspectorId);
         record.setProjectId(projectId);
         record.setChecklistResult(checklistResult);
@@ -85,12 +85,8 @@ public class InspectionService {
         recordMapper.insert(record);
 
         // Cascade status update
-        updateFarmerStatus(farmerId, inspectorId);
+        updateInverterStatus(inverterId, inspectorId);
         updatePlanInspectedCount(planId);
-        // If this is a sub-plan, also update parent
-        if (plan.getParentId() != null && plan.getParentId() > 0) {
-            updatePlanInspectedCount(plan.getParentId());
-        }
 
         return record.getId();
     }
@@ -129,7 +125,7 @@ public class InspectionService {
         }
 
         InspectPlan plan = planMapper.selectById(record.getPlanId());
-        Farmer farmer = farmerMapper.selectById(record.getFarmerId());
+        Inverter inverter = inverterMapper.selectById(record.getInverterId());
         SysUser inspector = userMapper.selectById(record.getInspectorId());
 
         Long currentUserId = authService.getCurrentUserId();
@@ -138,8 +134,8 @@ public class InspectionService {
         Map<String, Object> detail = new LinkedHashMap<>();
         detail.put("id", record.getId());
         detail.put("planName", plan != null ? plan.getPlanName() : "");
-        detail.put("farmerName", farmer != null ? farmer.getFarmerName() : "");
-        detail.put("farmerCode", farmer != null ? farmer.getFarmerCode() : "");
+        detail.put("inverterName", inverter != null ? inverter.getOwnerName() : "");
+        detail.put("inverterCode", inverter != null ? inverter.getInverterCode() : "");
         detail.put("projectName", getProjectName(record.getProjectId()));
         detail.put("inspectorName", inspector != null ? inspector.getRealName() : "");
         detail.put("checklistResult", record.getChecklistResult());
@@ -151,14 +147,14 @@ public class InspectionService {
         return detail;
     }
 
-    public IPage<Map<String, Object>> listRecords(Long farmerId, Long planId, String keyword, Integer status, int page, int size) {
+    public IPage<Map<String, Object>> listRecords(Long inverterId, Long planId, String keyword, Integer status, int page, int size) {
         Long currentUserId = authService.getCurrentUserId();
         SysUser currentUser = userMapper.selectById(currentUserId);
         boolean isInspector = currentUser != null && "inspector".equals(currentUser.getRole());
 
         LambdaQueryWrapper<InspectRecord> wrapper = new LambdaQueryWrapper<>();
-        if (farmerId != null && farmerId > 0) {
-            wrapper.eq(InspectRecord::getFarmerId, farmerId);
+        if (inverterId != null && inverterId > 0) {
+            wrapper.eq(InspectRecord::getInverterId, inverterId);
         }
         if (planId != null) {
             wrapper.eq(InspectRecord::getPlanId, planId);
@@ -177,7 +173,7 @@ public class InspectionService {
             wrapper.in(InspectRecord::getPlanId, statusPlanIds);
         }
 
-        // Keyword search across plan name, inspector name, farmer name
+        // Keyword search across plan name, inspector name, inverter name
         if (keyword != null && !keyword.isBlank()) {
             List<Long> matchedPlanIds = planMapper.selectList(
                     new LambdaQueryWrapper<InspectPlan>().like(InspectPlan::getPlanName, keyword))
@@ -185,11 +181,11 @@ public class InspectionService {
             List<Long> matchedInspectorIds = userMapper.selectList(
                     new LambdaQueryWrapper<SysUser>().like(SysUser::getRealName, keyword))
                     .stream().map(SysUser::getId).toList();
-            List<Long> matchedFarmerIds = farmerMapper.selectList(
-                    new LambdaQueryWrapper<Farmer>().like(Farmer::getFarmerName, keyword))
-                    .stream().map(Farmer::getId).toList();
+            List<Long> matchedInverterIds = inverterMapper.selectList(
+                    new LambdaQueryWrapper<Inverter>().like(Inverter::getOwnerName, keyword))
+                    .stream().map(Inverter::getId).toList();
 
-            if (matchedPlanIds.isEmpty() && matchedInspectorIds.isEmpty() && matchedFarmerIds.isEmpty()) {
+            if (matchedPlanIds.isEmpty() && matchedInspectorIds.isEmpty() && matchedInverterIds.isEmpty()) {
                 Page<Map<String, Object>> emptyPage = new Page<>(page, size, 0);
                 emptyPage.setRecords(Collections.emptyList());
                 return emptyPage;
@@ -202,9 +198,9 @@ public class InspectionService {
                     if (!matchedPlanIds.isEmpty()) w.or();
                     w.in(InspectRecord::getInspectorId, matchedInspectorIds);
                 }
-                if (!matchedFarmerIds.isEmpty()) {
+                if (!matchedInverterIds.isEmpty()) {
                     if (!matchedPlanIds.isEmpty() || !matchedInspectorIds.isEmpty()) w.or();
-                    w.in(InspectRecord::getFarmerId, matchedFarmerIds);
+                    w.in(InspectRecord::getInverterId, matchedInverterIds);
                 }
             });
         }
@@ -221,13 +217,13 @@ public class InspectionService {
         for (InspectRecord r : recordPage.getRecords()) {
             InspectPlan plan = planMapper.selectById(r.getPlanId());
             SysUser inspector = userMapper.selectById(r.getInspectorId());
-            Farmer farmer = farmerMapper.selectById(r.getFarmerId());
+            Inverter inverter = inverterMapper.selectById(r.getInverterId());
             boolean canEdit = r.getInspectorId().equals(currentUserId) && plan != null && plan.getStatus() == 1;
 
             Map<String, Object> map = new HashMap<>();
             map.put("id", r.getId());
             map.put("planName", plan != null ? plan.getPlanName() : "");
-            map.put("farmerName", farmer != null ? farmer.getFarmerName() : "");
+            map.put("inverterName", inverter != null ? inverter.getOwnerName() : "");
             map.put("projectName", getProjectName(r.getProjectId()));
             map.put("createTime", r.getCreateTime());
             map.put("inspectorName", inspector != null ? inspector.getRealName() : "");
@@ -274,13 +270,13 @@ public class InspectionService {
         }
     }
 
-    private void updateFarmerStatus(Long farmerId, Long inspectorId) {
-        Farmer farmer = farmerMapper.selectById(farmerId);
-        if (farmer != null) {
-            farmer.setStatus(1);
-            farmer.setLastInspectTime(LocalDateTime.now());
-            farmer.setLastInspectorId(inspectorId);
-            farmerMapper.updateById(farmer);
+    private void updateInverterStatus(Long inverterId, Long inspectorId) {
+        Inverter inverter = inverterMapper.selectById(inverterId);
+        if (inverter != null) {
+            inverter.setStatus(1);
+            inverter.setLastInspectTime(LocalDateTime.now());
+            inverter.setLastInspectorId(inspectorId);
+            inverterMapper.updateById(inverter);
         }
     }
 

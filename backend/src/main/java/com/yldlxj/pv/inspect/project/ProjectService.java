@@ -3,9 +3,10 @@ package com.yldlxj.pv.inspect.project;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yldlxj.pv.inspect.common.BusinessException;
+import com.yldlxj.pv.inspect.convert.ProjectConvert;
 import com.yldlxj.pv.inspect.device.InspectDevice;
 import com.yldlxj.pv.inspect.device.InspectDeviceMapper;
-import com.yldlxj.pv.inspect.farmer.FarmerMapper;
+import com.yldlxj.pv.inspect.inverter.InverterMapper;
 import com.yldlxj.pv.inspect.project.dto.ProjectDto;
 import com.yldlxj.pv.inspect.project.dto.ProjectViewVo;
 import lombok.RequiredArgsConstructor;
@@ -20,22 +21,17 @@ import java.util.stream.Collectors;
 public class ProjectService {
 
     private final ProjectMapper projectMapper;
-    private final FarmerMapper farmerMapper;
+    private final InverterMapper inverterMapper;
     private final InspectDeviceMapper deviceMapper;
 
-    private ProjectViewVo toViewVo(Project project) {
-        ProjectViewVo vo = new ProjectViewVo();
-        vo.setId(project.getId());
-        vo.setProjectName(project.getProjectName());
-        vo.setPropertyCompany(project.getPropertyCompany());
-        vo.setStationType(project.getStationType());
-        vo.setProvince(project.getProvince());
-        vo.setCity(project.getCity());
-        vo.setDroneCertificateUrl(project.getDroneCertificateUrl());
-        vo.setSpecialOperationCertUrl(project.getSpecialOperationCertUrl());
-        vo.setDevices(project.getDevices());
-        vo.setCreateTime(project.getCreateTime());
-        return vo;
+    public ProjectViewVo getProjectById(Long id) {
+        Project project = projectMapper.selectById(id);
+        if (project != null) {
+            project.setDevices(deviceMapper.selectList(
+                    new LambdaQueryWrapper<InspectDevice>().eq(InspectDevice::getProjectId, id)
+            ));
+        }
+        return ProjectConvert.INSTANCE.toViewVo(project);
     }
 
     public Page<Project> listProjects(int page, int size, String projectName) {
@@ -64,15 +60,12 @@ public class ProjectService {
         project.setCity(dto.getCity());
         project.setDroneCertificateUrl(dto.getDroneCertificateUrl());
         project.setSpecialOperationCertUrl(dto.getSpecialOperationCertUrl());
+        project.setSectionIds(dto.getSectionIds());
         projectMapper.insert(project);
 
         if (dto.getDevices() != null) {
             for (ProjectDto.DeviceItem item : dto.getDevices()) {
-                InspectDevice device = new InspectDevice();
-                device.setProjectId(project.getId());
-                device.setDeviceName(item.getDeviceName());
-                device.setDeviceModel(item.getDeviceModel());
-                deviceMapper.insert(device);
+                deviceMapper.insert(new InspectDevice(project.getId(), item.getDeviceName(), item.getDeviceModel()));
             }
         }
 
@@ -103,11 +96,12 @@ public class ProjectService {
         project.setCity(dto.getCity());
         project.setDroneCertificateUrl(dto.getDroneCertificateUrl());
         project.setSpecialOperationCertUrl(dto.getSpecialOperationCertUrl());
+        project.setSectionIds(dto.getSectionIds());
         projectMapper.updateById(project);
 
         // Sync devices: items with id → update, items without id → insert, missing ids → delete
         List<InspectDevice> existing = deviceMapper.selectList(
-            new LambdaQueryWrapper<InspectDevice>().eq(InspectDevice::getProjectId, id)
+                new LambdaQueryWrapper<InspectDevice>().eq(InspectDevice::getProjectId, id)
         );
         Set<Long> existingIds = existing.stream().map(InspectDevice::getId).collect(Collectors.toSet());
         Set<Long> submittedIds = new HashSet<>();
@@ -138,9 +132,8 @@ public class ProjectService {
             throw new BusinessException("项目不存在");
         }
 
-        int farmerCount = farmerMapper.countByProjectId(id);
-        if (farmerCount > 0) {
-            throw new BusinessException("该项目下存在农户，请先删除");
+        if (inverterMapper.countByProjectId(id) > 0) {
+            throw new BusinessException("该项目下存在逆变器，请先删除");
         }
 
         projectMapper.deleteById(id);
@@ -153,13 +146,13 @@ public class ProjectService {
             throw new BusinessException("项目不存在");
         }
 
-        int farmerCount = farmerMapper.countByProjectId(id);
-        int inspectedCount = farmerMapper.countInspectedByProjectId(id);
-        int uninspectedCount = farmerCount - inspectedCount;
-        double completionRate = farmerCount > 0 ? (inspectedCount * 100.0 / farmerCount) : 0;
+        int inverterCount = inverterMapper.countByProjectId(id);
+        int inspectedCount = inverterMapper.countInspectedByProjectId(id);
+        int uninspectedCount = inverterCount - inspectedCount;
+        double completionRate = inverterCount > 0 ? (inspectedCount * 100.0 / inverterCount) : 0;
 
         Map<String, Object> stats = new HashMap<>();
-        stats.put("farmerCount", farmerCount);
+        stats.put("inverterCount", inverterCount);
         stats.put("inspectedCount", inspectedCount);
         stats.put("uninspectedCount", uninspectedCount);
         stats.put("completionRate", Math.round(completionRate * 100.0) / 100.0);
@@ -167,14 +160,5 @@ public class ProjectService {
         return stats;
     }
 
-    public ProjectViewVo getProjectById(Long id) {
-        Project project = projectMapper.selectById(id);
-        if (project == null) {
-            throw new BusinessException("项目不存在");
-        }
-        project.setDevices(deviceMapper.selectList(
-            new LambdaQueryWrapper<InspectDevice>().eq(InspectDevice::getProjectId, id)
-        ));
-        return toViewVo(project);
-    }
+
 }

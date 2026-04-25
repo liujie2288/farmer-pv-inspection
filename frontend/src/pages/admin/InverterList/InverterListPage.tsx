@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useRef, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Search, Plus, Upload, Trash2, Edit3, ChevronRight,
+  Search, Plus, Upload, Trash2, ChevronRight,
   Users, FileSpreadsheet, X
 } from 'lucide-react';
 import {
-  listFarmers, createFarmer, updateFarmer, deleteFarmer,
-  batchDeleteFarmers, importFarmers, Farmer
-} from '@/api/farmers';
+  listInverters, createInverter,
+  batchDeleteInverters, importInverters, Inverter
+} from '@/api/inverters';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { showToast } from '@/components/ui/Toast';
 import { confirm } from '@/components/ui/Dialog';
@@ -15,26 +15,32 @@ import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import StatusTag from '@/components/ui/StatusTag';
 
-interface FarmerFormState {
-  farmerCode: string;
-  farmerName: string;
+interface InverterFormState {
+  inverterCode: string;
+  ownerName: string;
+  address: string;
   powerAccount: string;
   inverterSn: string;
   inverterBrand: string;
   moduleSpec: string;
   moduleCount: string;
   capacityKw: string;
+  longitude: string;
+  latitude: string;
 }
 
-const emptyForm: FarmerFormState = {
-  farmerCode: '',
-  farmerName: '',
+const emptyForm: InverterFormState = {
+  inverterCode: '',
+  ownerName: '',
+  address: '',
   powerAccount: '',
   inverterSn: '',
   inverterBrand: '',
   moduleSpec: '',
   moduleCount: '',
   capacityKw: '',
+  longitude: '',
+  latitude: '',
 };
 
 const statusTabs: { label: string; value: number | undefined }[] = [
@@ -43,12 +49,12 @@ const statusTabs: { label: string; value: number | undefined }[] = [
   { label: '已巡检', value: 1 },
 ];
 
-function FarmerListPage() {
+function InverterListPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const pid = Number(projectId);
 
-  const [farmers, setFarmers] = useState<Farmer[]>([]);
+  const [inverters, setInverters] = useState<Inverter[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -58,29 +64,27 @@ function FarmerListPage() {
 
   // Create dialog state
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState<FarmerFormState>({ ...emptyForm });
+  const [createForm, setCreateForm] = useState<InverterFormState>({ ...emptyForm });
 
-  // Edit dialog state
-  const [editFarmer, setEditFarmer] = useState<Farmer | null>(null);
-  const [editForm, setEditForm] = useState<FarmerFormState>({ ...emptyForm });
+
 
   // Import dialog state
   const [showImport, setShowImport] = useState(false);
 
-  // Load farmers
-  const loadFarmers = useCallback(async (p: number = 1) => {
+  // Load inverters
+  const loadInverters = useCallback(async (p: number = 1) => {
     setLoading(true);
     try {
-      const res = await listFarmers(pid, {
+      const res = await listInverters(pid, {
         page: p,
         size: 20,
-        farmerName: searchText || undefined,
+        keyword: searchText || undefined,
         status: statusFilter,
       });
       if (p === 1) {
-        setFarmers(res.data.records);
+        setInverters(res.data.records);
       } else {
-        setFarmers(prev => [...prev, ...res.data.records]);
+        setInverters(prev => [...prev, ...res.data.records]);
       }
       setTotal(res.data.total);
       setPage(p);
@@ -91,15 +95,16 @@ function FarmerListPage() {
     }
   }, [pid, searchText, statusFilter]);
 
-  useEffect(() => { loadFarmers(1); }, [loadFarmers]);
+  useEffect(() => { loadInverters(1); }, [loadInverters]);
 
   // Handle search
   const handleSearch = () => {
     setSelectedIds(new Set());
-    loadFarmers(1);
+    loadInverters(1);
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === 'Enter') handleSearch();
   };
 
@@ -123,102 +128,52 @@ function FarmerListPage() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === farmers.length) {
+    if (selectedIds.size === inverters.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(farmers.map(f => f.id)));
+      setSelectedIds(new Set(inverters.map(f => f.id)));
     }
   };
 
-  // Create farmer
+  // Create inverter
   const handleOpenCreate = () => {
     setCreateForm({ ...emptyForm });
     setShowCreate(true);
   };
 
   const handleCreate = async () => {
-    if (!createForm.farmerCode.trim() || !createForm.farmerName.trim()) {
-      showToast({ icon: 'fail', content: '请填写农户编号和姓名' });
+    if (!createForm.inverterCode.trim() || !createForm.ownerName.trim()) {
+      showToast({ icon: 'fail', content: '请填写逆变器编号和户主姓名' });
       return;
     }
     try {
-      await createFarmer(pid, {
-        farmerCode: createForm.farmerCode,
-        farmerName: createForm.farmerName,
+      await createInverter(pid, {
+        inverterCode: createForm.inverterCode,
+        ownerName: createForm.ownerName,
+        address: createForm.address || null,
         powerAccount: createForm.powerAccount || null,
         inverterSn: createForm.inverterSn || null,
         inverterBrand: createForm.inverterBrand || null,
         moduleSpec: createForm.moduleSpec || null,
         moduleCount: createForm.moduleCount ? Number(createForm.moduleCount) : null,
         capacityKw: createForm.capacityKw ? Number(createForm.capacityKw) : null,
+        longitude: createForm.longitude ? Number(createForm.longitude) : null,
+        latitude: createForm.latitude ? Number(createForm.latitude) : null,
       });
       showToast({ icon: 'success', content: '创建成功' });
       setShowCreate(false);
-      loadFarmers(1);
+      loadInverters(1);
     } catch (e: any) {
       showToast({ icon: 'fail', content: e.message || '创建失败' });
     }
   };
 
-  // Edit farmer
-  const handleOpenEdit = (farmer: Farmer, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setEditFarmer(farmer);
-    setEditForm({
-      farmerCode: farmer.farmerCode || '',
-      farmerName: farmer.farmerName || '',
-      powerAccount: farmer.powerAccount || '',
-      inverterSn: farmer.inverterSn || '',
-      inverterBrand: farmer.inverterBrand || '',
-      moduleSpec: farmer.moduleSpec || '',
-      moduleCount: farmer.moduleCount != null ? String(farmer.moduleCount) : '',
-      capacityKw: farmer.capacityKw != null ? String(farmer.capacityKw) : '',
-    });
-  };
 
-  const handleEdit = async () => {
-    if (!editFarmer) return;
-    if (!editForm.farmerCode.trim() || !editForm.farmerName.trim()) {
-      showToast({ icon: 'fail', content: '请填写农户编号和姓名' });
-      return;
-    }
-    try {
-      await updateFarmer(pid, editFarmer.id, {
-        farmerCode: editForm.farmerCode,
-        farmerName: editForm.farmerName,
-        powerAccount: editForm.powerAccount || null,
-        inverterSn: editForm.inverterSn || null,
-        inverterBrand: editForm.inverterBrand || null,
-        moduleSpec: editForm.moduleSpec || null,
-        moduleCount: editForm.moduleCount ? Number(editForm.moduleCount) : null,
-        capacityKw: editForm.capacityKw ? Number(editForm.capacityKw) : null,
-      });
-      showToast({ icon: 'success', content: '修改成功' });
-      setEditFarmer(null);
-      loadFarmers(1);
-    } catch (e: any) {
-      showToast({ icon: 'fail', content: e.message || '修改失败' });
-    }
-  };
-
-  // Delete single farmer
-  const handleDelete = async (farmer: Farmer, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    const ok = await confirm({ content: `确定删除农户"${farmer.farmerName}"吗？`, title: '删除确认' });
-    if (!ok) return;
-    try {
-      await deleteFarmer(pid, farmer.id);
-      showToast({ icon: 'success', content: '删除成功' });
-      loadFarmers(1);
-    } catch (e: any) {
-      showToast({ icon: 'fail', content: e.message || '删除失败' });
-    }
-  };
 
   // Batch delete
   const handleBatchDelete = async () => {
     if (selectedIds.size === 0) {
-      showToast({ icon: 'info', content: '请选择要删除的农户' });
+      showToast({ icon: 'info', content: '请选择要删除的逆变器' });
       return;
     }
     const ok = await confirm({
@@ -227,10 +182,10 @@ function FarmerListPage() {
     });
     if (!ok) return;
     try {
-      await batchDeleteFarmers(pid, Array.from(selectedIds));
+      await batchDeleteInverters(pid, Array.from(selectedIds));
       showToast({ icon: 'success', content: '批量删除成功' });
       setSelectedIds(new Set());
-      loadFarmers(1);
+      loadInverters(1);
     } catch (e: any) {
       showToast({ icon: 'fail', content: e.message || '删除失败' });
     }
@@ -243,44 +198,47 @@ function FarmerListPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const res = await importFarmers(pid, file);
+      const res = await importInverters(pid, file);
       showToast({ icon: 'success', content: `成功导入 ${res.data.successCount} 户` });
       setShowImport(false);
-      loadFarmers(1);
+      loadInverters(1);
     } catch (e: any) {
       showToast({ icon: 'fail', content: e.message || '导入失败' });
     }
   };
 
-  // Navigate to farmer detail
-  const goToDetail = (farmerId: number) => {
-    navigate(`/admin/projects/${pid}/farmers/${farmerId}`);
+  // Navigate to inverter detail
+  const goToDetail = (inverterId: number) => {
+    navigate(`/admin/projects/${pid}/inverters/${inverterId}`);
   };
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const sentinelRef = useInfiniteScroll(
-    () => loadFarmers(page + 1),
-    { hasMore: farmers.length < total, loading, root: scrollContainerRef.current },
+    () => loadInverters(page + 1),
+    { hasMore: inverters.length < total, loading, root: scrollContainerRef.current },
   );
 
-  const allSelected = farmers.length > 0 && selectedIds.size === farmers.length;
+  const allSelected = inverters.length > 0 && selectedIds.size === inverters.length;
 
   // Reusable form fields renderer
-  const formFields: { key: keyof FarmerFormState; label: string; placeholder: string; required?: boolean; type?: string }[] = [
-    { key: 'farmerCode', label: '农户编号', placeholder: '必填', required: true },
-    { key: 'farmerName', label: '农户姓名', placeholder: '必填', required: true },
+  const formFields: { key: keyof InverterFormState; label: string; placeholder: string; required?: boolean; type?: string; integer?: boolean }[] = [
+    { key: 'inverterCode', label: '逆变器编号', placeholder: '必填', required: true },
+    { key: 'ownerName', label: '户主姓名', placeholder: '必填', required: true },
+    { key: 'address', label: '装机地址', placeholder: '选填' },
     { key: 'powerAccount', label: '发电户号', placeholder: '选填' },
     { key: 'inverterSn', label: '逆变器序列号', placeholder: '选填' },
-    { key: 'inverterBrand', label: '逆变器品牌', placeholder: '选填' },
-    { key: 'moduleSpec', label: '组件规格', placeholder: '选填' },
-    { key: 'moduleCount', label: '组件块数', placeholder: '选填', type: 'number' },
+    { key: 'inverterBrand', label: '逆变器品牌型号', placeholder: '选填' },
     { key: 'capacityKw', label: '装机容量(kW)', placeholder: '选填', type: 'number' },
+    { key: 'moduleCount', label: '组件块数', placeholder: '选填', type: 'number', integer: true },
+    { key: 'moduleSpec', label: '组件规格型号', placeholder: '选填' },
+    { key: 'longitude', label: '经度坐标', placeholder: '选填', type: 'number' },
+    { key: 'latitude', label: '纬度坐标', placeholder: '选填', type: 'number' },
   ];
 
   const renderFormFields = (
-    form: FarmerFormState,
-    onChange: (field: keyof FarmerFormState, value: string) => void
+    form: InverterFormState,
+    onChange: (field: keyof InverterFormState, value: string) => void
   ) => (
     <div className="space-y-3">
       {formFields.map(field => (
@@ -292,7 +250,7 @@ function FarmerListPage() {
           <input
             type={field.type || 'text'}
             value={form[field.key]}
-            onChange={e => onChange(field.key, e.target.value)}
+            onChange={e => onChange(field.key, field.integer ? e.target.value.replace(/[^0-9]/g, '').replace(/^0+/, '') : e.target.value)}
             placeholder={field.placeholder}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal focus:border-teal outline-none text-sm transition"
           />
@@ -314,7 +272,7 @@ function FarmerListPage() {
               value={searchText}
               onChange={e => setSearchText(e.target.value)}
               onKeyDown={handleSearchKeyDown}
-              placeholder="搜索农户姓名"
+              placeholder="搜索编号/户主姓名"
               className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal focus:border-teal outline-none text-sm transition"
             />
           </div>
@@ -379,27 +337,27 @@ function FarmerListPage() {
               className="w-4 h-4 rounded border-gray-300 text-teal focus:ring-teal cursor-pointer"
             />
           </div>
-          <div className="w-28">农户编号</div>
-          <div className="w-24">农户姓名</div>
+          <div className="w-28">逆变器编号</div>
+          <div className="w-24">户主姓名</div>
           <div className="w-32">发电户号</div>
           <div className="w-20">状态</div>
           <div className="w-28">逆变器品牌</div>
-          <div className="w-24">装机容量</div>
+          <div className="w-28">最后巡检</div>
           <div className="flex-1 text-right">操作</div>
         </div>
       </div>
 
       {/* Content area */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-6">
-        {loading && farmers.length === 0 ? (
+        {loading && inverters.length === 0 ? (
           <LoadingSpinner size="lg" />
-        ) : farmers.length === 0 ? (
-          <EmptyState icon={Users} message="暂无农户数据" />
+        ) : inverters.length === 0 ? (
+          <EmptyState icon={Users} message="暂无逆变器数据" />
         ) : (
           <>
             {/* Desktop table rows */}
             <div className="hidden lg:block">
-              {farmers.map(f => (
+              {inverters.map(f => (
                 <div
                   key={f.id}
                   onClick={() => goToDetail(f.id)}
@@ -415,31 +373,17 @@ function FarmerListPage() {
                       className="w-4 h-4 rounded border-gray-300 text-teal focus:ring-teal cursor-pointer"
                     />
                   </div>
-                  <div className="w-28 text-sm font-mono text-gray-700 truncate">{f.farmerCode}</div>
-                  <div className="w-24 text-sm font-medium text-gray-900 truncate">{f.farmerName}</div>
+                  <div className="w-28 text-sm font-mono text-gray-700 truncate">{f.inverterCode}</div>
+                  <div className="w-24 text-sm font-medium text-gray-900 truncate">{f.ownerName}</div>
                   <div className="w-32 text-sm text-gray-500 truncate">{f.powerAccount || '-'}</div>
                   <div className="w-20">
                     <StatusTag inspected={f.status === 1} />
                   </div>
                   <div className="w-28 text-sm text-gray-500 truncate">{f.inverterBrand || '-'}</div>
-                  <div className="w-24 text-sm text-gray-500">
-                    {f.capacityKw != null ? `${f.capacityKw} kW` : '-'}
+                  <div className="w-28 text-sm text-gray-500">
+                    {f.lastInspectTime || '-'}
                   </div>
-                  <div className="flex-1 flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
-                    <button
-                      onClick={e => handleOpenEdit(f, e)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-teal hover:bg-teal/10 rounded transition-colors"
-                    >
-                      <Edit3 size={13} />
-                      编辑
-                    </button>
-                    <button
-                      onClick={e => handleDelete(f, e)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
-                    >
-                      <Trash2 size={13} />
-                      删除
-                    </button>
+                  <div className="flex-1 flex items-center justify-end" onClick={e => e.stopPropagation()}>
                     <button
                       onClick={() => goToDetail(f.id)}
                       className="inline-flex items-center gap-1 px-2.5 py-1 text-xs text-gray-500 hover:bg-gray-100 rounded transition-colors"
@@ -454,7 +398,7 @@ function FarmerListPage() {
 
             {/* Mobile cards */}
             <div className="lg:hidden space-y-3 py-3">
-              {farmers.map(f => (
+              {inverters.map(f => (
                 <div
                   key={f.id}
                   onClick={() => goToDetail(f.id)}
@@ -474,38 +418,24 @@ function FarmerListPage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900 truncate">{f.farmerName}</span>
+                          <span className="text-sm font-medium text-gray-900 truncate">{f.ownerName}</span>
                           <StatusTag inspected={f.status === 1} />
                         </div>
                         <div className="text-xs text-gray-500 mt-1 space-y-0.5">
-                          <div>编号: {f.farmerCode}</div>
+                          <div>编号: {f.inverterCode}</div>
                           {f.powerAccount && <div>户号: {f.powerAccount}</div>}
-                          {f.capacityKw != null && <div>容量: {f.capacityKw} kW</div>}
+                          <div>巡检: {f.lastInspectTime || '-'}</div>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                      <button
-                        onClick={e => handleOpenEdit(f, e)}
-                        className="p-1.5 text-gray-400 hover:text-teal rounded transition-colors"
-                      >
-                        <Edit3 size={16} />
-                      </button>
-                      <button
-                        onClick={e => handleDelete(f, e)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 rounded transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                      <ChevronRight size={16} className="text-gray-300" />
-                    </div>
+                    <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
                   </div>
                 </div>
               ))}
             </div>
 
             <div ref={sentinelRef} className="h-1" />
-            {loading && farmers.length > 0 && (
+            {loading && inverters.length > 0 && (
               <div className="flex justify-center py-4">
                 <span className="text-sm text-gray-400">加载中...</span>
               </div>
@@ -520,7 +450,7 @@ function FarmerListPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowCreate(false)} />
           <div className="bg-white rounded-2xl w-full max-w-md mx-4 shadow-2xl relative animate-fade-in max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-navy">新增农户</h3>
+              <h3 className="text-lg font-bold text-navy">新增逆变器</h3>
               <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>
@@ -548,58 +478,13 @@ function FarmerListPage() {
         </div>
       )}
 
-      {/* Edit Dialog */}
-      {editFarmer && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setEditFarmer(null)} />
-          <div className="bg-white rounded-2xl w-full max-w-md mx-4 shadow-2xl relative animate-fade-in max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-navy">编辑农户</h3>
-              <button onClick={() => setEditFarmer(null)} className="text-gray-400 hover:text-gray-600">
-                <X size={20} />
-              </button>
-            </div>
-            <div className="px-6 py-4 overflow-y-auto flex-1">
-              {renderFormFields(editForm, (field, value) =>
-                setEditForm(prev => ({ ...prev, [field]: value }))
-              )}
-            </div>
-            <div className="flex gap-3 justify-between px-6 py-4 border-t border-gray-100">
-              <button
-                onClick={() => {
-                  handleDelete(editFarmer);
-                  setEditFarmer(null);
-                }}
-                className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors"
-              >
-                删除
-              </button>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setEditFarmer(null)}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleEdit}
-                  className="px-4 py-2 bg-teal text-white text-sm font-medium rounded-lg hover:bg-teal-dark transition-colors"
-                >
-                  保存
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Import Dialog */}
       {showImport && (
         <div className="fixed inset-0 z-40 flex items-center justify-center">
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowImport(false)} />
           <div className="bg-white rounded-2xl w-full max-w-md mx-4 shadow-2xl relative animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-navy">导入农户</h3>
+              <h3 className="text-lg font-bold text-navy">导入逆变器</h3>
               <button onClick={() => setShowImport(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>
@@ -609,7 +494,7 @@ function FarmerListPage() {
                 <FileSpreadsheet size={24} className="text-teal flex-shrink-0" />
                 <p className="text-sm text-gray-600 leading-relaxed">
                   请上传 Excel 文件（.xlsx），按以下列顺序排列：
-                  农户编号、农户姓名、发电户号、逆变器序列号、逆变器品牌、组件规格、组件块数
+                  逆变器编号、户主姓名、装机地址、发电户号、逆变器序列号、逆变器品牌型号、装机容量、组件块数、组件规格型号、经度坐标、纬度坐标
                 </p>
               </div>
               <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-teal hover:bg-teal/5 transition-colors">
@@ -639,4 +524,4 @@ function FarmerListPage() {
   );
 }
 
-export default FarmerListPage;
+export default InverterListPage;

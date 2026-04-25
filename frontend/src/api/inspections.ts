@@ -21,7 +21,7 @@ export function normalizePhotoUrls(raw: Record<string, any>): PhotoUrlsMap {
 
 export interface InspectionSubmit {
   planId: number;
-  farmerId: number;
+  inverterId: number;
   projectId: number;
   checklistResult: any;
   photoUrls: PhotoUrlsMap;
@@ -45,7 +45,7 @@ export function getInspectionDetail(id: number) {
   return client.get<any, { code: number; data: any }>(`/inspections/${id}`);
 }
 
-export function listInspections(params: { farmerId?: number; planId?: number; keyword?: string; status?: number; page?: number; size?: number }) {
+export function listInspections(params: { inverterId?: number; planId?: number; keyword?: string; status?: number; page?: number; size?: number }) {
   return client.get<any, { code: number; data: { records: any[]; total: number } }>('/inspections', { params });
 }
 

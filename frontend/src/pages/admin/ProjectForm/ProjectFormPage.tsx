@@ -8,6 +8,7 @@ import {
   type Project,
   type DeviceItem,
 } from '@/api/projects';
+import { getSectionTree, type Section } from '@/api/sections';
 import { showToast } from '@/components/ui/Toast';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
@@ -29,6 +30,7 @@ interface FormState {
   city: string;
   droneCertificateUrl: string;
   specialOperationCertUrl: string;
+  sectionIds: number[];
   devices: DeviceItem[];
 }
 
@@ -40,6 +42,7 @@ const emptyForm: FormState = {
   city: '',
   droneCertificateUrl: '',
   specialOperationCertUrl: '',
+  sectionIds: [],
   devices: [],
 };
 
@@ -109,6 +112,13 @@ function ProjectFormPage() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
+  const [sections, setSections] = useState<Section[]>([]);
+
+  useEffect(() => {
+    getSectionTree()
+      .then(res => setSections(res.data || []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -116,6 +126,7 @@ function ProjectFormPage() {
     getProject(Number(projectId))
       .then(res => {
         const p = res.data as Project;
+        const sectionIdList = p.sectionIds ? p.sectionIds.split(',').map(Number).filter(n => !isNaN(n)) : [];
         setForm({
           projectName: p.projectName,
           propertyCompany: p.propertyCompany,
@@ -124,6 +135,7 @@ function ProjectFormPage() {
           city: p.city || '',
           droneCertificateUrl: p.droneCertificateUrl || '',
           specialOperationCertUrl: p.specialOperationCertUrl || '',
+          sectionIds: sectionIdList,
           devices: (p.devices || []).map(d => ({ ...d })),
         });
       })
@@ -145,11 +157,15 @@ function ProjectFormPage() {
     }
     setSaving(true);
     try {
+      const payload = {
+        ...form,
+        sectionIds: form.sectionIds.length > 0 ? form.sectionIds.join(',') : undefined,
+      };
       if (isEdit) {
-        await updateProject(Number(projectId), form);
+        await updateProject(Number(projectId), payload);
         showToast({ icon: 'success', content: '修改成功' });
       } else {
-        await createProject(form);
+        await createProject(payload);
         showToast({ icon: 'success', content: '创建成功' });
       }
       navigate('/admin/projects');
@@ -288,6 +304,48 @@ function ProjectFormPage() {
           onChange={list => setForm(prev => ({ ...prev, devices: list }))}
         />
       </div>
+
+      {/* Inspection Sections */}
+      {sections.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
+          <div className="border-b border-gray-100 pb-4">
+            <h2 className="text-sm font-semibold text-navy">巡检内容</h2>
+          </div>
+          <div className="space-y-3">
+            {sections.map(section => {
+              const checked = form.sectionIds.includes(section.id);
+              return (
+                <label
+                  key={section.id}
+                  className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-gray-50 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    className="w-4 h-4 text-teal border-gray-300 rounded focus:ring-teal"
+                    onChange={() => {
+                      setForm(prev => ({
+                        ...prev,
+                        sectionIds: checked
+                          ? prev.sectionIds.filter(id => id !== section.id)
+                          : [...prev.sectionIds, section.id],
+                      }));
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-gray-700">
+                      {section.sectionNo}. {section.sectionName}
+                    </span>
+                    <span className="ml-2 text-xs text-gray-400">
+                      {section.items.length}项
+                    </span>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex justify-end gap-3 pb-4">

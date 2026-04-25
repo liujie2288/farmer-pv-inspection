@@ -9,7 +9,7 @@ import {
   normalizePhotoUrls,
   type PhotoUrlsMap,
 } from '@/api/inspections';
-import { getFarmerDetail } from '@/api/farmers';
+import { getInverterDetail } from '@/api/inverters';
 import { getActivePlan } from '@/api/plans';
 import InspectionChecklist from '@/components/InspectionChecklist';
 import LocationPicker from '@/components/LocationPicker';
@@ -17,7 +17,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { showToast } from '@/components/ui/Toast';
 
 function InspectionFormPage() {
-  const { projectId, farmerId, recordId } = useParams<{ projectId: string; farmerId: string; recordId: string }>();
+  const { projectId, inverterId, recordId } = useParams<{ projectId: string; inverterId: string; recordId: string }>();
   const [searchParams] = useSearchParams();
   const planId = searchParams.get('planId');
   const navigate = useNavigate();
@@ -27,7 +27,7 @@ function InspectionFormPage() {
   const [photoUrls, setPhotoUrls] = useState<PhotoUrlsMap>({});
   const [longitude, setLongitude] = useState(0);
   const [latitude, setLatitude] = useState(0);
-  const [farmerInfo, setFarmerInfo] = useState<any>(null);
+  const [inverterInfo, setInverterInfo] = useState<any>(null);
   const [planName, setPlanName] = useState('');
   const [resolvedPlanId, setResolvedPlanId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,18 +48,18 @@ function InspectionFormPage() {
           setLongitude(record.longitude || 0);
           setLatitude(record.latitude || 0);
           setPlanName(record.planName || '');
-          setFarmerInfo({
-            farmerName: record.farmerName,
-            farmerCode: record.farmerCode,
+          setInverterInfo({
+            ownerName: record.inverterName,
+            inverterCode: record.inverterCode,
             projectName: record.projectName,
           });
           setResolvedPlanId(null);
         } else {
-          const [_, farmerRes] = await Promise.all([
+          const [_, inverterRes] = await Promise.all([
             getChecklistTemplate(),
-            getFarmerDetail(Number(projectId), Number(farmerId)),
+            getInverterDetail(Number(projectId), Number(inverterId)),
           ]);
-          setFarmerInfo(farmerRes.data);
+          setInverterInfo(inverterRes.data);
 
           const activePlanRes = await getActivePlan(Number(projectId));
           if (activePlanRes.data) {
@@ -74,7 +74,7 @@ function InspectionFormPage() {
       }
     };
     init();
-  }, [projectId, farmerId, recordId]);
+  }, [projectId, inverterId, recordId]);
 
   const handleSubmit = async () => {
     const allFilled = checklistData.sections?.every((section: any) =>
@@ -97,14 +97,14 @@ function InspectionFormPage() {
         showToast({ icon: 'success', content: '保存成功' });
       } else {
         const effectivePlanId = planId ? Number(planId) : resolvedPlanId;
-        if (!effectivePlanId || !farmerId || !projectId) {
+        if (!effectivePlanId || !inverterId || !projectId) {
           showToast({ icon: 'fail', content: '当前没有可用的巡检计划，无法提交' });
           setSubmitting(false);
           return;
         }
         await submitInspection({
           planId: effectivePlanId,
-          farmerId: Number(farmerId),
+          inverterId: Number(inverterId),
           projectId: Number(projectId),
           checklistResult: checklistData,
           photoUrls,
@@ -136,7 +136,7 @@ function InspectionFormPage() {
           <ArrowLeft size={20} className="text-gray-600" />
         </button>
         <h1 className="text-lg font-bold text-navy">
-          {isEdit ? '编辑巡检' : '巡检'} - {farmerInfo?.farmerName || ''}
+          {isEdit ? '编辑巡检' : '巡检'} - {inverterInfo?.ownerName || ''}
         </h1>
       </div>
 
@@ -148,11 +148,11 @@ function InspectionFormPage() {
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
               <span className="text-gray-400">项目：</span>
-              <span className="text-gray-700">{farmerInfo?.projectName || '-'}</span>
+              <span className="text-gray-700">{inverterInfo?.projectName || '-'}</span>
             </div>
             <div>
-              <span className="text-gray-400">农户：</span>
-              <span className="text-gray-700">{farmerInfo?.farmerName} ({farmerInfo?.farmerCode})</span>
+              <span className="text-gray-400">逆变器：</span>
+              <span className="text-gray-700">{inverterInfo?.ownerName} ({inverterInfo?.inverterCode})</span>
             </div>
             <div>
               <span className="text-gray-400">计划：</span>
@@ -160,26 +160,26 @@ function InspectionFormPage() {
             </div>
             <div>
               <span className="text-gray-400">编号：</span>
-              <span className="text-gray-700">{farmerInfo?.farmerCode}</span>
+              <span className="text-gray-700">{inverterInfo?.inverterCode}</span>
             </div>
           </div>
-          {farmerInfo?.inverterSn && (
+          {inverterInfo?.inverterSn && (
             <div className="grid grid-cols-2 gap-2 text-sm mt-2 pt-2 border-t border-gray-50">
               <div>
                 <span className="text-gray-400">逆变器：</span>
-                <span className="text-gray-700">{farmerInfo.inverterSn}</span>
+                <span className="text-gray-700">{inverterInfo.inverterSn}</span>
               </div>
               <div>
                 <span className="text-gray-400">装机容量：</span>
-                <span className="text-gray-700">{farmerInfo.capacityKw ? `${farmerInfo.capacityKw}kW` : '-'}</span>
+                <span className="text-gray-700">{inverterInfo.capacityKw ? `${inverterInfo.capacityKw}kW` : '-'}</span>
               </div>
               <div>
                 <span className="text-gray-400">组件数：</span>
-                <span className="text-gray-700">{farmerInfo.moduleCount || '-'}</span>
+                <span className="text-gray-700">{inverterInfo.moduleCount || '-'}</span>
               </div>
               <div>
                 <span className="text-gray-400">规格：</span>
-                <span className="text-gray-700">{farmerInfo.moduleSpec || '-'}</span>
+                <span className="text-gray-700">{inverterInfo.moduleSpec || '-'}</span>
               </div>
             </div>
           )}

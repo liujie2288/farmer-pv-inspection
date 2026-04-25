@@ -36,7 +36,7 @@ function formatFileSize(bytes: number | null) {
 }
 
 function PlanDetailPage() {
-  const { planId } = useParams<{ planId: string }>();
+  const { planGroupId } = useParams<{ planGroupId: string }>();
   const navigate = useNavigate();
   const [stats, setStats] = useState<PlanStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,15 +44,15 @@ function PlanDetailPage() {
   const [exporting, setExporting] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const pid = Number(planId);
+  const gid = Number(planGroupId);
 
   const loadExportTasks = useCallback(async () => {
-    if (!pid) return;
+    if (!gid) return;
     try {
-      const res = await listExportTasks(pid);
+      const res = await listExportTasks(gid);
       setExportTasks(res.data || []);
     } catch { /* ignore */ }
-  }, [pid]);
+  }, [gid]);
 
   const startPolling = useCallback(() => {
     if (pollRef.current) return;
@@ -74,16 +74,16 @@ function PlanDetailPage() {
   }, []);
 
   useEffect(() => {
-    if (!pid) return;
+    if (!gid) return;
     setLoading(true);
-    getPlanStats(pid)
+    getPlanStats(gid)
       .then(res => setStats(res.data))
       .catch(e => showToast({ icon: 'fail', content: e.message || '加载计划详情失败' }))
       .finally(() => setLoading(false));
     loadExportTasks().then(() => {
       if (exportTasks.some(t => t.status === 0)) startPolling();
     });
-  }, [pid]);
+  }, [gid]);
 
   useEffect(() => {
     if (exportTasks.some(t => t.status === 0)) {
@@ -93,7 +93,7 @@ function PlanDetailPage() {
   }, [exportTasks, startPolling]);
 
   const handleExport = async (exportType: number) => {
-    if (!pid) return;
+    if (!gid) return;
     const hasActive = exportTasks.some(t => t.status === 0);
     if (hasActive) {
       showToast({ icon: 'warning', content: '有导出任务正在进行中，请稍后' });
@@ -101,7 +101,7 @@ function PlanDetailPage() {
     }
     setExporting(true);
     try {
-      await exportPlan(pid, exportType);
+      await exportPlan(gid, exportType);
       showToast({ icon: 'success', content: '导出任务已创建' });
       await loadExportTasks();
       startPolling();
@@ -122,16 +122,16 @@ function PlanDetailPage() {
   };
 
   const handleFinish = async () => {
-    if (!pid) return;
+    if (!gid) return;
     const ok = await confirm({
       title: '结束计划',
       content: '确定手动结束此计划吗？此操作不可撤销。',
     });
     if (!ok) return;
     try {
-      await finishPlan(pid);
+      await finishPlan(gid);
       showToast({ icon: 'success', content: '计划已结束' });
-      const res = await getPlanStats(pid);
+      const res = await getPlanStats(gid);
       setStats(res.data);
     } catch (e: any) {
       showToast({ icon: 'fail', content: e.message || '操作失败' });
@@ -167,9 +167,9 @@ function PlanDetailPage() {
         <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-gray-400 mb-2">
             <Users size={18} />
-            <span className="text-sm">农户总数</span>
+            <span className="text-sm">逆变器总数</span>
           </div>
-          <p className="text-2xl font-bold text-navy">{stats.farmerCount}<span className="text-sm font-normal text-gray-400 ml-1">户</span></p>
+          <p className="text-2xl font-bold text-navy">{stats.inverterCount}<span className="text-sm font-normal text-gray-400 ml-1">户</span></p>
         </div>
         <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-gray-400 mb-2">
@@ -248,7 +248,7 @@ function PlanDetailPage() {
             </button>
           </div>
           <p className="text-xs text-gray-400">
-            PDF报告: 所有巡检记录生成含照片的PDF，打包为ZIP下载 &nbsp;|&nbsp; 巡检照片: 按农户分组导出所有巡检照片
+            PDF报告: 所有巡检记录生成含照片的PDF，打包为ZIP下载 &nbsp;|&nbsp; 巡检照片: 按逆变器分组导出所有巡检照片
           </p>
 
           {/* Export history table */}

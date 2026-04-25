@@ -2,50 +2,54 @@ import client from './client';
 
 export interface InspectPlan {
   id: number;
+  planGroupId: number;
   planName: string;
-  projectId: number | null;
-  projectName: string | null;
+  projectId: number;
+  projectName: string;
   startTime: string;
   endTime: string;
   status: number;
-  farmerCount: number;
+  inverterCount: number;
   inspectedCount: number;
   completionRate: number;
-  parentId: number;
-  isGlobal: boolean;
 }
 
 export interface PlanStats {
+  planGroupId: number;
   planName: string;
   status: number;
-  farmerCount: number;
+  inverterCount: number;
   inspectedCount: number;
   completionRate: number;
-  projectRanking: Array<{ projectId: number; projectName: string; completionRate: number }>;
+  projectRanking: Array<{
+    planId: number;
+    projectId: number;
+    projectName: string;
+    inverterCount: number;
+    inspectedCount: number;
+    completionRate: number;
+    status: number;
+  }>;
 }
 
 export function listPlans(params?: { page?: number; size?: number; planName?: string; projectId?: number; status?: number }) {
   return client.get<any, { code: number; data: { records: InspectPlan[]; total: number } }>('/plans', { params });
 }
 
-export function createPlan(data: { planName: string; projectId: number; startTime: string; endTime: string }) {
-  return client.post<any, { code: number; data: { id: number } }>('/plans', data);
+export function createPlan(data: { planName: string; projectIds: number[]; startTime: string; endTime: string }) {
+  return client.post<any, { code: number; data: { planGroupId: number; planIds: number[] } }>('/plans', data);
 }
 
-export function createGlobalPlan(data: { planName: string; projectIds: number[]; startTime: string; endTime: string }) {
-  return client.post<any, { code: number; data: { parentPlanId: number; subPlanIds: number[] } }>('/plans/global', data);
+export function updatePlan(planGroupId: number, data: { startTime?: string; endTime?: string }) {
+  return client.put<any, { code: number }>(`/plans/${planGroupId}`, data);
 }
 
-export function updatePlan(id: number, data: { startTime?: string; endTime?: string }) {
-  return client.put<any, { code: number }>(`/plans/${id}`, data);
+export function finishPlan(planGroupId: number) {
+  return client.put<any, { code: number }>(`/plans/${planGroupId}/finish`);
 }
 
-export function finishPlan(id: number) {
-  return client.put<any, { code: number }>(`/plans/${id}/finish`);
-}
-
-export function getPlanStats(id: number) {
-  return client.get<any, { code: number; data: PlanStats }>(`/plans/${id}/stats`);
+export function getPlanStats(planGroupId: number) {
+  return client.get<any, { code: number; data: PlanStats }>(`/plans/${planGroupId}/stats`);
 }
 
 export function getActivePlan(projectId: number) {

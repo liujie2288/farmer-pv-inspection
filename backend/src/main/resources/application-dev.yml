@@ -4,3 +4,6 @@ spring:
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:admin123}
     driver-class-name: com.mysql.cj.jdbc.Driver
+
+jwt:
+  cookie-secure: false

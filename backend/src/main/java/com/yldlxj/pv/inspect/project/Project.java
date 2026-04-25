@@ -27,6 +27,8 @@ public class Project extends BaseEntity {
 
     private String specialOperationCertUrl;
 
+    private String sectionIds;
+
     @TableField(exist = false)
     private List<InspectDevice> devices;
 }

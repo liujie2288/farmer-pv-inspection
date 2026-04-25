@@ -34,6 +34,8 @@ public class ProjectDto {
     @Size(max = 255, message = "特种作业操作证图片地址最长255字符")
     private String specialOperationCertUrl;
 
+    private String sectionIds;
+
     @Valid
     private List<DeviceItem> devices;
 

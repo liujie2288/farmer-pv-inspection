@@ -1,6 +1,7 @@
-package com.yldlxj.pv.inspect.farmer;
+package com.yldlxj.pv.inspect.inverter;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.yldlxj.pv.inspect.common.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -10,14 +11,16 @@ import java.time.LocalDateTime;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("farmer")
-public class Farmer extends BaseEntity {
+@TableName("inverter")
+public class Inverter extends BaseEntity {
 
     private Long projectId;
 
-    private String farmerCode;
+    private String inverterCode;
 
-    private String farmerName;
+    private String ownerName;
+
+    private String address;
 
     private String powerAccount;
 
@@ -31,9 +34,15 @@ public class Farmer extends BaseEntity {
 
     private BigDecimal capacityKw;
 
+    private BigDecimal longitude;
+
+    private BigDecimal latitude;
+
     private Integer status;
 
+    private Long lastInspectorId;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime lastInspectTime;
 
-    private Long lastInspectorId;
 }

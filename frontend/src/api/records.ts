@@ -2,7 +2,7 @@ import client from './client';
 
 export function listMyRecords(params?: { page?: number; size?: number }) {
   return client.get<any, { code: number; data: { records: any[]; total: number } }>('/inspections', {
-    params: { farmerId: 0, ...params },
+    params: { inverterId: 0, ...params },
   });
 }
 

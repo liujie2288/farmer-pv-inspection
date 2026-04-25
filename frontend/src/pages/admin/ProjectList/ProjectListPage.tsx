@@ -107,7 +107,7 @@ function ProjectListPage() {
             {projects.map(p => (
               <div
                 key={p.id}
-                onClick={() => navigate(`/admin/projects/${p.id}/farmers`)}
+                onClick={() => navigate(`/admin/projects/${p.id}/inverters`)}
                 className="group cursor-pointer rounded-xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-teal/30 hover:shadow-md"
               >
                 <div className="flex items-start justify-between gap-4">
