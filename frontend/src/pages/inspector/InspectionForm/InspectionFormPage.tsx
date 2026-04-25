@@ -5,15 +5,15 @@ import {
   submitInspection,
   getInspectionDetail,
   updateInspection,
-  normalizePhotos,
-  type PhotosMap,
+  toSubmitFormat,
 } from '@/api/inspections';
 import { getStationDetail } from '@/api/stations';
 import { getActivePlan } from '@/api/plans';
 import InspectionChecklist from '@/components/InspectionChecklist';
-import LocationPicker from '@/components/LocationPicker';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { showToast } from '@/components/ui/Toast';
+
+const WEATHER_PRESETS = ['晴', '多云', '阴', '小雨', '中雨', '大雨', '雷阵雨', '小雪', '大雪', '雾', '大风'];
 
 function InspectionFormPage() {
   const { projectId, stationId, recordId } = useParams<{ projectId: string; stationId: string; recordId: string }>();
@@ -23,14 +23,15 @@ function InspectionFormPage() {
   const isEdit = !!recordId;
 
   const [checklistData, setChecklistData] = useState<any>({ sections: [] });
-  const [photos, setPhotos] = useState<PhotosMap>({});
-  const [longitude, setLongitude] = useState(0);
-  const [latitude, setLatitude] = useState(0);
+  const [weather, setWeather] = useState('');
+  const [customWeather, setCustomWeather] = useState('');
   const [stationInfo, setStationInfo] = useState<any>(null);
   const [planName, setPlanName] = useState('');
   const [resolvedPlanId, setResolvedPlanId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
+  const selectedWeather = customWeather || weather;
 
   useEffect(() => {
     const init = async () => {
@@ -40,9 +41,14 @@ function InspectionFormPage() {
           const recordRes = await getInspectionDetail(Number(recordId));
           const record = recordRes.data;
           setChecklistData(record.checklistResult || { sections: [] });
-          setPhotos(normalizePhotos(record.photos || {}));
-          setLongitude(record.longitude || 0);
-          setLatitude(record.latitude || 0);
+          const savedWeather = record.weather || '';
+          if (WEATHER_PRESETS.includes(savedWeather)) {
+            setWeather(savedWeather);
+            setCustomWeather('');
+          } else if (savedWeather) {
+            setWeather('');
+            setCustomWeather(savedWeather);
+          }
           setPlanName(record.planName || '');
           setStationInfo({
             ownerName: record.stationName,
@@ -69,26 +75,45 @@ function InspectionFormPage() {
     init();
   }, [projectId, stationId, recordId]);
 
+  const handlePresetClick = (preset: string) => {
+    if (weather === preset) {
+      setWeather('');
+    } else {
+      setWeather(preset);
+      setCustomWeather('');
+    }
+  };
+
   const handleSubmit = async () => {
-    const allFilled = checklistData.sections?.every((section: any) =>
-      section.items?.every((item: any) => {
-        if (item.itemType === 2) return item.measuredValue?.value != null;
-        return item.result === '正常' || item.result === '异常';
-      })
-    );
+    let firstEmptyEl: HTMLElement | null = null;
+    let allFilled = true;
+    for (const section of checklistData.sections || []) {
+      for (const item of section.items || []) {
+        const filled = item.itemType === 2
+          ? (item.measuredValue?.value ?? '').toString().trim() !== ''
+          : item.result === '正常' || item.result === '异常';
+        if (!filled) {
+          allFilled = false;
+          if (!firstEmptyEl) {
+            firstEmptyEl = document.getElementById(`checklist-item-${item.itemId}`);
+          }
+        }
+      }
+    }
     if (!allFilled) {
       showToast({ icon: 'warning', content: '请完成所有检查项' });
+      firstEmptyEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
 
     setSubmitting(true);
     try {
+      const { checklistResult } = toSubmitFormat(checklistData, {});
+
       if (isEdit) {
         await updateInspection(Number(recordId), {
-          checklistResult: checklistData,
-          photos,
-          longitude,
-          latitude,
+          weather: selectedWeather,
+          checklistResult,
         });
         showToast({ icon: 'success', content: '保存成功' });
       } else {
@@ -102,10 +127,8 @@ function InspectionFormPage() {
           planId: effectivePlanId,
           stationId: Number(stationId),
           projectId: Number(projectId),
-          checklistResult: checklistData,
-          photos,
-          longitude,
-          latitude,
+          weather: selectedWeather,
+          checklistResult,
         });
         showToast({ icon: 'success', content: '提交成功' });
       }
@@ -181,25 +204,42 @@ function InspectionFormPage() {
           )}
         </div>
 
-        {/* GPS Location */}
+        {/* Weather */}
         <div className="bg-white rounded-xl p-4 shadow-sm">
-          <h3 className="text-sm font-medium text-gray-500 mb-3">定位信息</h3>
-          <LocationPicker
-            longitude={longitude}
-            latitude={latitude}
-            onChange={(lng, lat) => { setLongitude(lng); setLatitude(lat); }}
+          <h3 className="text-sm font-medium text-gray-500 mb-3">天气情况</h3>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {WEATHER_PRESETS.map((w) => (
+              <button
+                key={w}
+                type="button"
+                onClick={() => handlePresetClick(w)}
+                className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                  weather === w
+                    ? 'bg-teal text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {w}
+              </button>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={customWeather}
+            onChange={(e) => {
+              setCustomWeather(e.target.value);
+              setWeather('');
+            }}
+            placeholder="自定义天气描述..."
+            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
           />
         </div>
 
-        {/* Checklist with integrated photo uploads */}
+        {/* Checklist */}
         <InspectionChecklist
           checklistData={checklistData}
           onChange={setChecklistData}
           readOnly={false}
-          photos={photos}
-          onPhotosChange={setPhotos}
-          longitude={longitude}
-          latitude={latitude}
         />
       </div>
 

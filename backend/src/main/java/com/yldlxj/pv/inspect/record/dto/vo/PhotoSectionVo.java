@@ -1,4 +1,4 @@
-package com.yldlxj.pv.inspect.inspection.dto;
+package com.yldlxj.pv.inspect.record.dto.vo;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
@@ -7,7 +7,8 @@ import java.util.List;
 
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class PhotoSectionDto {
+public class PhotoSectionVo {
     private Long sectionId;
-    private List<PhotoItemDto> items;
+    private String sectionName;
+    private List<PhotoItemVo> items;
 }

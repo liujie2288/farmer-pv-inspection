@@ -1,9 +1,10 @@
 package com.yldlxj.pv.inspect.export;
 
 import com.yldlxj.pv.inspect.station.Station;
-import com.yldlxj.pv.inspect.inspection.InspectRecord;
+import com.yldlxj.pv.inspect.record.InspectRecord;
 import com.yldlxj.pv.inspect.plan.InspectPlan;
 import com.yldlxj.pv.inspect.project.Project;
+import com.yldlxj.pv.inspect.section.InspectSectionItem;
 import com.yldlxj.pv.inspect.storage.StorageService;
 import com.yldlxj.pv.inspect.user.SysUser;
 import com.itextpdf.io.image.ImageDataFactory;
@@ -73,38 +74,32 @@ public class PdfReportService {
 
             // Checklist results
             if (record.getChecklistResult() != null) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> result = record.getChecklistResult();
-                @SuppressWarnings("unchecked")
-                List<Map<String, Object>> sections = (List<Map<String, Object>>) result.get("sections");
+                for (com.yldlxj.pv.inspect.record.dto.ChecklistSectionDto section : record.getChecklistResult()) {
+                    int sectionId = section.getSectionId() != null ? section.getSectionId().intValue() : 0;
+                    String sectionName = ctx.getSectionNameMap().getOrDefault(sectionId, "区域" + sectionId);
+                    document.add(new Paragraph(sectionName).setFont(font).setFontSize(14).setBold());
 
-                if (sections != null) {
-                    for (Map<String, Object> section : sections) {
-                        String sectionName = (String) section.get("sectionName");
-                        document.add(new Paragraph(sectionName).setFont(font).setFontSize(14).setBold());
+                    if (section.getItems() != null) {
+                        Table itemTable = new Table(3);
+                        itemTable.setWidth(UnitValue.createPercentValue(100));
+                        itemTable.addHeaderCell(new Cell().add(new Paragraph("检查项").setFont(font)));
+                        itemTable.addHeaderCell(new Cell().add(new Paragraph("结果").setFont(font)));
+                        itemTable.addHeaderCell(new Cell().add(new Paragraph("备注").setFont(font)));
 
-                        @SuppressWarnings("unchecked")
-                        List<Map<String, Object>> items = (List<Map<String, Object>>) section.get("items");
-                        if (items != null) {
-                            Table itemTable = new Table(3);
-                            itemTable.setWidth(UnitValue.createPercentValue(100));
-                            itemTable.addHeaderCell(new Cell().add(new Paragraph("检查项").setFont(font)));
-                            itemTable.addHeaderCell(new Cell().add(new Paragraph("结果").setFont(font)));
-                            itemTable.addHeaderCell(new Cell().add(new Paragraph("备注").setFont(font)));
+                        for (com.yldlxj.pv.inspect.record.dto.ChecklistItemDto item : section.getItems()) {
+                            InspectSectionItem templateItem = ctx.getItemMap().get(item.getItemId());
+                            String content = templateItem != null && templateItem.getContent() != null ? templateItem.getContent() : "";
+                            String itemResult = item.getResult() != null ? (item.getResult() ? "正常" : "异常") : "";
+                            String note = item.getRemark() != null ? item.getRemark() : "";
+                            if (item.getValue() != null) note = note.isEmpty() ? item.getValue() : note + " (" + item.getValue() + ")";
 
-                            for (Map<String, Object> item : items) {
-                                String content = String.valueOf(item.get("content"));
-                                String itemResult = String.valueOf(item.get("result"));
-                                String note = String.valueOf(item.getOrDefault("exceptionNote", ""));
-
-                                itemTable.addCell(new Cell().add(new Paragraph(content).setFont(font).setFontSize(8)));
-                                itemTable.addCell(new Cell().add(new Paragraph(itemResult).setFont(font)));
-                                itemTable.addCell(new Cell().add(new Paragraph("null".equals(note) ? "" : note).setFont(font)));
-                            }
-                            document.add(itemTable);
+                            itemTable.addCell(new Cell().add(new Paragraph(content).setFont(font).setFontSize(8)));
+                            itemTable.addCell(new Cell().add(new Paragraph(itemResult).setFont(font)));
+                            itemTable.addCell(new Cell().add(new Paragraph(note).setFont(font)));
                         }
-                        document.add(new Paragraph("\n").setFont(font));
+                        document.add(itemTable);
                     }
+                    document.add(new Paragraph("\n").setFont(font));
                 }
             }
 
@@ -119,56 +114,49 @@ public class PdfReportService {
         return baos.toByteArray();
     }
 
-    @SuppressWarnings("unchecked")
     private void addPhotos(Document document, PdfFont font, InspectRecord record, ExportDataContext ctx) {
         if (record.getPhotos() == null) return;
 
-        Map<String, Object> photos = record.getPhotos();
+        java.util.List<com.yldlxj.pv.inspect.record.dto.PhotoSectionDto> photos = record.getPhotos();
         boolean hasPhotos = false;
 
-        for (Map.Entry<String, Object> entry : photos.entrySet()) {
-            List<String> urls;
-            Object val = entry.getValue();
-            if (val instanceof List) {
-                urls = (List<String>) val;
-            } else {
-                continue;
-            }
-            if (urls.isEmpty()) continue;
+        for (com.yldlxj.pv.inspect.record.dto.PhotoSectionDto section : photos) {
+            int sectionId = section.getSectionId() != null ? section.getSectionId().intValue() : 0;
+            String sectionName = ctx.getSectionNameMap().getOrDefault(sectionId, "区域" + sectionId);
 
             if (!hasPhotos) {
                 document.add(new Paragraph("巡检照片").setFont(font).setFontSize(14).setBold());
                 hasPhotos = true;
             }
 
-            int sectionId = Integer.parseInt(entry.getKey());
-            String sectionName = ctx.getSectionNameMap().getOrDefault(sectionId, "区域" + sectionId);
             document.add(new Paragraph(sectionName).setFont(font).setFontSize(11).setBold());
 
             int photoIdx = 0;
-            for (String url : urls) {
-                try {
-                    String objectKey = storageService.extractObjectKey(url);
-                    if (objectKey == null) continue;
+            for (com.yldlxj.pv.inspect.record.dto.PhotoItemDto item : section.getItems()) {
+                for (String url : item.getUrls()) {
+                    try {
+                        String objectKey = storageService.extractObjectKey(url);
+                        if (objectKey == null) continue;
 
-                    byte[] imageBytes;
-                    try (InputStream is = storageService.download(objectKey)) {
-                        imageBytes = is.readAllBytes();
-                    }
-                    if (imageBytes.length == 0) continue;
+                        byte[] imageBytes;
+                        try (InputStream is = storageService.download(objectKey)) {
+                            imageBytes = is.readAllBytes();
+                        }
+                        if (imageBytes.length == 0) continue;
 
-                    Image img = new Image(ImageDataFactory.create(imageBytes));
-                    float maxWidth = 480;
-                    float maxHeight = 360;
-                    float scale = Math.min(maxWidth / img.getImageWidth(), maxHeight / img.getImageHeight());
-                    if (scale < 1) {
-                        img.scale(img.getImageWidth() * scale, img.getImageHeight() * scale);
+                        Image img = new Image(ImageDataFactory.create(imageBytes));
+                        float maxWidth = 480;
+                        float maxHeight = 360;
+                        float scale = Math.min(maxWidth / img.getImageWidth(), maxHeight / img.getImageHeight());
+                        if (scale < 1) {
+                            img.scale(img.getImageWidth() * scale, img.getImageHeight() * scale);
+                        }
+                        photoIdx++;
+                        document.add(new Paragraph("照片 " + photoIdx).setFont(font).setFontSize(9));
+                        document.add(img);
+                    } catch (Exception e) {
+                        log.warn("嵌入照片失败, url={}: {}", url, e.getMessage());
                     }
-                    photoIdx++;
-                    document.add(new Paragraph("照片 " + photoIdx).setFont(font).setFontSize(9));
-                    document.add(img);
-                } catch (Exception e) {
-                    log.warn("嵌入照片失败, url={}: {}", url, e.getMessage());
                 }
             }
         }

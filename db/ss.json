@@ -1,0 +1,295 @@
+[
+  {
+    "items": [
+      {
+        "itemId": 1,
+        "result": true
+      },
+      {
+        "itemId": 2,
+        "result": true
+      },
+      {
+        "itemId": 3,
+        "result": true
+      },
+      {
+        "itemId": 4,
+        "result": true
+      },
+      {
+        "itemId": 5,
+        "result": true
+      },
+      {
+        "itemId": 6,
+        "result": true
+      },
+      {
+        "itemId": 7,
+        "remark": "破顺了",
+        "result": false
+      },
+      {
+        "itemId": 8,
+        "result": true
+      },
+      {
+        "itemId": 9,
+        "result": true
+      },
+      {
+        "value": "67欧姆",
+        "itemId": 10,
+        "result": true
+      },
+      {
+        "itemId": 11,
+        "result": true
+      }
+    ],
+    "sectionId": 1
+  },
+  {
+    "items": [
+      {
+        "itemId": 16,
+        "result": true
+      },
+      {
+        "itemId": 17,
+        "result": true
+      },
+      {
+        "itemId": 18,
+        "result": true
+      },
+      {
+        "itemId": 19,
+        "result": true
+      },
+      {
+        "itemId": 20,
+        "result": true
+      },
+      {
+        "itemId": 21,
+        "result": true
+      },
+      {
+        "itemId": 22,
+        "result": true
+      },
+      {
+        "itemId": 23,
+        "remark": "脱落了",
+        "result": false
+      },
+      {
+        "itemId": 24,
+        "result": true
+      },
+      {
+        "itemId": 25,
+        "result": true
+      },
+      {
+        "itemId": 26,
+        "result": true
+      },
+      {
+        "value": "4欧姆",
+        "itemId": 27,
+        "result": true
+      }
+    ],
+    "sectionId": 2
+  },
+  {
+    "items": [
+      {
+        "itemId": 30,
+        "result": true
+      },
+      {
+        "itemId": 31,
+        "result": true
+      },
+      {
+        "itemId": 32,
+        "result": true
+      },
+      {
+        "itemId": 33,
+        "result": true
+      },
+      {
+        "itemId": 34,
+        "result": true
+      },
+      {
+        "itemId": 35,
+        "result": true
+      },
+      {
+        "itemId": 36,
+        "result": true
+      },
+      {
+        "itemId": 37,
+        "result": true
+      },
+      {
+        "value": "0.02",
+        "itemId": 38,
+        "result": true
+      },
+      {
+        "itemId": 39,
+        "result": true
+      },
+      {
+        "itemId": 40,
+        "result": true
+      },
+      {
+        "itemId": 41,
+        "result": true
+      },
+      {
+        "itemId": 42,
+        "result": true
+      }
+    ],
+    "sectionId": 3
+  },
+  {
+    "items": [
+      {
+        "itemId": 46,
+        "result": true
+      },
+      {
+        "itemId": 47,
+        "result": true
+      },
+      {
+        "itemId": 48,
+        "result": true
+      },
+      {
+        "itemId": 49,
+        "result": true
+      },
+      {
+        "itemId": 50,
+        "result": true
+      },
+      {
+        "itemId": 51,
+        "result": true
+      },
+      {
+        "itemId": 52,
+        "result": true
+      },
+      {
+        "itemId": 53,
+        "result": true
+      },
+      {
+        "itemId": 54,
+        "result": true
+      },
+      {
+        "itemId": 55,
+        "result": true
+      },
+      {
+        "itemId": 56,
+        "result": true
+      },
+      {
+        "itemId": 57,
+        "result": true
+      },
+      {
+        "value": "3",
+        "itemId": 58,
+        "result": true
+      }
+    ],
+    "sectionId": 4
+  },
+  {
+    "items": [
+      {
+        "itemId": 60,
+        "result": true
+      },
+      {
+        "itemId": 61,
+        "result": true
+      },
+      {
+        "itemId": 62,
+        "result": true
+      },
+      {
+        "itemId": 63,
+        "result": true
+      },
+      {
+        "itemId": 64,
+        "result": true
+      },
+      {
+        "itemId": 65,
+        "remark": "标识模糊",
+        "result": false
+      }
+    ],
+    "sectionId": 5
+  },
+  {
+    "items": [
+      {
+        "itemId": 68,
+        "result": true
+      },
+      {
+        "itemId": 69,
+        "result": true
+      },
+      {
+        "itemId": 70,
+        "result": true
+      },
+      {
+        "itemId": 71,
+        "result": true
+      },
+      {
+        "itemId": 72,
+        "result": true
+      },
+      {
+        "itemId": 73,
+        "result": true
+      },
+      {
+        "itemId": 74,
+        "result": true
+      },
+      {
+        "itemId": 75,
+        "result": true
+      },
+      {
+        "itemId": 76,
+        "result": true
+      }
+    ],
+    "sectionId": 6
+  }
+]

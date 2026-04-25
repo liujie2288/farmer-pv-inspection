@@ -1,13 +1,15 @@
-package com.yldlxj.pv.inspect.inspection;
+package com.yldlxj.pv.inspect.record;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import com.yldlxj.pv.inspect.common.BaseEntity;
+import com.yldlxj.pv.inspect.record.dto.ChecklistSectionDto;
+import com.yldlxj.pv.inspect.record.dto.PhotoSectionDto;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
-import java.util.Map;
+import java.util.List;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -23,10 +25,10 @@ public class InspectRecord extends BaseEntity {
     private Long projectId;
 
     @TableField(typeHandler = JacksonTypeHandler.class)
-    private Map<String, Object> checklistResult;
+    private List<ChecklistSectionDto> checklistResult;
 
     @TableField(typeHandler = JacksonTypeHandler.class)
-    private Map<String, Object> photos;
+    private List<PhotoSectionDto> photos;
 
     private BigDecimal longitude;
 

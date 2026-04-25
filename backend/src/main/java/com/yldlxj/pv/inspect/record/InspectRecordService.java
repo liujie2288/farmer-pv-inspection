@@ -1,4 +1,4 @@
-package com.yldlxj.pv.inspect.inspection;
+package com.yldlxj.pv.inspect.record;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -6,32 +6,43 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yldlxj.pv.inspect.auth.AuthService;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.common.exception.ForbiddenException;
-import com.yldlxj.pv.inspect.station.Station;
-import com.yldlxj.pv.inspect.station.StationMapper;
 import com.yldlxj.pv.inspect.plan.InspectPlan;
 import com.yldlxj.pv.inspect.plan.InspectPlanMapper;
 import com.yldlxj.pv.inspect.plan.InspectPlanProject;
 import com.yldlxj.pv.inspect.plan.InspectPlanProjectMapper;
+import com.yldlxj.pv.inspect.project.Project;
+import com.yldlxj.pv.inspect.project.ProjectMapper;
+import com.yldlxj.pv.inspect.record.dto.ChecklistSectionDto;
+import com.yldlxj.pv.inspect.record.dto.InspectRecordDto;
+import com.yldlxj.pv.inspect.record.dto.PhotoSectionDto;
+import com.yldlxj.pv.inspect.record.dto.vo.*;
+import com.yldlxj.pv.inspect.section.InspectSection;
+import com.yldlxj.pv.inspect.section.InspectSectionItem;
+import com.yldlxj.pv.inspect.section.InspectSectionItemMapper;
+import com.yldlxj.pv.inspect.section.InspectSectionMapper;
+import com.yldlxj.pv.inspect.station.Station;
+import com.yldlxj.pv.inspect.station.StationMapper;
 import com.yldlxj.pv.inspect.storage.StorageService;
 import com.yldlxj.pv.inspect.storage.WatermarkService;
 import com.yldlxj.pv.inspect.user.SysUser;
 import com.yldlxj.pv.inspect.user.SysUserMapper;
-import com.yldlxj.pv.inspect.project.Project;
-import com.yldlxj.pv.inspect.project.ProjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
-public class InspectionService {
+public class InspectRecordService {
 
     private final InspectRecordMapper recordMapper;
     private final InspectPlanMapper planMapper;
@@ -39,19 +50,17 @@ public class InspectionService {
     private final StationMapper stationMapper;
     private final SysUserMapper userMapper;
     private final ProjectMapper projectMapper;
+    private final InspectSectionMapper sectionMapper;
+    private final InspectSectionItemMapper sectionItemMapper;
     private final AuthService authService;
     private final StorageService storageService;
     private final WatermarkService watermarkService;
 
     @Transactional
-    public Long submitRecord(Long planId, Long stationId, Long projectId,
-                              Map<String, Object> checklistResult,
-                              Map<String, Object> photos,
-                              BigDecimal longitude, BigDecimal latitude) {
+    public Long submitRecord(InspectRecordDto dto) {
         Long inspectorId = authService.getCurrentUserId();
 
-        // Validate plan is active
-        InspectPlan plan = planMapper.selectById(planId);
+        InspectPlan plan = planMapper.selectById(dto.getPlanId());
         if (plan == null) {
             throw new BusinessException("巡检计划不存在");
         }
@@ -59,17 +68,15 @@ public class InspectionService {
             throw new BusinessException("当前巡检计划未在进行中");
         }
 
-        // Validate station exists in project
-        Station station = stationMapper.selectById(stationId);
-        if (station == null || !station.getProjectId().equals(projectId)) {
+        Station station = stationMapper.selectById(dto.getStationId());
+        if (station == null || !station.getProjectId().equals(dto.getProjectId())) {
             throw new BusinessException("电站不存在");
         }
 
-        // Check duplicate
         Long existing = recordMapper.selectCount(
                 new LambdaQueryWrapper<InspectRecord>()
-                        .eq(InspectRecord::getPlanId, planId)
-                        .eq(InspectRecord::getStationId, stationId)
+                        .eq(InspectRecord::getPlanId, dto.getPlanId())
+                        .eq(InspectRecord::getStationId, dto.getStationId())
                         .eq(InspectRecord::getInspectorId, inspectorId)
         );
         if (existing > 0) {
@@ -77,27 +84,25 @@ public class InspectionService {
         }
 
         InspectRecord record = new InspectRecord();
-        record.setPlanId(planId);
-        record.setStationId(stationId);
+        record.setPlanId(dto.getPlanId());
+        record.setStationId(dto.getStationId());
         record.setInspectorId(inspectorId);
-        record.setProjectId(projectId);
-        record.setChecklistResult(checklistResult);
-        record.setPhotos(photos);
-        record.setLongitude(longitude);
-        record.setLatitude(latitude);
+        record.setProjectId(dto.getProjectId());
+        record.setWeather(dto.getWeather());
+        record.setChecklistResult(dto.getChecklistResult());
+        record.setPhotos(dto.getPhotos());
+        record.setLongitude(dto.getLongitude());
+        record.setLatitude(dto.getLatitude());
         recordMapper.insert(record);
 
-        // Cascade status update
-        updateStationStatus(stationId, inspectorId);
-        updatePlanInspectedCount(planId, stationId);
+        updateStationStatus(dto.getStationId(), inspectorId);
+        updatePlanInspectedCount(dto.getPlanId(), dto.getStationId());
 
         return record.getId();
     }
 
     @Transactional
-    public void updateRecord(Long id, Map<String, Object> checklistResult,
-                              Map<String, Object> photos,
-                              BigDecimal longitude, BigDecimal latitude) {
+    public void updateRecord(Long id, InspectRecordDto dto) {
         Long inspectorId = authService.getCurrentUserId();
         InspectRecord record = recordMapper.selectById(id);
 
@@ -108,20 +113,20 @@ public class InspectionService {
             throw new ForbiddenException("只能修改本人的巡检记录");
         }
 
-        // Check plan is still active
         InspectPlan plan = planMapper.selectById(record.getPlanId());
         if (plan != null && plan.getStatus() == 2) {
             throw new BusinessException("巡检计划已结束，记录不可修改");
         }
 
-        record.setChecklistResult(checklistResult);
-        record.setPhotos(photos);
-        record.setLongitude(longitude);
-        record.setLatitude(latitude);
+        if (dto.getWeather() != null) record.setWeather(dto.getWeather());
+        if (dto.getChecklistResult() != null) record.setChecklistResult(dto.getChecklistResult());
+        if (dto.getPhotos() != null) record.setPhotos(dto.getPhotos());
+        if (dto.getLongitude() != null) record.setLongitude(dto.getLongitude());
+        if (dto.getLatitude() != null) record.setLatitude(dto.getLatitude());
         recordMapper.updateById(record);
     }
 
-    public Map<String, Object> getRecordDetail(Long id) {
+    public RecordDetailVo getRecordDetail(Long id) {
         InspectRecord record = recordMapper.selectById(id);
         if (record == null) {
             throw new BusinessException("巡检记录不存在");
@@ -134,20 +139,33 @@ public class InspectionService {
         Long currentUserId = authService.getCurrentUserId();
         boolean canEdit = record.getInspectorId().equals(currentUserId) && plan != null && plan.getStatus() == 1;
 
-        Map<String, Object> detail = new LinkedHashMap<>();
-        detail.put("id", record.getId());
-        detail.put("planName", plan != null ? plan.getPlanName() : "");
-        detail.put("stationName", station != null ? station.getOwnerName() : "");
-        detail.put("stationCode", station != null ? station.getStationCode() : "");
-        detail.put("projectName", getProjectName(record.getProjectId()));
-        detail.put("inspectorName", inspector != null ? inspector.getRealName() : "");
-        detail.put("checklistResult", record.getChecklistResult());
-        detail.put("photos", record.getPhotos());
-        detail.put("longitude", record.getLongitude());
-        detail.put("latitude", record.getLatitude());
-        detail.put("createTime", record.getCreateTime());
-        detail.put("canEdit", canEdit);
-        return detail;
+        // Lookup template data
+        Map<Long, InspectSection> sectionMap = sectionMapper.selectList(null).stream()
+                .collect(Collectors.toMap(InspectSection::getId, Function.identity()));
+        Map<Long, InspectSectionItem> itemMap = sectionItemMapper.selectList(null).stream()
+                .collect(Collectors.toMap(InspectSectionItem::getId, Function.identity()));
+
+        // Build enriched checklistResult
+        List<ChecklistSectionVo> checklistVo = buildChecklistVo(record.getChecklistResult(), sectionMap, itemMap);
+
+        // Build enriched photos
+        List<PhotoSectionVo> photoVo = buildPhotoVo(record.getPhotos(), sectionMap);
+
+        RecordDetailVo vo = new RecordDetailVo();
+        vo.setId(record.getId());
+        vo.setPlanName(plan != null ? plan.getPlanName() : "");
+        vo.setStationName(station != null ? station.getOwnerName() : "");
+        vo.setStationCode(station != null ? station.getStationCode() : "");
+        vo.setProjectName(getProjectName(record.getProjectId()));
+        vo.setInspectorName(inspector != null ? inspector.getRealName() : "");
+        vo.setChecklistResult(checklistVo);
+        vo.setPhotos(photoVo);
+        vo.setLongitude(record.getLongitude());
+        vo.setLatitude(record.getLatitude());
+        vo.setWeather(record.getWeather());
+        vo.setCreateTime(record.getCreateTime());
+        vo.setCanEdit(canEdit);
+        return vo;
     }
 
     public IPage<Map<String, Object>> listRecords(Long stationId, Long planId, String keyword, Integer status, int page, int size) {
@@ -163,7 +181,6 @@ public class InspectionService {
             wrapper.eq(InspectRecord::getPlanId, planId);
         }
 
-        // Status filter: filter by plan status (1=进行中, 2=已结束)
         if (status != null) {
             List<InspectPlan> statusPlans = planMapper.selectList(
                     new LambdaQueryWrapper<InspectPlan>().eq(InspectPlan::getStatus, status));
@@ -176,7 +193,6 @@ public class InspectionService {
             wrapper.in(InspectRecord::getPlanId, statusPlanIds);
         }
 
-        // Keyword search across plan name, inspector name, station name
         if (keyword != null && !keyword.isBlank()) {
             List<Long> matchedPlanIds = planMapper.selectList(
                     new LambdaQueryWrapper<InspectPlan>().like(InspectPlan::getPlanName, keyword))
@@ -244,7 +260,6 @@ public class InspectionService {
         SysUser inspector = userMapper.selectById(inspectorId);
 
         try {
-            // Apply watermark
             String timeStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
             String coordinates = "";
             if (longitude != null && latitude != null && (longitude != 0 || latitude != 0)) {
@@ -286,7 +301,6 @@ public class InspectionService {
         Station station = stationMapper.selectById(stationId);
         if (station == null) return;
 
-        // Update plan_project level
         InspectPlanProject pp = planProjectMapper.selectOne(
                 new LambdaQueryWrapper<InspectPlanProject>()
                         .eq(InspectPlanProject::getPlanId, planId)
@@ -305,7 +319,6 @@ public class InspectionService {
             planProjectMapper.updateById(pp);
         }
 
-        // Update plan total
         InspectPlan plan = planMapper.selectById(planId);
         if (plan != null) {
             Long totalCount = recordMapper.selectCount(
@@ -314,6 +327,73 @@ public class InspectionService {
             plan.setInspectedCount(totalCount.intValue());
             planMapper.updateById(plan);
         }
+    }
+
+    private List<ChecklistSectionVo> buildChecklistVo(List<ChecklistSectionDto> sections,
+                                                      Map<Long, InspectSection> sectionMap,
+                                                      Map<Long, InspectSectionItem> itemMap) {
+        if (sections == null) return Collections.emptyList();
+        List<ChecklistSectionVo> result = new ArrayList<>();
+        for (ChecklistSectionDto dto : sections) {
+            ChecklistSectionVo vo = new ChecklistSectionVo();
+            vo.setSectionId(dto.getSectionId());
+
+            InspectSection section = sectionMap.get(dto.getSectionId());
+            if (section != null) {
+                vo.setSectionName(section.getSectionName());
+                vo.setSectionNo(section.getSectionNo());
+            }
+
+            if (dto.getItems() != null) {
+                List<ChecklistItemVo> itemVos = new ArrayList<>();
+                for (com.yldlxj.pv.inspect.record.dto.ChecklistItemDto item : dto.getItems()) {
+                    ChecklistItemVo itemVo = new ChecklistItemVo();
+                    itemVo.setItemId(item.getItemId());
+                    itemVo.setResult(item.getResult());
+                    itemVo.setRemark(item.getRemark());
+                    itemVo.setValue(item.getValue());
+
+                    InspectSectionItem templateItem = itemMap.get(item.getItemId());
+                    if (templateItem != null) {
+                        itemVo.setItemNo(templateItem.getItemNo());
+                        itemVo.setContent(templateItem.getContent());
+                        itemVo.setItemType(templateItem.getItemType() != null ? templateItem.getItemType().getCode() : null);
+                    }
+                    itemVos.add(itemVo);
+                }
+                vo.setItems(itemVos);
+            }
+            result.add(vo);
+        }
+        return result;
+    }
+
+    private List<PhotoSectionVo> buildPhotoVo(List<PhotoSectionDto> photos,
+                                              Map<Long, InspectSection> sectionMap) {
+        if (photos == null) return Collections.emptyList();
+        List<PhotoSectionVo> result = new ArrayList<>();
+        for (PhotoSectionDto dto : photos) {
+            PhotoSectionVo vo = new PhotoSectionVo();
+            vo.setSectionId(dto.getSectionId());
+
+            InspectSection section = sectionMap.get(dto.getSectionId());
+            if (section != null) {
+                vo.setSectionName(section.getSectionName());
+            }
+
+            if (dto.getItems() != null) {
+                List<PhotoItemVo> itemVos = new ArrayList<>();
+                for (com.yldlxj.pv.inspect.record.dto.PhotoItemDto item : dto.getItems()) {
+                    PhotoItemVo itemVo = new PhotoItemVo();
+                    itemVo.setItemId(item.getItemId());
+                    itemVo.setUrls(item.getUrls());
+                    itemVos.add(itemVo);
+                }
+                vo.setItems(itemVos);
+            }
+            result.add(vo);
+        }
+        return result;
     }
 
     private String getProjectName(Long projectId) {

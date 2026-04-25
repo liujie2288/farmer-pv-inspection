@@ -6,9 +6,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { getSectionTree, type Section as TemplateSection } from '@/api/sections';
-import type { PhotosMap } from '@/api/inspections';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import PhotoUploader from '@/components/ui/PhotoUploader';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -21,7 +19,7 @@ interface ChecklistItem {
   itemType: number;
   result: '' | '正常' | '异常';
   exceptionNote: string;
-  measuredValue: Record<string, number | null> | null;
+  measuredValue: Record<string, string | number | null> | null;
 }
 
 interface ChecklistSection {
@@ -39,10 +37,6 @@ interface InspectionChecklistProps {
   checklistData: ChecklistData;
   onChange: (data: ChecklistData) => void;
   readOnly?: boolean;
-  photos?: PhotosMap;
-  onPhotosChange?: (photos: PhotosMap) => void;
-  longitude?: number;
-  latitude?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -147,10 +141,6 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
   checklistData,
   onChange,
   readOnly = false,
-  photos = {},
-  onPhotosChange,
-  longitude,
-  latitude,
 }) => {
   // collapsed sections tracked by sectionId
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
@@ -278,6 +268,7 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
                   return (
                     <div
                       key={item.itemId}
+                      id={`checklist-item-${item.itemId}`}
                       className="flex justify-between items-start py-2.5 px-2 border-b border-gray-50 gap-3"
                     >
                       {/* Left: item number + content */}
@@ -295,14 +286,14 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
                             <div className="flex items-center gap-2">
                               <label className="text-xs text-gray-500 shrink-0">实测值</label>
                               <input
-                                type="number"
-                                step="any"
+                                type="text"
+                                maxLength={100}
                                 disabled={readOnly}
                                 value={item.measuredValue?.value ?? ''}
                                 onChange={(e) => {
                                   const raw = e.target.value;
                                   updateItem(section.sectionId, item.itemId, {
-                                    measuredValue: { value: raw === '' ? null : parseFloat(raw) },
+                                    measuredValue: { value: raw === '' ? null : raw },
                                   });
                                 }}
                                 className="w-48 px-3 py-2 border rounded-lg text-base text-center focus:outline-none focus:ring-1 focus:ring-teal disabled:bg-gray-50 disabled:text-gray-400"
@@ -316,6 +307,7 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
                           <textarea
                             disabled={readOnly}
                             rows={3}
+                            maxLength={300}
                             placeholder="请填写异常说明..."
                             value={item.exceptionNote}
                             onChange={(e) =>
@@ -349,23 +341,6 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
                   );
                 })}
 
-                {/* Section photo upload */}
-                <div className="py-3 px-2">
-                  <PhotoUploader
-                    sectionId={section.sectionId}
-                    photos={photos[String(section.sectionId)] || []}
-                    onChange={(updatedPhotos) =>
-                      onPhotosChange?.({
-                        ...photos,
-                        [String(section.sectionId)]: updatedPhotos,
-                      })
-                    }
-                    maxCount={9}
-                    longitude={longitude}
-                    latitude={latitude}
-                    readOnly={readOnly}
-                  />
-                </div>
               </div>
             )}
           </div>

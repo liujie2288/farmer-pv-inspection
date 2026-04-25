@@ -1,4 +1,4 @@
-package com.yldlxj.pv.inspect.inspection;
+package com.yldlxj.pv.inspect.record;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;

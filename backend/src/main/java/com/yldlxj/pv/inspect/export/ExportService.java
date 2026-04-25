@@ -3,11 +3,13 @@ package com.yldlxj.pv.inspect.export;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.section.InspectSection;
+import com.yldlxj.pv.inspect.section.InspectSectionItem;
+import com.yldlxj.pv.inspect.section.InspectSectionItemMapper;
 import com.yldlxj.pv.inspect.section.InspectSectionMapper;
 import com.yldlxj.pv.inspect.station.Station;
 import com.yldlxj.pv.inspect.station.StationMapper;
-import com.yldlxj.pv.inspect.inspection.InspectRecord;
-import com.yldlxj.pv.inspect.inspection.InspectRecordMapper;
+import com.yldlxj.pv.inspect.record.InspectRecord;
+import com.yldlxj.pv.inspect.record.InspectRecordMapper;
 import com.yldlxj.pv.inspect.plan.InspectPlan;
 import com.yldlxj.pv.inspect.plan.InspectPlanMapper;
 import com.yldlxj.pv.inspect.project.Project;
@@ -44,6 +46,7 @@ public class ExportService {
     private final SysUserMapper userMapper;
     private final InspectPlanMapper planMapper;
     private final InspectSectionMapper sectionMapper;
+    private final InspectSectionItemMapper sectionItemMapper;
 
     public byte[] generateSinglePdf(Long recordId) {
         InspectRecord record = recordMapper.selectById(recordId);
@@ -166,7 +169,6 @@ public class ExportService {
 
     // ---- Photo export ----
 
-    @SuppressWarnings("unchecked")
     private void generatePhotoEntries(ZipOutputStream zos, List<InspectRecord> records,
                                        ExportDataContext ctx, ExportTask task) throws IOException {
         int processed = 0;
@@ -176,37 +178,34 @@ public class ExportService {
                     ? station.getStationCode() + "_" + station.getOwnerName() + "/"
                     : "unknown_" + record.getStationId() + "/";
 
-            Map<String, Object> photos = record.getPhotos();
+            java.util.List<com.yldlxj.pv.inspect.record.dto.PhotoSectionDto> photos = record.getPhotos();
             if (photos != null) {
-                for (Map.Entry<String, Object> entry : photos.entrySet()) {
-                    int sectionId = Integer.parseInt(entry.getKey());
+                for (com.yldlxj.pv.inspect.record.dto.PhotoSectionDto section : photos) {
+                    int sectionId = section.getSectionId() != null ? section.getSectionId().intValue() : 0;
                     String sectionName = ctx.getSectionNameMap().getOrDefault(sectionId, "section_" + sectionId);
                     String sectionDir = stationDir + "section_" + sectionId + "_" + sectionName + "/";
 
-                    Object val = entry.getValue();
-                    if (!(val instanceof List)) continue;
-                    List<?> photoList = (List<?>) val;
                     int photoIdx = 0;
+                    for (com.yldlxj.pv.inspect.record.dto.PhotoItemDto item : section.getItems()) {
+                        for (String url : item.getUrls()) {
+                            if (url == null || url.isEmpty()) continue;
 
-                    for (Object photoObj : photoList) {
-                        String url = (photoObj instanceof String) ? (String) photoObj : null;
-                        if (url == null || url.isEmpty()) continue;
+                            String objectKey = storageService.extractObjectKey(url);
+                            if (objectKey == null) continue;
 
-                        String objectKey = storageService.extractObjectKey(url);
-                        if (objectKey == null) continue;
+                            try (InputStream imageStream = storageService.download(objectKey)) {
+                                byte[] imageBytes = imageStream.readAllBytes();
+                                if (imageBytes.length == 0) continue;
 
-                        try (InputStream imageStream = storageService.download(objectKey)) {
-                            byte[] imageBytes = imageStream.readAllBytes();
-                            if (imageBytes.length == 0) continue;
+                                String ext = objectKey.contains(".") ? objectKey.substring(objectKey.lastIndexOf('.')) : ".jpg";
+                                String photoName = "photo_" + (++photoIdx) + ext;
 
-                            String ext = objectKey.contains(".") ? objectKey.substring(objectKey.lastIndexOf('.')) : ".jpg";
-                            String photoName = "photo_" + (++photoIdx) + ext;
-
-                            zos.putNextEntry(new ZipEntry(sectionDir + photoName));
-                            zos.write(imageBytes);
-                            zos.closeEntry();
-                        } catch (Exception e) {
-                            log.warn("照片下载失败, objectKey={}: {}", objectKey, e.getMessage());
+                                zos.putNextEntry(new ZipEntry(sectionDir + photoName));
+                                zos.write(imageBytes);
+                                zos.closeEntry();
+                            } catch (Exception e) {
+                                log.warn("照片下载失败, objectKey={}: {}", objectKey, e.getMessage());
+                            }
                         }
                     }
                 }
@@ -228,7 +227,7 @@ public class ExportService {
 
     private ExportDataContext batchLoadContext(List<InspectRecord> records) {
         if (records.isEmpty()) {
-            return new ExportDataContext(null, Map.of(), Map.of(), Map.of(), Map.of());
+            return new ExportDataContext(null, Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
         }
 
         Long planId = records.get(0).getPlanId();
@@ -249,7 +248,12 @@ public class ExportService {
         Map<Integer, String> sectionNameMap = sections.stream()
                 .collect(Collectors.toMap(s -> s.getId().intValue(), InspectSection::getSectionName, (a, b) -> a, LinkedHashMap::new));
 
-        return new ExportDataContext(plan, stations, projects, users, sectionNameMap);
+        // Item map from inspect_section_item
+        List<InspectSectionItem> allItems = sectionItemMapper.selectList(null);
+        Map<Long, InspectSectionItem> itemMap = allItems.stream()
+                .collect(Collectors.toMap(InspectSectionItem::getId, Function.identity()));
+
+        return new ExportDataContext(plan, stations, projects, users, sectionNameMap, itemMap);
     }
 
     private ExportDataContext buildSingleContext(InspectRecord record) {
@@ -262,10 +266,14 @@ public class ExportService {
         Map<Integer, String> sectionNameMap = sections.stream()
                 .collect(Collectors.toMap(s -> s.getId().intValue(), InspectSection::getSectionName, (a, b) -> a, LinkedHashMap::new));
 
+        List<InspectSectionItem> allItems = sectionItemMapper.selectList(null);
+        Map<Long, InspectSectionItem> itemMap = allItems.stream()
+                .collect(Collectors.toMap(InspectSectionItem::getId, Function.identity()));
+
         Map<Long, Station> stations = station != null ? Map.of(station.getId(), station) : Map.of();
         Map<Long, Project> projects = project != null ? Map.of(project.getId(), project) : Map.of();
         Map<Long, SysUser> users = user != null ? Map.of(user.getId(), user) : Map.of();
 
-        return new ExportDataContext(plan, stations, projects, users, sectionNameMap);
+        return new ExportDataContext(plan, stations, projects, users, sectionNameMap, itemMap);
     }
 }

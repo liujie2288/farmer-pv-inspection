@@ -1,4 +1,4 @@
-package com.yldlxj.pv.inspect.inspection.dto;
+package com.yldlxj.pv.inspect.record.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
