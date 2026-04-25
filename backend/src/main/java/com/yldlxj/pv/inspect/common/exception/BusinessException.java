@@ -1,4 +1,4 @@
-package com.yldlxj.pv.inspect.common;
+package com.yldlxj.pv.inspect.common.exception;
 
 public class BusinessException extends RuntimeException {
 

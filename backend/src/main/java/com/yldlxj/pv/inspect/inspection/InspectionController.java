@@ -16,12 +16,6 @@ import java.util.Map;
 public class InspectionController {
 
     private final InspectionService inspectionService;
-    private final ChecklistTemplateService checklistTemplateService;
-
-    @GetMapping("/checklist-template")
-    public ApiResponse<Map<String, Object>> getChecklistTemplate() {
-        return ApiResponse.success(checklistTemplateService.getTemplate());
-    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

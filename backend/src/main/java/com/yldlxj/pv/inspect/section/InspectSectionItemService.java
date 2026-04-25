@@ -1,7 +1,7 @@
 package com.yldlxj.pv.inspect.section;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.yldlxj.pv.inspect.common.BusinessException;
+import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.section.dto.SectionItemDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

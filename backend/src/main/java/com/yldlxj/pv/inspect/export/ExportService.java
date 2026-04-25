@@ -1,11 +1,11 @@
 package com.yldlxj.pv.inspect.export;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.yldlxj.pv.inspect.common.BusinessException;
+import com.yldlxj.pv.inspect.common.exception.BusinessException;
+import com.yldlxj.pv.inspect.section.InspectSection;
+import com.yldlxj.pv.inspect.section.InspectSectionMapper;
 import com.yldlxj.pv.inspect.station.Station;
 import com.yldlxj.pv.inspect.station.StationMapper;
-import com.yldlxj.pv.inspect.inspection.InspectChecklistTemplate;
-import com.yldlxj.pv.inspect.inspection.InspectChecklistTemplateMapper;
 import com.yldlxj.pv.inspect.inspection.InspectRecord;
 import com.yldlxj.pv.inspect.inspection.InspectRecordMapper;
 import com.yldlxj.pv.inspect.plan.InspectPlan;
@@ -43,7 +43,7 @@ public class ExportService {
     private final ProjectMapper projectMapper;
     private final SysUserMapper userMapper;
     private final InspectPlanMapper planMapper;
-    private final InspectChecklistTemplateMapper templateMapper;
+    private final InspectSectionMapper sectionMapper;
 
     public byte[] generateSinglePdf(Long recordId) {
         InspectRecord record = recordMapper.selectById(recordId);
@@ -244,12 +244,10 @@ public class ExportService {
         Map<Long, SysUser> users = userMapper.selectBatchIds(inspectorIds)
                 .stream().collect(Collectors.toMap(SysUser::getId, Function.identity()));
 
-        // Section name map from template
-        List<InspectChecklistTemplate> templates = templateMapper.selectList(null);
-        Map<Integer, String> sectionNameMap = new LinkedHashMap<>();
-        for (InspectChecklistTemplate t : templates) {
-            sectionNameMap.putIfAbsent(t.getSectionId(), t.getSectionName());
-        }
+        // Section name map from inspect_section
+        List<InspectSection> sections = sectionMapper.selectList(null);
+        Map<Integer, String> sectionNameMap = sections.stream()
+                .collect(Collectors.toMap(s -> s.getId().intValue(), InspectSection::getSectionName, (a, b) -> a, LinkedHashMap::new));
 
         return new ExportDataContext(plan, stations, projects, users, sectionNameMap);
     }
@@ -260,11 +258,9 @@ public class ExportService {
         Project project = projectMapper.selectById(record.getProjectId());
         SysUser user = userMapper.selectById(record.getInspectorId());
 
-        List<InspectChecklistTemplate> templates = templateMapper.selectList(null);
-        Map<Integer, String> sectionNameMap = new LinkedHashMap<>();
-        for (InspectChecklistTemplate t : templates) {
-            sectionNameMap.putIfAbsent(t.getSectionId(), t.getSectionName());
-        }
+        List<InspectSection> sections = sectionMapper.selectList(null);
+        Map<Integer, String> sectionNameMap = sections.stream()
+                .collect(Collectors.toMap(s -> s.getId().intValue(), InspectSection::getSectionName, (a, b) -> a, LinkedHashMap::new));
 
         Map<Long, Station> stations = station != null ? Map.of(station.getId(), station) : Map.of();
         Map<Long, Project> projects = project != null ? Map.of(project.getId(), project) : Map.of();

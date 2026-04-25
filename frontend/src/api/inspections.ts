@@ -29,10 +29,6 @@ export interface InspectionSubmit {
   latitude: number;
 }
 
-export function getChecklistTemplate() {
-  return client.get<any, { code: number; data: any }>('/inspections/checklist-template');
-}
-
 export function submitInspection(data: InspectionSubmit) {
   return client.post<any, { code: number; data: { id: number } }>('/inspections', data);
 }

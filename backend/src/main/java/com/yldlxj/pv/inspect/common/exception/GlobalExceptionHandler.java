@@ -1,5 +1,6 @@
-package com.yldlxj.pv.inspect.common;
+package com.yldlxj.pv.inspect.common.exception;
 
+import com.yldlxj.pv.inspect.common.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;

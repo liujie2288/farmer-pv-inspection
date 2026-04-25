@@ -2,7 +2,7 @@ package com.yldlxj.pv.inspect.project;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.yldlxj.pv.inspect.common.BusinessException;
+import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.convert.ProjectConvert;
 import com.yldlxj.pv.inspect.device.InspectDevice;
 import com.yldlxj.pv.inspect.device.InspectDeviceMapper;

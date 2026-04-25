@@ -3,7 +3,7 @@ package com.yldlxj.pv.inspect.user;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.yldlxj.pv.inspect.common.BusinessException;
+import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.convert.UserConvert;
 import com.yldlxj.pv.inspect.user.dto.UserCreateDto;
 import com.yldlxj.pv.inspect.user.dto.UserUpdateDto;

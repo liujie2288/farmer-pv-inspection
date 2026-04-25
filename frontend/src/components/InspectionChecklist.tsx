@@ -5,7 +5,7 @@ import {
   AlertTriangle,
   CheckCircle,
 } from 'lucide-react';
-import { getSectionTree, type Section as TemplateSection, type SectionItem as TemplateItem } from '@/api/sections';
+import { getSectionTree, type Section as TemplateSection } from '@/api/sections';
 import type { PhotosMap } from '@/api/inspections';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import PhotoUploader from '@/components/ui/PhotoUploader';
@@ -13,11 +13,6 @@ import PhotoUploader from '@/components/ui/PhotoUploader';
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface NumericLabel {
-  key: string;
-  label: string;
-}
 
 interface ChecklistItem {
   itemId: number;
@@ -144,39 +139,6 @@ const ToggleButtons: React.FC<ToggleButtonsProps> = ({ value, onChange }) => (
   </div>
 );
 
-interface NumericInputsProps {
-  labels: NumericLabel[];
-  values: Record<string, number | null>;
-  onChange: (key: string, value: number | null) => void;
-  readOnly: boolean;
-}
-
-const NumericInputs: React.FC<NumericInputsProps> = ({
-  labels,
-  values,
-  onChange,
-  readOnly,
-}) => (
-  <div className="flex flex-wrap gap-2 mt-1">
-    {labels.map((lbl) => (
-      <div key={lbl.key} className="flex items-center gap-1">
-        <label className="text-xs text-gray-500 shrink-0">{lbl.label}</label>
-        <input
-          type="number"
-          step="any"
-          disabled={readOnly}
-          value={values[lbl.key] ?? ''}
-          onChange={(e) => {
-            const raw = e.target.value;
-            onChange(lbl.key, raw === '' ? null : parseFloat(raw));
-          }}
-          className="w-20 px-2 py-1 border rounded text-sm text-center focus:outline-none focus:ring-1 focus:ring-teal disabled:bg-gray-50 disabled:text-gray-400"
-        />
-      </div>
-    ))}
-  </div>
-);
-
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -192,20 +154,8 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
 }) => {
   // collapsed sections tracked by sectionId
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
-  const [template, setTemplate] = useState<TemplateSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Item-level template lookup
-  const itemTemplateMap = React.useMemo(() => {
-    const map = new Map<string, TemplateItem>();
-    for (const sec of template) {
-      for (const item of sec.items) {
-        map.set(`${sec.id}-${item.id}`, item);
-      }
-    }
-    return map;
-  }, [template]);
 
   // Fetch template on mount
   useEffect(() => {
@@ -220,7 +170,6 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
           throw new Error('模板数据格式异常');
         }
 
-        setTemplate(raw);
         // Initialise checklist data if empty
         if (!checklistData.sections || checklistData.sections.length === 0) {
           onChange(buildInitialData(raw));
@@ -326,10 +275,6 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
             {!isCollapsed && (
               <div className="space-y-0">
                 {section.items.map((item) => {
-                  const tplItem = itemTemplateMap.get(
-                    `${section.sectionId}-${item.itemId}`,
-                  );
-
                   return (
                     <div
                       key={item.itemId}

@@ -1,7 +1,7 @@
 package com.yldlxj.pv.inspect.plan;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.yldlxj.pv.inspect.common.BusinessException;
+import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.common.PageDto;
 import com.yldlxj.pv.inspect.plan.dto.PlanDto;
 import com.yldlxj.pv.inspect.plan.dto.PlanViewVo;
