@@ -38,9 +38,9 @@ public class Station extends BaseEntity {
 
     private BigDecimal latitude;
 
-    private Long lastInspectorId;
+    private Long lastInspectRecordId;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime lastInspectTime;
 
 }

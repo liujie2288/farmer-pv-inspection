@@ -13,7 +13,7 @@ CREATE TABLE `station` (
   `longitude` DECIMAL(12,8) DEFAULT NULL COMMENT '经度坐标',
   `latitude` DECIMAL(12,8) DEFAULT NULL COMMENT '纬度坐标',
   `status` TINYINT NOT NULL DEFAULT 0 COMMENT '巡检状态: 0-未巡检 1-已巡检',
-  `last_inspector_id` BIGINT DEFAULT NULL COMMENT '最后巡检人ID',
+  `last_inspect_record_id` bigint DEFAULT NULL COMMENT '最后巡检记录id',
   `last_inspect_time` DATETIME DEFAULT NULL COMMENT '最后巡检时间',
   `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

@@ -4,7 +4,7 @@ import com.yldlxj.pv.inspect.auth.SecurityUtils;
 import com.yldlxj.pv.inspect.common.ApiResponse;
 import com.yldlxj.pv.inspect.common.PageDto;
 import com.yldlxj.pv.inspect.plan.dto.PlanDto;
-import com.yldlxj.pv.inspect.plan.dto.PlanViewVo;
+import com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -21,7 +21,7 @@ public class InspectPlanController {
     private final InspectPlanService inspectPlanService;
 
     @GetMapping
-    public ApiResponse<PageDto<PlanViewVo>> listPlans(
+    public ApiResponse<PageDto<PlanProjectViewVo>> listPlans(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String keyword,

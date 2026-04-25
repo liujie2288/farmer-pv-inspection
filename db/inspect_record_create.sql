@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS inspect_record (
     id          BIGINT AUTO_INCREMENT PRIMARY KEY,
     plan_id     BIGINT       NOT NULL COMMENT '关联巡检计划',
+    plan_project_id BIGINT   NOT NULL COMMENT '关联巡检计划项目',
     project_id  BIGINT       NOT NULL COMMENT '关联项目',
     station_id  BIGINT       NOT NULL COMMENT '关联电站',
     inspector_id BIGINT      NOT NULL COMMENT '巡检人员',

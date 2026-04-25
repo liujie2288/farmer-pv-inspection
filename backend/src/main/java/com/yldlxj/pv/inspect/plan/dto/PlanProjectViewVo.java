@@ -5,7 +5,7 @@ import lombok.Data;
 import java.time.LocalDate;
 
 @Data
-public class PlanViewVo {
+public class PlanProjectViewVo {
 
     private Long id;
 

@@ -1,7 +1,7 @@
 package com.yldlxj.pv.inspect.convert;
 
 import com.yldlxj.pv.inspect.plan.InspectPlanProject;
-import com.yldlxj.pv.inspect.plan.dto.PlanViewVo;
+import com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
@@ -18,7 +18,7 @@ public interface PlanConvert {
     @Mapping(target = "endTime", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "completionRate", ignore = true)
-    PlanViewVo toViewVo(InspectPlanProject pp);
+    PlanProjectViewVo toViewVo(InspectPlanProject pp);
 
-    List<PlanViewVo> toVoList(List<InspectPlanProject> list);
+    List<PlanProjectViewVo> toVoList(List<InspectPlanProject> list);
 }

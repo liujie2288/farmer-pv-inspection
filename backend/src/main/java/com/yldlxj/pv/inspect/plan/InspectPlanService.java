@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.common.PageDto;
 import com.yldlxj.pv.inspect.plan.dto.PlanDto;
-import com.yldlxj.pv.inspect.plan.dto.PlanViewVo;
+import com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo;
 import com.yldlxj.pv.inspect.project.Project;
 import com.yldlxj.pv.inspect.project.ProjectMapper;
 import com.yldlxj.pv.inspect.station.StationMapper;
@@ -25,13 +25,13 @@ public class InspectPlanService {
     private final ProjectMapper projectMapper;
     private final StationMapper stationMapper;
 
-    public PageDto<PlanViewVo> listPlans(int page, int size, String keyword, Integer status) {
+    public PageDto<PlanProjectViewVo> listPlans(int page, int size, String keyword, Integer status) {
         long total = planMapper.countPlanView(keyword, status);
         if (total == 0) {
             return PageDto.of(Collections.emptyList(), 0, page, size);
         }
 
-        List<PlanViewVo> records = planMapper.listPlanView(keyword, status, (page - 1) * size, size);
+        List<PlanProjectViewVo> records = planMapper.listPlanView(keyword, status, (page - 1) * size, size);
 
         records.forEach(vo -> {
             double rate = vo.getTotalCount() != null && vo.getTotalCount() > 0
@@ -227,17 +227,17 @@ public class InspectPlanService {
         return p != null ? p.getProjectName() : "未知项目";
     }
 
-    public PlanViewVo getActivePlanByProjectId(Long projectId) {
+    public PlanProjectViewVo getActivePlanByProjectId(Long projectId) {
         return planMapper.findActiveByProjectId(projectId);
     }
 
-    public Map<Long, PlanViewVo> getActivePlansByProjectIds(List<Long> projectIds) {
+    public Map<Long, PlanProjectViewVo> getActivePlansByProjectIds(List<Long> projectIds) {
         if (projectIds == null || projectIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        List<PlanViewVo> plans = planMapper.findActiveByProjectIds(projectIds);
+        List<PlanProjectViewVo> plans = planMapper.findActiveByProjectIds(projectIds);
         return plans.stream()
                 .filter(p -> p.getProjectId() != null)
-                .collect(Collectors.toMap(PlanViewVo::getProjectId, p -> p, (a, b) -> a));
+                .collect(Collectors.toMap(PlanProjectViewVo::getProjectId, p -> p, (a, b) -> a));
     }
 }

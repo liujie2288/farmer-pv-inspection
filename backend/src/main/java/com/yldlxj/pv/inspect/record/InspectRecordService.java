@@ -4,12 +4,14 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yldlxj.pv.inspect.auth.AuthService;
+import com.yldlxj.pv.inspect.auth.SecurityUtils;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.common.exception.ForbiddenException;
 import com.yldlxj.pv.inspect.plan.InspectPlan;
 import com.yldlxj.pv.inspect.plan.InspectPlanMapper;
 import com.yldlxj.pv.inspect.plan.InspectPlanProject;
 import com.yldlxj.pv.inspect.plan.InspectPlanProjectMapper;
+import com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo;
 import com.yldlxj.pv.inspect.project.Project;
 import com.yldlxj.pv.inspect.project.ProjectMapper;
 import com.yldlxj.pv.inspect.record.dto.ChecklistSectionDto;
@@ -58,24 +60,23 @@ public class InspectRecordService {
 
     @Transactional
     public Long submitRecord(InspectRecordDto dto) {
-        Long inspectorId = authService.getCurrentUserId();
-
-        InspectPlan plan = planMapper.selectById(dto.getPlanId());
-        if (plan == null) {
-            throw new BusinessException("巡检计划不存在");
-        }
-        if (plan.getStatus() != 1) {
-            throw new BusinessException("当前巡检计划未在进行中");
-        }
+        Long inspectorId = SecurityUtils.getCurrentUserId();
 
         Station station = stationMapper.selectById(dto.getStationId());
         if (station == null || !station.getProjectId().equals(dto.getProjectId())) {
             throw new BusinessException("电站不存在");
         }
 
+        PlanProjectViewVo planProject = planMapper.findActiveByProjectId(station.getProjectId());
+        if (planProject == null) {
+            throw new BusinessException("巡检计划不存在或已结束");
+        } else if (planProject.getStatus() != 1) {
+            throw new BusinessException("当前巡检计划未在进行中");
+        }
+
         Long existing = recordMapper.selectCount(
                 new LambdaQueryWrapper<InspectRecord>()
-                        .eq(InspectRecord::getPlanId, dto.getPlanId())
+                        .eq(InspectRecord::getPlanProjectId, planProject.getId())
                         .eq(InspectRecord::getStationId, dto.getStationId())
                         .eq(InspectRecord::getInspectorId, inspectorId)
         );
@@ -84,10 +85,11 @@ public class InspectRecordService {
         }
 
         InspectRecord record = new InspectRecord();
-        record.setPlanId(dto.getPlanId());
+        record.setPlanId(planProject.getPlanId());
+        record.setPlanProjectId(planProject.getId());
+        record.setProjectId(dto.getProjectId());
         record.setStationId(dto.getStationId());
         record.setInspectorId(inspectorId);
-        record.setProjectId(dto.getProjectId());
         record.setWeather(dto.getWeather());
         record.setChecklistResult(dto.getChecklistResult());
         record.setPhotos(dto.getPhotos());
@@ -95,8 +97,15 @@ public class InspectRecordService {
         record.setLatitude(dto.getLatitude());
         recordMapper.insert(record);
 
-        updateStationStatus(dto.getStationId(), inspectorId);
-        updatePlanInspectedCount(dto.getPlanId(), dto.getStationId());
+        // 更新电站最后巡检记录
+        stationMapper.updateLastInspectRecordId(station.getId(), record.getId());
+
+        // 更新已巡检数量
+        Long inspectedCount1 = recordMapper.selectCount(new LambdaQueryWrapper<InspectRecord>().eq(InspectRecord::getPlanProjectId, planProject.getId()));
+        planProjectMapper.updateInspectedCount(planProject.getId(), inspectedCount1);
+
+        Long inspectedCount2 = recordMapper.selectCount(new LambdaQueryWrapper<InspectRecord>().eq(InspectRecord::getPlanId, planProject.getPlanId()));
+        planMapper.updateInspectedCount(planProject.getPlanId(), inspectedCount2);
 
         return record.getId();
     }
@@ -195,13 +204,13 @@ public class InspectRecordService {
 
         if (keyword != null && !keyword.isBlank()) {
             List<Long> matchedPlanIds = planMapper.selectList(
-                    new LambdaQueryWrapper<InspectPlan>().like(InspectPlan::getPlanName, keyword))
+                            new LambdaQueryWrapper<InspectPlan>().like(InspectPlan::getPlanName, keyword))
                     .stream().map(InspectPlan::getId).toList();
             List<Long> matchedInspectorIds = userMapper.selectList(
-                    new LambdaQueryWrapper<SysUser>().like(SysUser::getRealName, keyword))
+                            new LambdaQueryWrapper<SysUser>().like(SysUser::getRealName, keyword))
                     .stream().map(SysUser::getId).toList();
             List<Long> matchedStationIds = stationMapper.selectList(
-                    new LambdaQueryWrapper<Station>().like(Station::getOwnerName, keyword))
+                            new LambdaQueryWrapper<Station>().like(Station::getOwnerName, keyword))
                     .stream().map(Station::getId).toList();
 
             if (matchedPlanIds.isEmpty() && matchedInspectorIds.isEmpty() && matchedStationIds.isEmpty()) {
@@ -285,47 +294,6 @@ public class InspectRecordService {
                     file.getContentType());
         } catch (Exception e) {
             throw new BusinessException("照片上传失败: " + e.getMessage());
-        }
-    }
-
-    private void updateStationStatus(Long stationId, Long inspectorId) {
-        Station station = stationMapper.selectById(stationId);
-        if (station != null) {
-            station.setLastInspectTime(LocalDateTime.now());
-            station.setLastInspectorId(inspectorId);
-            stationMapper.updateById(station);
-        }
-    }
-
-    private void updatePlanInspectedCount(Long planId, Long stationId) {
-        Station station = stationMapper.selectById(stationId);
-        if (station == null) return;
-
-        InspectPlanProject pp = planProjectMapper.selectOne(
-                new LambdaQueryWrapper<InspectPlanProject>()
-                        .eq(InspectPlanProject::getPlanId, planId)
-                        .eq(InspectPlanProject::getProjectId, station.getProjectId())
-        );
-        if (pp != null) {
-            Long count = recordMapper.selectCount(
-                    new LambdaQueryWrapper<InspectRecord>()
-                            .eq(InspectRecord::getPlanId, planId)
-                            .in(InspectRecord::getStationId,
-                                    stationMapper.selectList(new LambdaQueryWrapper<Station>()
-                                            .eq(Station::getProjectId, pp.getProjectId()))
-                                            .stream().map(Station::getId).toList())
-            );
-            pp.setInspectedCount(count.intValue());
-            planProjectMapper.updateById(pp);
-        }
-
-        InspectPlan plan = planMapper.selectById(planId);
-        if (plan != null) {
-            Long totalCount = recordMapper.selectCount(
-                    new LambdaQueryWrapper<InspectRecord>().eq(InspectRecord::getPlanId, planId)
-            );
-            plan.setInspectedCount(totalCount.intValue());
-            planMapper.updateById(plan);
         }
     }
 

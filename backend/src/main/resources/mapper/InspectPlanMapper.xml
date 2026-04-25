@@ -19,7 +19,7 @@
         </where>
     </select>
 
-    <select id="listPlanView" resultType="com.yldlxj.pv.inspect.plan.dto.PlanViewVo">
+    <select id="listPlanView" resultType="com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo">
         SELECT
             pp.id AS id,
             p.id AS planId,
@@ -47,7 +47,7 @@
         LIMIT #{offset}, #{limit}
     </select>
 
-    <select id="findActiveByProjectId" resultType="com.yldlxj.pv.inspect.plan.dto.PlanViewVo">
+    <select id="findActiveByProjectId" resultType="com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo">
         SELECT
         pp.id AS id,
         pp.project_id AS projectId,
@@ -64,7 +64,7 @@
         LIMIT 1
     </select>
 
-    <select id="findActiveByProjectIds" resultType="com.yldlxj.pv.inspect.plan.dto.PlanViewVo">
+    <select id="findActiveByProjectIds" resultType="com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo">
         SELECT
             pp.id AS id,
             pp.project_id AS projectId,

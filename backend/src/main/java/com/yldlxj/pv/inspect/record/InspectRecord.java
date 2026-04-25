@@ -18,6 +18,8 @@ public class InspectRecord extends BaseEntity {
 
     private Long planId;
 
+    private Long planProjectId;
+
     private Long stationId;
 
     private Long inspectorId;
