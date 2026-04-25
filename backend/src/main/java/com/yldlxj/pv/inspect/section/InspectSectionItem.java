@@ -2,6 +2,7 @@ package com.yldlxj.pv.inspect.section;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.yldlxj.pv.inspect.common.BaseEntity;
+import com.yldlxj.pv.inspect.common.enums.ItemType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 

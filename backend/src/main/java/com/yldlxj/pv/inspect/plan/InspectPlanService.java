@@ -1,6 +1,7 @@
 package com.yldlxj.pv.inspect.plan;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.yldlxj.pv.inspect.common.enums.PlanStatus;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.common.PageDto;
 import com.yldlxj.pv.inspect.plan.dto.PlanDto;
@@ -51,7 +52,7 @@ public class InspectPlanService {
             checkOneActiveConstraint(pid);
         }
 
-        int initialStatus = !dto.getStartTime().isAfter(LocalDate.now()) ? 1 : 0;
+        PlanStatus initialStatus = !dto.getStartTime().isAfter(LocalDate.now()) ? PlanStatus.IN_PROGRESS : PlanStatus.PENDING;
 
         // Create plan
         InspectPlan plan = new InspectPlan();
@@ -91,7 +92,7 @@ public class InspectPlanService {
         if (plan == null) {
             throw new BusinessException("计划不存在");
         }
-        if (plan.getStatus() == 2) {
+        if (plan.getStatus() == PlanStatus.FINISHED) {
             throw new BusinessException("已结束的计划不可修改");
         }
         if (startTime != null) plan.setStartTime(startTime);
@@ -104,8 +105,8 @@ public class InspectPlanService {
     public void finishPlan(Long planId) {
         InspectPlan plan = planMapper.selectById(planId);
         if (plan != null) {
-            if (plan.getStatus() != 2) {
-                plan.setStatus(2);
+            if (plan.getStatus() != PlanStatus.FINISHED) {
+                plan.setStatus(PlanStatus.FINISHED);
                 planMapper.updateById(plan);
             }
         }
@@ -156,7 +157,7 @@ public class InspectPlanService {
         InspectPlan plan = planMapper.selectOne(
                 new LambdaQueryWrapper<InspectPlan>()
                         .in(InspectPlan::getId, planIds)
-                        .eq(InspectPlan::getStatus, 1)
+                        .eq(InspectPlan::getStatus, PlanStatus.IN_PROGRESS)
                         .last("LIMIT 1")
         );
         return plan;
@@ -169,21 +170,21 @@ public class InspectPlanService {
 
         List<InspectPlan> toStart = planMapper.selectList(
                 new LambdaQueryWrapper<InspectPlan>()
-                        .eq(InspectPlan::getStatus, 0)
+                        .eq(InspectPlan::getStatus, PlanStatus.PENDING)
                         .le(InspectPlan::getStartTime, today)
         );
         for (InspectPlan plan : toStart) {
-            plan.setStatus(1);
+            plan.setStatus(PlanStatus.IN_PROGRESS);
             planMapper.updateById(plan);
         }
 
         List<InspectPlan> toEnd = planMapper.selectList(
                 new LambdaQueryWrapper<InspectPlan>()
-                        .eq(InspectPlan::getStatus, 1)
+                        .eq(InspectPlan::getStatus, PlanStatus.IN_PROGRESS)
                         .lt(InspectPlan::getEndTime, today)
         );
         for (InspectPlan plan : toEnd) {
-            plan.setStatus(2);
+            plan.setStatus(PlanStatus.FINISHED);
             planMapper.updateById(plan);
         }
     }
@@ -214,7 +215,7 @@ public class InspectPlanService {
             Long count = planMapper.selectCount(
                     new LambdaQueryWrapper<InspectPlan>()
                             .in(InspectPlan::getId, pps.stream().map(InspectPlanProject::getPlanId).collect(Collectors.toList()))
-                            .in(InspectPlan::getStatus, Arrays.asList(0, 1))
+                            .in(InspectPlan::getStatus, Arrays.asList(PlanStatus.PENDING, PlanStatus.IN_PROGRESS))
             );
             if (count > 0) {
                 throw new BusinessException("该项目当前已有未结束的巡检计划");

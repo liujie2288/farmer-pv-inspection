@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yldlxj.pv.inspect.auth.AuthService;
 import com.yldlxj.pv.inspect.auth.SecurityUtils;
+import com.yldlxj.pv.inspect.common.enums.PlanStatus;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.common.exception.ForbiddenException;
 import com.yldlxj.pv.inspect.plan.InspectPlan;
@@ -70,7 +71,7 @@ public class InspectRecordService {
         PlanProjectViewVo planProject = planMapper.findActiveByProjectId(station.getProjectId());
         if (planProject == null) {
             throw new BusinessException("巡检计划不存在或已结束");
-        } else if (planProject.getStatus() != 1) {
+        } else if (planProject.getStatus() != PlanStatus.IN_PROGRESS) {
             throw new BusinessException("当前巡检计划未在进行中");
         }
 
@@ -123,7 +124,7 @@ public class InspectRecordService {
         }
 
         InspectPlan plan = planMapper.selectById(record.getPlanId());
-        if (plan != null && plan.getStatus() == 2) {
+        if (plan != null && plan.getStatus() == PlanStatus.FINISHED) {
             throw new BusinessException("巡检计划已结束，记录不可修改");
         }
 
@@ -146,7 +147,7 @@ public class InspectRecordService {
         SysUser inspector = userMapper.selectById(record.getInspectorId());
 
         Long currentUserId = authService.getCurrentUserId();
-        boolean canEdit = record.getInspectorId().equals(currentUserId) && plan != null && plan.getStatus() == 1;
+        boolean canEdit = record.getInspectorId().equals(currentUserId) && plan != null && plan.getStatus() == PlanStatus.IN_PROGRESS;
 
         // Lookup template data
         Map<Long, InspectSection> sectionMap = sectionMapper.selectList(null).stream()
@@ -246,7 +247,7 @@ public class InspectRecordService {
             InspectPlan plan = planMapper.selectById(r.getPlanId());
             SysUser inspector = userMapper.selectById(r.getInspectorId());
             Station station = stationMapper.selectById(r.getStationId());
-            boolean canEdit = r.getInspectorId().equals(currentUserId) && plan != null && plan.getStatus() == 1;
+            boolean canEdit = r.getInspectorId().equals(currentUserId) && plan != null && plan.getStatus() == PlanStatus.IN_PROGRESS;
 
             Map<String, Object> map = new HashMap<>();
             map.put("id", r.getId());
@@ -256,7 +257,7 @@ public class InspectRecordService {
             map.put("createTime", r.getCreateTime());
             map.put("inspectorName", inspector != null ? inspector.getRealName() : "");
             map.put("canEdit", canEdit);
-            map.put("planStatus", plan != null ? plan.getStatus() : 0);
+            map.put("planStatus", plan != null ? plan.getStatus() : null);
             records.add(map);
         }
         resultPage.setRecords(records);

@@ -2,6 +2,7 @@ package com.yldlxj.pv.inspect.plan;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.yldlxj.pv.inspect.common.BaseEntity;
+import com.yldlxj.pv.inspect.common.enums.PlanStatus;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -18,7 +19,7 @@ public class InspectPlan extends BaseEntity {
 
     private LocalDate endTime;
 
-    private Integer status;
+    private PlanStatus status;
 
     private Long creatorId;
 

@@ -1,6 +1,7 @@
 package com.yldlxj.pv.inspect.station.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.yldlxj.pv.inspect.common.enums.InspectStatus;
 import com.yldlxj.pv.inspect.record.dto.vo.RecordSimpleVo;
 import lombok.Data;
 
@@ -31,6 +32,6 @@ public class StationViewVo {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime lastInspectTime;
 
-    private Integer status;
+    private InspectStatus status;
     private List<RecordSimpleVo> records;
 }

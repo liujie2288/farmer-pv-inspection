@@ -1,5 +1,6 @@
 package com.yldlxj.pv.inspect.plan.dto;
 
+import com.yldlxj.pv.inspect.common.enums.PlanStatus;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -21,7 +22,7 @@ public class PlanProjectViewVo {
 
     private LocalDate endTime;
 
-    private Integer status;
+    private PlanStatus status;
 
     private Integer totalCount;
 

@@ -16,5 +16,6 @@ CREATE TABLE IF NOT EXISTS inspect_record (
     INDEX idx_plan_id (plan_id),
     INDEX idx_station_id (station_id),
     INDEX idx_inspector_id (inspector_id),
-    INDEX idx_project_id (project_id)
+    INDEX idx_project_id (project_id),
+    INDEX idx_plan_station (plan_project_id,station_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='巡检记录';

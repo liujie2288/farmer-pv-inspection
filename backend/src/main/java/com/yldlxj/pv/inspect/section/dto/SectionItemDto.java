@@ -1,6 +1,6 @@
 package com.yldlxj.pv.inspect.section.dto;
 
-import com.yldlxj.pv.inspect.section.ItemType;
+import com.yldlxj.pv.inspect.common.enums.ItemType;
 import lombok.Data;
 
 import javax.validation.constraints.NotBlank;

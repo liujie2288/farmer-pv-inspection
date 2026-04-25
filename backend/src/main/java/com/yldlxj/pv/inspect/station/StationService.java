@@ -6,9 +6,12 @@ import com.alibaba.excel.read.listener.ReadListener;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.yldlxj.pv.inspect.common.enums.InspectStatus;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.common.PageDto;
 import com.yldlxj.pv.inspect.convert.StationConvert;
+import com.yldlxj.pv.inspect.plan.InspectPlanMapper;
+import com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo;
 import com.yldlxj.pv.inspect.project.ProjectService;
 import com.yldlxj.pv.inspect.record.InspectRecord;
 import com.yldlxj.pv.inspect.record.InspectRecordMapper;
@@ -34,6 +37,7 @@ public class StationService {
     private final StationMapper stationMapper;
     private final ProjectMapper projectMapper;
     private final InspectRecordMapper inspectRecordMapper;
+    private final InspectPlanMapper planMapper;
 
     private final UserService userService;
     private final ProjectService projectService;
@@ -105,6 +109,19 @@ public class StationService {
 
         StationViewVo vo = StationConvert.INSTANCE.toViewVo(station);
         vo.setProjectName(projectService.getNameByProjectId(projectId));
+
+        // 巡检状态：有进行中的计划且该电站有记录 → 已巡检(1)，否则 → 未巡检(0)
+        PlanProjectViewVo activePlan = planMapper.findActiveByProjectId(projectId);
+        if (activePlan != null) {
+            Long recordCount = inspectRecordMapper.selectCount(
+                    new LambdaQueryWrapper<InspectRecord>()
+                            .eq(InspectRecord::getPlanProjectId, activePlan.getId())
+                            .eq(InspectRecord::getStationId, stationId)
+            );
+            vo.setStatus(recordCount > 0 ? InspectStatus.INSPECTED : InspectStatus.UNINSPECTED);
+        } else {
+            vo.setStatus(InspectStatus.UNINSPECTED);
+        }
 
         vo.setRecords(inspectRecordMapper.listByStationId(stationId));
         vo.getRecords().forEach(record -> record.setInspectorName(userService.findRealNameByUserId(record.getInspectorId())));

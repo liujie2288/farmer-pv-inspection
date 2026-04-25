@@ -1,4 +1,4 @@
-package com.yldlxj.pv.inspect.section;
+package com.yldlxj.pv.inspect.common.enums;
 
 import com.baomidou.mybatisplus.annotation.EnumValue;
 import com.fasterxml.jackson.annotation.JsonValue;
