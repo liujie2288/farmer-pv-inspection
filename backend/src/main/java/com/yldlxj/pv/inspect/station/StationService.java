@@ -9,10 +9,15 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.common.PageDto;
 import com.yldlxj.pv.inspect.convert.StationConvert;
+import com.yldlxj.pv.inspect.project.ProjectService;
+import com.yldlxj.pv.inspect.record.InspectRecord;
+import com.yldlxj.pv.inspect.record.InspectRecordMapper;
+import com.yldlxj.pv.inspect.record.dto.vo.RecordSimpleVo;
 import com.yldlxj.pv.inspect.station.dto.StationDto;
 import com.yldlxj.pv.inspect.station.dto.StationViewVo;
 import com.yldlxj.pv.inspect.project.Project;
 import com.yldlxj.pv.inspect.project.ProjectMapper;
+import com.yldlxj.pv.inspect.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +33,10 @@ public class StationService {
 
     private final StationMapper stationMapper;
     private final ProjectMapper projectMapper;
+    private final InspectRecordMapper inspectRecordMapper;
+
+    private final UserService userService;
+    private final ProjectService projectService;
 
     public PageDto<StationViewVo> listStations(Long projectId, int page, int size, String keyword) {
         LambdaQueryWrapper<Station> wrapper = new LambdaQueryWrapper<>();
@@ -42,19 +51,22 @@ public class StationService {
     }
 
     public Long createStation(Long projectId, StationDto dto) {
-        validateProject(projectId);
+        if (!projectService.existsById(projectId)) {
+            throw new BusinessException("项目不存在");
+        }
         checkStationCodeUnique(dto.getStationCode(), null);
 
         Station station = new Station();
         copyDtoToStation(dto, station);
         station.setProjectId(projectId);
         stationMapper.insert(station);
-        updateProjectStationCount(projectId);
         return station.getId();
     }
 
     public void updateStation(Long projectId, Long id, StationDto dto) {
-        validateProject(projectId);
+        if (!projectService.existsById(projectId)) {
+            throw new BusinessException("项目不存在");
+        }
         Station station = stationMapper.selectById(id);
         if (station == null || !station.getProjectId().equals(projectId)) {
             throw new BusinessException("电站不存在");
@@ -73,7 +85,6 @@ public class StationService {
         }
 
         stationMapper.deleteById(id);
-        updateProjectStationCount(projectId);
     }
 
     @Transactional
@@ -83,27 +94,29 @@ public class StationService {
         }
         LambdaQueryWrapper<Station> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Station::getProjectId, projectId).in(Station::getId, ids);
-        int count = stationMapper.delete(wrapper);
-        updateProjectStationCount(projectId);
-        return count;
+        return stationMapper.delete(wrapper);
     }
 
-    public StationViewVo getStationDetail(Long projectId, Long id) {
-        Station station = stationMapper.selectById(id);
+    public StationViewVo getStationDetail(Long projectId, Long stationId) {
+        Station station = stationMapper.selectById(stationId);
         if (station == null || !station.getProjectId().equals(projectId)) {
             throw new BusinessException("电站不存在");
         }
 
-        Project project = projectMapper.selectById(projectId);
         StationViewVo vo = StationConvert.INSTANCE.toViewVo(station);
-        vo.setProjectName(project != null ? project.getProjectName() : "");
-        vo.setRecords(Collections.emptyList());
+        vo.setProjectName(projectService.getNameByProjectId(projectId));
+
+        vo.setRecords(inspectRecordMapper.listByStationId(stationId));
+        vo.getRecords().forEach(record -> record.setInspectorName(userService.findRealNameByUserId(record.getInspectorId())));
+
         return vo;
     }
 
     @Transactional
     public Map<String, Object> importStations(Long projectId, MultipartFile file) {
-        validateProject(projectId);
+        if (!projectService.existsById(projectId)) {
+            throw new BusinessException("项目不存在");
+        }
 
         List<Map<String, Object>> errors = new ArrayList<>();
         int[] successCount = {0};
@@ -157,20 +170,11 @@ public class StationService {
             throw new BusinessException("Excel文件读取失败: " + e.getMessage());
         }
 
-        updateProjectStationCount(projectId);
-
         Map<String, Object> result = new HashMap<>();
         result.put("successCount", successCount[0]);
         result.put("failCount", errors.size());
         result.put("errors", errors);
         return result;
-    }
-
-    private void validateProject(Long projectId) {
-        Project project = projectMapper.selectById(projectId);
-        if (project == null) {
-            throw new BusinessException("项目不存在");
-        }
     }
 
     private void checkStationCodeUnique(String stationCode, Long excludeId) {
@@ -196,13 +200,5 @@ public class StationService {
         station.setCapacityKw(dto.getCapacityKw());
         station.setLongitude(dto.getLongitude());
         station.setLatitude(dto.getLatitude());
-    }
-
-    private void updateProjectStationCount(Long projectId) {
-        int count = stationMapper.countByProjectId(projectId);
-        Project project = projectMapper.selectById(projectId);
-        if (project != null) {
-            projectMapper.updateById(project);
-        }
     }
 }

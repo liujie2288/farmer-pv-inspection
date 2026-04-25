@@ -1,6 +1,7 @@
 package com.yldlxj.pv.inspect.station.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.yldlxj.pv.inspect.record.dto.vo.RecordSimpleVo;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -25,11 +26,11 @@ public class StationViewVo {
     private BigDecimal capacityKw;
     private BigDecimal longitude;
     private BigDecimal latitude;
-    private Long lastInspectorId;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private Long lastInspectRecordId;
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime lastInspectTime;
 
     private Integer status;
-    private List<Map<String, Object>> records;
+    private List<RecordSimpleVo> records;
 }

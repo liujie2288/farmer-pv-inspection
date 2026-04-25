@@ -9,11 +9,14 @@ import com.yldlxj.pv.inspect.device.InspectDeviceMapper;
 import com.yldlxj.pv.inspect.station.StationMapper;
 import com.yldlxj.pv.inspect.project.dto.ProjectDto;
 import com.yldlxj.pv.inspect.project.dto.ProjectViewVo;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -23,6 +26,22 @@ public class ProjectService {
     private final ProjectMapper projectMapper;
     private final StationMapper stationMapper;
     private final InspectDeviceMapper deviceMapper;
+
+    private final Cache<Long, String> projectNameCache = Caffeine.newBuilder()
+            .expireAfterWrite(12, TimeUnit.HOURS)
+            .maximumSize(256)
+            .build();
+
+    public boolean existsById(Long projectId) {
+        return projectMapper.selectById(projectId) != null;
+    }
+
+    public String getNameByProjectId(Long projectId) {
+        return projectNameCache.get(projectId, id -> {
+            Project p = projectMapper.selectById(id);
+            return p != null ? p.getProjectName() : null;
+        });
+    }
 
     public ProjectViewVo getProjectById(Long id) {
         Project project = projectMapper.selectById(id);
@@ -98,6 +117,7 @@ public class ProjectService {
         project.setSpecialOperationCertUrl(dto.getSpecialOperationCertUrl());
         project.setSectionIds(dto.getSectionIds());
         projectMapper.updateById(project);
+        projectNameCache.invalidate(id);
 
         // Sync devices: items with id → update, items without id → insert, missing ids → delete
         List<InspectDevice> existing = deviceMapper.selectList(
@@ -137,6 +157,7 @@ public class ProjectService {
         }
 
         projectMapper.deleteById(id);
+        projectNameCache.invalidate(id);
         deviceMapper.delete(new LambdaQueryWrapper<InspectDevice>().eq(InspectDevice::getProjectId, id));
     }
 

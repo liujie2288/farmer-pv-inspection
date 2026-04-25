@@ -7,9 +7,14 @@ import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.convert.UserConvert;
 import com.yldlxj.pv.inspect.user.dto.UserCreateDto;
 import com.yldlxj.pv.inspect.user.dto.UserUpdateDto;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -18,10 +23,19 @@ public class UserService {
     private final SysUserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
 
+    private final Cache<Long, SysUser> userCache = Caffeine.newBuilder()
+            .expireAfterWrite(1, TimeUnit.HOURS)
+            .maximumSize(256)
+            .build();
+
     private static final String DEFAULT_PASSWORD = "123456";
 
     public SysUser findByUserId(Long userId) {
-        return userMapper.selectById(userId);
+        return userCache.get(userId, userMapper::selectById);
+    }
+
+    public String findRealNameByUserId(Long userId) {
+        return Optional.ofNullable(userCache.get(userId, userMapper::selectById)).map(SysUser::getRealName).orElse(null);
     }
 
     public SysUser findByUsername(String username) {
@@ -79,6 +93,7 @@ public class UserService {
         user.setRole(dto.getRole());
 
         userMapper.updateById(user);
+        userCache.invalidate(id);
     }
 
     public void changePassword(Long userId, String password) {
@@ -88,6 +103,7 @@ public class UserService {
             sysUser.setNeedResetPwd(false);
             userMapper.updateById(sysUser);
         }
+        userCache.invalidate(userId);
     }
 
     public void resetPassword(Long userId) {
@@ -97,6 +113,7 @@ public class UserService {
             user.setNeedResetPwd(true);
             userMapper.updateById(user);
         }
+        userCache.invalidate(userId);
     }
 
     public void toggleStatus(Long id, Integer status) {
@@ -105,6 +122,7 @@ public class UserService {
             user.setStatus(status);
             userMapper.updateById(user);
         }
+        userCache.invalidate(id);
     }
 
     public void deleteUser(Long id) {
@@ -113,5 +131,6 @@ public class UserService {
             throw new BusinessException("用户不存在");
         }
         userMapper.deleteById(id);
+        userCache.invalidate(id);
     }
 }

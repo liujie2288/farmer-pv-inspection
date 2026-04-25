@@ -236,10 +236,14 @@ function StationDetailPage({ readOnly }: { readOnly?: boolean } = {}) {
               </thead>
               <tbody>
                 {detail.records.map(r => (
-                  <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50/50 transition-colors">
+                  <tr
+                    key={r.recordId}
+                    onClick={() => navigate(`/records/${r.recordId}`)}
+                    className="border-t border-gray-100 hover:bg-teal/5 cursor-pointer transition-colors"
+                  >
                     <td className="px-4 py-3 text-gray-900">{r.planName}</td>
                     <td className="px-4 py-3 text-gray-700">{r.inspectorName}</td>
-                    <td className="px-4 py-3 text-gray-500">{r.createTime}</td>
+                    <td className="px-4 py-3 text-gray-500">{r.inspectorTime?.replace('T', ' ')}</td>
                   </tr>
                 ))}
               </tbody>

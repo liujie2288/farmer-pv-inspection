@@ -40,7 +40,6 @@ public class Station extends BaseEntity {
 
     private Long lastInspectRecordId;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime lastInspectTime;
 
 }

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yldlxj.pv.inspect.record.InspectRecordMapper">
+
+    <resultMap id="recordSimpleVo" type="com.yldlxj.pv.inspect.record.dto.vo.RecordSimpleVo">
+        <result column="id" property="recordId"/>
+        <result column="inspector_id" property="inspectorId"/>
+        <result column="plan_name" property="planName"/>
+        <result column="real_name" property="inspectorName"/>
+        <result column="create_time" property="inspectorTime"/>
+    </resultMap>
+
+    <select id="listByStationId" resultMap="recordSimpleVo">
+        SELECT
+            r.id,
+            r.inspector_id,
+            r.create_time,
+            p.plan_name
+        FROM inspect_record r
+        JOIN inspect_plan p ON r.plan_id = p.id and r.station_id = #{stationId}
+        ORDER BY r.id DESC
+    </select>
+
+</mapper>
