@@ -20,8 +20,8 @@ const statCards = [
     bg: 'bg-[#0B3D91]',
   },
   {
-    key: 'inverters',
-    label: '逆变器总数',
+    key: 'stations',
+    label: '电站总数',
     icon: Users,
     bg: 'bg-[#00A8CC]',
   },
@@ -82,7 +82,7 @@ function DashboardPage() {
   const statValues: Record<string, string | number> = stats
     ? {
         projects: stats.totalProjects,
-        inverters: stats.totalInverters,
+        stations: stats.totalStations,
         inspected: stats.totalInspected,
         rate: `${stats.completionRate}%`,
       }
@@ -225,7 +225,7 @@ function DashboardPage() {
                           : 'text-red-500'
                     }`}
                   >
-                    {project.inspectedCount}/{project.inverterCount}
+                    {project.inspectedCount}/{project.stationCount}
                   </span>
                 </div>
               ))}

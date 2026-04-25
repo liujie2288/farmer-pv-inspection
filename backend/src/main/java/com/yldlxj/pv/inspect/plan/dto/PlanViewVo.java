@@ -9,7 +9,7 @@ public class PlanViewVo {
 
     private Long id;
 
-    private Long planGroupId;
+    private Long planId;
 
     private String planName;
 
@@ -23,7 +23,7 @@ public class PlanViewVo {
 
     private Integer status;
 
-    private Integer inverterCount;
+    private Integer totalCount;
 
     private Integer inspectedCount;
 

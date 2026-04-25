@@ -45,7 +45,7 @@ function RecordDetailPage() {
 
   const infoRows = [
     { label: '巡检计划', value: detail.planName, icon: FileText },
-    { label: '户主姓名', value: detail.inverterName, icon: User },
+    { label: '户主姓名', value: detail.stationName, icon: User },
     { label: '项目名称', value: detail.projectName, icon: FolderOpen },
     { label: '巡检员', value: detail.inspectorName, icon: User },
     { label: '巡检时间', value: detail.createTime, icon: Calendar },

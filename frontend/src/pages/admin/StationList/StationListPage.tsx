@@ -5,9 +5,9 @@ import {
   Users, FileSpreadsheet, X
 } from 'lucide-react';
 import {
-  listInverters, createInverter,
-  batchDeleteInverters, importInverters, Inverter
-} from '@/api/inverters';
+  listStations, createStation,
+  batchDeleteStations, importStations, Station
+} from '@/api/stations';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { showToast } from '@/components/ui/Toast';
 import { confirm } from '@/components/ui/Dialog';
@@ -15,8 +15,8 @@ import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import StatusTag from '@/components/ui/StatusTag';
 
-interface InverterFormState {
-  inverterCode: string;
+interface StationFormState {
+  stationCode: string;
   ownerName: string;
   address: string;
   powerAccount: string;
@@ -29,8 +29,8 @@ interface InverterFormState {
   latitude: string;
 }
 
-const emptyForm: InverterFormState = {
-  inverterCode: '',
+const emptyForm: StationFormState = {
+  stationCode: '',
   ownerName: '',
   address: '',
   powerAccount: '',
@@ -49,12 +49,12 @@ const statusTabs: { label: string; value: number | undefined }[] = [
   { label: '已巡检', value: 1 },
 ];
 
-function InverterListPage() {
+function StationListPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const pid = Number(projectId);
 
-  const [inverters, setInverters] = useState<Inverter[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -64,27 +64,27 @@ function InverterListPage() {
 
   // Create dialog state
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState<InverterFormState>({ ...emptyForm });
+  const [createForm, setCreateForm] = useState<StationFormState>({ ...emptyForm });
 
 
 
   // Import dialog state
   const [showImport, setShowImport] = useState(false);
 
-  // Load inverters
-  const loadInverters = useCallback(async (p: number = 1) => {
+  // Load stations
+  const loadStations = useCallback(async (p: number = 1) => {
     setLoading(true);
     try {
-      const res = await listInverters(pid, {
+      const res = await listStations(pid, {
         page: p,
         size: 20,
         keyword: searchText || undefined,
         status: statusFilter,
       });
       if (p === 1) {
-        setInverters(res.data.records);
+        setStations(res.data.records);
       } else {
-        setInverters(prev => [...prev, ...res.data.records]);
+        setStations(prev => [...prev, ...res.data.records]);
       }
       setTotal(res.data.total);
       setPage(p);
@@ -95,12 +95,12 @@ function InverterListPage() {
     }
   }, [pid, searchText, statusFilter]);
 
-  useEffect(() => { loadInverters(1); }, [loadInverters]);
+  useEffect(() => { loadStations(1); }, [loadStations]);
 
   // Handle search
   const handleSearch = () => {
     setSelectedIds(new Set());
-    loadInverters(1);
+    loadStations(1);
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
@@ -128,27 +128,27 @@ function InverterListPage() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === inverters.length) {
+    if (selectedIds.size === stations.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(inverters.map(f => f.id)));
+      setSelectedIds(new Set(stations.map(f => f.id)));
     }
   };
 
-  // Create inverter
+  // Create station
   const handleOpenCreate = () => {
     setCreateForm({ ...emptyForm });
     setShowCreate(true);
   };
 
   const handleCreate = async () => {
-    if (!createForm.inverterCode.trim() || !createForm.ownerName.trim()) {
-      showToast({ icon: 'fail', content: '请填写逆变器编号和户主姓名' });
+    if (!createForm.stationCode.trim() || !createForm.ownerName.trim()) {
+      showToast({ icon: 'fail', content: '请填写电站编号和户主姓名' });
       return;
     }
     try {
-      await createInverter(pid, {
-        inverterCode: createForm.inverterCode,
+      await createStation(pid, {
+        stationCode: createForm.stationCode,
         ownerName: createForm.ownerName,
         address: createForm.address || null,
         powerAccount: createForm.powerAccount || null,
@@ -162,7 +162,7 @@ function InverterListPage() {
       });
       showToast({ icon: 'success', content: '创建成功' });
       setShowCreate(false);
-      loadInverters(1);
+      loadStations(1);
     } catch (e: any) {
       showToast({ icon: 'fail', content: e.message || '创建失败' });
     }
@@ -173,7 +173,7 @@ function InverterListPage() {
   // Batch delete
   const handleBatchDelete = async () => {
     if (selectedIds.size === 0) {
-      showToast({ icon: 'info', content: '请选择要删除的逆变器' });
+      showToast({ icon: 'info', content: '请选择要删除的电站' });
       return;
     }
     const ok = await confirm({
@@ -182,10 +182,10 @@ function InverterListPage() {
     });
     if (!ok) return;
     try {
-      await batchDeleteInverters(pid, Array.from(selectedIds));
+      await batchDeleteStations(pid, Array.from(selectedIds));
       showToast({ icon: 'success', content: '批量删除成功' });
       setSelectedIds(new Set());
-      loadInverters(1);
+      loadStations(1);
     } catch (e: any) {
       showToast({ icon: 'fail', content: e.message || '删除失败' });
     }
@@ -198,32 +198,32 @@ function InverterListPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const res = await importInverters(pid, file);
+      const res = await importStations(pid, file);
       showToast({ icon: 'success', content: `成功导入 ${res.data.successCount} 户` });
       setShowImport(false);
-      loadInverters(1);
+      loadStations(1);
     } catch (e: any) {
       showToast({ icon: 'fail', content: e.message || '导入失败' });
     }
   };
 
-  // Navigate to inverter detail
-  const goToDetail = (inverterId: number) => {
-    navigate(`/admin/projects/${pid}/inverters/${inverterId}`);
+  // Navigate to station detail
+  const goToDetail = (stationId: number) => {
+    navigate(`/admin/projects/${pid}/stations/${stationId}`);
   };
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const sentinelRef = useInfiniteScroll(
-    () => loadInverters(page + 1),
-    { hasMore: inverters.length < total, loading, root: scrollContainerRef.current },
+    () => loadStations(page + 1),
+    { hasMore: stations.length < total, loading, root: scrollContainerRef.current },
   );
 
-  const allSelected = inverters.length > 0 && selectedIds.size === inverters.length;
+  const allSelected = stations.length > 0 && selectedIds.size === stations.length;
 
   // Reusable form fields renderer
-  const formFields: { key: keyof InverterFormState; label: string; placeholder: string; required?: boolean; type?: string; integer?: boolean }[] = [
-    { key: 'inverterCode', label: '逆变器编号', placeholder: '必填', required: true },
+  const formFields: { key: keyof StationFormState; label: string; placeholder: string; required?: boolean; type?: string; integer?: boolean }[] = [
+    { key: 'stationCode', label: '电站编号', placeholder: '必填', required: true },
     { key: 'ownerName', label: '户主姓名', placeholder: '必填', required: true },
     { key: 'address', label: '装机地址', placeholder: '选填' },
     { key: 'powerAccount', label: '发电户号', placeholder: '选填' },
@@ -237,8 +237,8 @@ function InverterListPage() {
   ];
 
   const renderFormFields = (
-    form: InverterFormState,
-    onChange: (field: keyof InverterFormState, value: string) => void
+    form: StationFormState,
+    onChange: (field: keyof StationFormState, value: string) => void
   ) => (
     <div className="space-y-3">
       {formFields.map(field => (
@@ -337,7 +337,7 @@ function InverterListPage() {
               className="w-4 h-4 rounded border-gray-300 text-teal focus:ring-teal cursor-pointer"
             />
           </div>
-          <div className="w-28">逆变器编号</div>
+          <div className="w-28">电站编号</div>
           <div className="w-24">户主姓名</div>
           <div className="w-32">发电户号</div>
           <div className="w-20">状态</div>
@@ -349,15 +349,15 @@ function InverterListPage() {
 
       {/* Content area */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-6">
-        {loading && inverters.length === 0 ? (
+        {loading && stations.length === 0 ? (
           <LoadingSpinner size="lg" />
-        ) : inverters.length === 0 ? (
-          <EmptyState icon={Users} message="暂无逆变器数据" />
+        ) : stations.length === 0 ? (
+          <EmptyState icon={Users} message="暂无电站数据" />
         ) : (
           <>
             {/* Desktop table rows */}
             <div className="hidden lg:block">
-              {inverters.map(f => (
+              {stations.map(f => (
                 <div
                   key={f.id}
                   onClick={() => goToDetail(f.id)}
@@ -373,7 +373,7 @@ function InverterListPage() {
                       className="w-4 h-4 rounded border-gray-300 text-teal focus:ring-teal cursor-pointer"
                     />
                   </div>
-                  <div className="w-28 text-sm font-mono text-gray-700 truncate">{f.inverterCode}</div>
+                  <div className="w-28 text-sm font-mono text-gray-700 truncate">{f.stationCode}</div>
                   <div className="w-24 text-sm font-medium text-gray-900 truncate">{f.ownerName}</div>
                   <div className="w-32 text-sm text-gray-500 truncate">{f.powerAccount || '-'}</div>
                   <div className="w-20">
@@ -398,7 +398,7 @@ function InverterListPage() {
 
             {/* Mobile cards */}
             <div className="lg:hidden space-y-3 py-3">
-              {inverters.map(f => (
+              {stations.map(f => (
                 <div
                   key={f.id}
                   onClick={() => goToDetail(f.id)}
@@ -422,7 +422,7 @@ function InverterListPage() {
                           <StatusTag inspected={f.status === 1} />
                         </div>
                         <div className="text-xs text-gray-500 mt-1 space-y-0.5">
-                          <div>编号: {f.inverterCode}</div>
+                          <div>编号: {f.stationCode}</div>
                           {f.powerAccount && <div>户号: {f.powerAccount}</div>}
                           <div>巡检: {f.lastInspectTime || '-'}</div>
                         </div>
@@ -435,7 +435,7 @@ function InverterListPage() {
             </div>
 
             <div ref={sentinelRef} className="h-1" />
-            {loading && inverters.length > 0 && (
+            {loading && stations.length > 0 && (
               <div className="flex justify-center py-4">
                 <span className="text-sm text-gray-400">加载中...</span>
               </div>
@@ -450,7 +450,7 @@ function InverterListPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowCreate(false)} />
           <div className="bg-white rounded-2xl w-full max-w-md mx-4 shadow-2xl relative animate-fade-in max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-navy">新增逆变器</h3>
+              <h3 className="text-lg font-bold text-navy">新增电站</h3>
               <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>
@@ -484,7 +484,7 @@ function InverterListPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowImport(false)} />
           <div className="bg-white rounded-2xl w-full max-w-md mx-4 shadow-2xl relative animate-fade-in">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-navy">导入逆变器</h3>
+              <h3 className="text-lg font-bold text-navy">导入电站</h3>
               <button onClick={() => setShowImport(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>
@@ -494,7 +494,7 @@ function InverterListPage() {
                 <FileSpreadsheet size={24} className="text-teal flex-shrink-0" />
                 <p className="text-sm text-gray-600 leading-relaxed">
                   请上传 Excel 文件（.xlsx），按以下列顺序排列：
-                  逆变器编号、户主姓名、装机地址、发电户号、逆变器序列号、逆变器品牌型号、装机容量、组件块数、组件规格型号、经度坐标、纬度坐标
+                  电站编号、户主姓名、装机地址、发电户号、逆变器序列号、逆变器品牌型号、装机容量、组件块数、组件规格型号、经度坐标、纬度坐标
                 </p>
               </div>
               <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-teal hover:bg-teal/5 transition-colors">
@@ -524,4 +524,4 @@ function InverterListPage() {
   );
 }
 
-export default InverterListPage;
+export default StationListPage;

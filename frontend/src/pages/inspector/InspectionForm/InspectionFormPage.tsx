@@ -9,7 +9,7 @@ import {
   normalizePhotoUrls,
   type PhotoUrlsMap,
 } from '@/api/inspections';
-import { getInverterDetail } from '@/api/inverters';
+import { getStationDetail } from '@/api/stations';
 import { getActivePlan } from '@/api/plans';
 import InspectionChecklist from '@/components/InspectionChecklist';
 import LocationPicker from '@/components/LocationPicker';
@@ -17,7 +17,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { showToast } from '@/components/ui/Toast';
 
 function InspectionFormPage() {
-  const { projectId, inverterId, recordId } = useParams<{ projectId: string; inverterId: string; recordId: string }>();
+  const { projectId, stationId, recordId } = useParams<{ projectId: string; stationId: string; recordId: string }>();
   const [searchParams] = useSearchParams();
   const planId = searchParams.get('planId');
   const navigate = useNavigate();
@@ -27,7 +27,7 @@ function InspectionFormPage() {
   const [photoUrls, setPhotoUrls] = useState<PhotoUrlsMap>({});
   const [longitude, setLongitude] = useState(0);
   const [latitude, setLatitude] = useState(0);
-  const [inverterInfo, setInverterInfo] = useState<any>(null);
+  const [stationInfo, setStationInfo] = useState<any>(null);
   const [planName, setPlanName] = useState('');
   const [resolvedPlanId, setResolvedPlanId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,18 +48,18 @@ function InspectionFormPage() {
           setLongitude(record.longitude || 0);
           setLatitude(record.latitude || 0);
           setPlanName(record.planName || '');
-          setInverterInfo({
-            ownerName: record.inverterName,
-            inverterCode: record.inverterCode,
+          setStationInfo({
+            ownerName: record.stationName,
+            stationCode: record.stationCode,
             projectName: record.projectName,
           });
           setResolvedPlanId(null);
         } else {
-          const [_, inverterRes] = await Promise.all([
+          const [_, stationRes] = await Promise.all([
             getChecklistTemplate(),
-            getInverterDetail(Number(projectId), Number(inverterId)),
+            getStationDetail(Number(projectId), Number(stationId)),
           ]);
-          setInverterInfo(inverterRes.data);
+          setStationInfo(stationRes.data);
 
           const activePlanRes = await getActivePlan(Number(projectId));
           if (activePlanRes.data) {
@@ -74,7 +74,7 @@ function InspectionFormPage() {
       }
     };
     init();
-  }, [projectId, inverterId, recordId]);
+  }, [projectId, stationId, recordId]);
 
   const handleSubmit = async () => {
     const allFilled = checklistData.sections?.every((section: any) =>
@@ -97,14 +97,14 @@ function InspectionFormPage() {
         showToast({ icon: 'success', content: '保存成功' });
       } else {
         const effectivePlanId = planId ? Number(planId) : resolvedPlanId;
-        if (!effectivePlanId || !inverterId || !projectId) {
+        if (!effectivePlanId || !stationId || !projectId) {
           showToast({ icon: 'fail', content: '当前没有可用的巡检计划，无法提交' });
           setSubmitting(false);
           return;
         }
         await submitInspection({
           planId: effectivePlanId,
-          inverterId: Number(inverterId),
+          stationId: Number(stationId),
           projectId: Number(projectId),
           checklistResult: checklistData,
           photoUrls,
@@ -136,7 +136,7 @@ function InspectionFormPage() {
           <ArrowLeft size={20} className="text-gray-600" />
         </button>
         <h1 className="text-lg font-bold text-navy">
-          {isEdit ? '编辑巡检' : '巡检'} - {inverterInfo?.ownerName || ''}
+          {isEdit ? '编辑巡检' : '巡检'} - {stationInfo?.ownerName || ''}
         </h1>
       </div>
 
@@ -148,11 +148,11 @@ function InspectionFormPage() {
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
               <span className="text-gray-400">项目：</span>
-              <span className="text-gray-700">{inverterInfo?.projectName || '-'}</span>
+              <span className="text-gray-700">{stationInfo?.projectName || '-'}</span>
             </div>
             <div>
-              <span className="text-gray-400">逆变器：</span>
-              <span className="text-gray-700">{inverterInfo?.ownerName} ({inverterInfo?.inverterCode})</span>
+              <span className="text-gray-400">电站：</span>
+              <span className="text-gray-700">{stationInfo?.ownerName} ({stationInfo?.stationCode})</span>
             </div>
             <div>
               <span className="text-gray-400">计划：</span>
@@ -160,26 +160,26 @@ function InspectionFormPage() {
             </div>
             <div>
               <span className="text-gray-400">编号：</span>
-              <span className="text-gray-700">{inverterInfo?.inverterCode}</span>
+              <span className="text-gray-700">{stationInfo?.stationCode}</span>
             </div>
           </div>
-          {inverterInfo?.inverterSn && (
+          {stationInfo?.inverterSn && (
             <div className="grid grid-cols-2 gap-2 text-sm mt-2 pt-2 border-t border-gray-50">
               <div>
-                <span className="text-gray-400">逆变器：</span>
-                <span className="text-gray-700">{inverterInfo.inverterSn}</span>
+                <span className="text-gray-400">电站：</span>
+                <span className="text-gray-700">{stationInfo.inverterSn}</span>
               </div>
               <div>
                 <span className="text-gray-400">装机容量：</span>
-                <span className="text-gray-700">{inverterInfo.capacityKw ? `${inverterInfo.capacityKw}kW` : '-'}</span>
+                <span className="text-gray-700">{stationInfo.capacityKw ? `${stationInfo.capacityKw}kW` : '-'}</span>
               </div>
               <div>
                 <span className="text-gray-400">组件数：</span>
-                <span className="text-gray-700">{inverterInfo.moduleCount || '-'}</span>
+                <span className="text-gray-700">{stationInfo.moduleCount || '-'}</span>
               </div>
               <div>
                 <span className="text-gray-400">规格：</span>
-                <span className="text-gray-700">{inverterInfo.moduleSpec || '-'}</span>
+                <span className="text-gray-700">{stationInfo.moduleSpec || '-'}</span>
               </div>
             </div>
           )}

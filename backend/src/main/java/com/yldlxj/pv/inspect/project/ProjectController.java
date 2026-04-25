@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yldlxj.pv.inspect.common.ApiResponse;
 import com.yldlxj.pv.inspect.common.PageDto;
 import com.yldlxj.pv.inspect.convert.ProjectConvert;
+import com.yldlxj.pv.inspect.plan.InspectPlanService;
+import com.yldlxj.pv.inspect.plan.dto.PlanViewVo;
 import com.yldlxj.pv.inspect.project.dto.ProjectDto;
 import com.yldlxj.pv.inspect.project.dto.ProjectViewVo;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final InspectPlanService inspectPlanService;
 
     @GetMapping
     public ApiResponse<PageDto<ProjectViewVo>> listProjects(
@@ -36,9 +39,24 @@ public class ProjectController {
                 projectPage.getSize()));
     }
 
+    @GetMapping("/{id}/stats")
+    public ApiResponse<Map<String, Object>> getProjectStats(@PathVariable Long id) {
+        return ApiResponse.success(projectService.getProjectStats(id));
+    }
+
     @GetMapping("/{id}")
     public ApiResponse<ProjectViewVo> getProject(@PathVariable Long id) {
         return ApiResponse.success(projectService.getProjectById(id));
+    }
+
+    @GetMapping("/{id}/plan")
+    public ApiResponse<PlanViewVo> getProjectPlan(@PathVariable Long id) {
+        return ApiResponse.success(inspectPlanService.getActivePlanByProjectId(id));
+    }
+
+    @PostMapping("/plans/batch")
+    public ApiResponse<Map<Long, PlanViewVo>> batchGetProjectPlans(@RequestBody List<Long> projectIds) {
+        return ApiResponse.success(inspectPlanService.getActivePlansByProjectIds(projectIds));
     }
 
     @PostMapping
@@ -60,8 +78,5 @@ public class ProjectController {
         return ApiResponse.success();
     }
 
-    @GetMapping("/{id}/stats")
-    public ApiResponse<Map<String, Object>> getProjectStats(@PathVariable Long id) {
-        return ApiResponse.success(projectService.getProjectStats(id));
-    }
+
 }

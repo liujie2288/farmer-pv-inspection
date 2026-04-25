@@ -1,10 +1,11 @@
 package com.yldlxj.pv.inspect.stats;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.yldlxj.pv.inspect.inverter.InverterMapper;
-import com.yldlxj.pv.inspect.inspection.InspectRecordMapper;
+import com.yldlxj.pv.inspect.station.StationMapper;
 import com.yldlxj.pv.inspect.plan.InspectPlan;
 import com.yldlxj.pv.inspect.plan.InspectPlanMapper;
+import com.yldlxj.pv.inspect.plan.InspectPlanProject;
+import com.yldlxj.pv.inspect.plan.InspectPlanProjectMapper;
 import com.yldlxj.pv.inspect.project.Project;
 import com.yldlxj.pv.inspect.project.ProjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -18,50 +19,34 @@ import java.util.stream.Collectors;
 public class StatsService {
 
     private final ProjectMapper projectMapper;
-    private final InverterMapper inverterMapper;
+    private final StationMapper stationMapper;
     private final InspectPlanMapper planMapper;
-    private final InspectRecordMapper recordMapper;
+    private final InspectPlanProjectMapper planProjectMapper;
 
     public Map<String, Object> getGlobalStats() {
         List<Project> projects = projectMapper.selectList(null);
         int totalProjects = projects.size();
-        int totalInverters = 0;
+        int totalStations = projects.stream()
+                .mapToInt(p -> stationMapper.countByProjectId(p.getId()))
+                .sum();
 
-        // Count inspected inverters globally
-        Long totalInspected = 0L;
-        for (Project p : projects) {
-            totalInspected += inverterMapper.countInspectedByProjectId(p.getId());
-        }
-
-        // Active plan groups (deduplicated by planGroupId)
         List<InspectPlan> activePlans = planMapper.selectList(
                 new LambdaQueryWrapper<InspectPlan>()
                         .eq(InspectPlan::getStatus, 1)
-                        .groupBy(InspectPlan::getPlanGroupId)
         );
 
-        // Project ranking by completion rate
         List<Map<String, Object>> ranking = projects.stream().map(p -> {
-            int fc = inverterMapper.countByProjectId(p.getId());
-            int ic = inverterMapper.countInspectedByProjectId(p.getId());
-            double rate = fc > 0 ? (ic * 100.0 / fc) : 0;
+            int fc = stationMapper.countByProjectId(p.getId());
             Map<String, Object> item = new HashMap<>();
             item.put("projectId", p.getId());
             item.put("projectName", p.getProjectName());
-            item.put("inverterCount", fc);
-            item.put("inspectedCount", ic);
-            item.put("completionRate", Math.round(rate * 100.0) / 100.0);
+            item.put("stationCount", fc);
             return item;
-        }).sorted((a, b) -> Double.compare((Double) b.get("completionRate"), (Double) a.get("completionRate")))
-          .collect(Collectors.toList());
-
-        double globalRate = totalInverters > 0 ? (totalInspected * 100.0 / totalInverters) : 0;
+        }).collect(Collectors.toList());
 
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalProjects", totalProjects);
-        stats.put("totalInverters", totalInverters);
-        stats.put("totalInspected", totalInspected.intValue());
-        stats.put("completionRate", Math.round(globalRate * 100.0) / 100.0);
+        stats.put("totalStations", totalStations);
         stats.put("activePlans", activePlans.stream().map(p -> {
             Map<String, Object> ap = new HashMap<>();
             ap.put("id", p.getId());
@@ -74,27 +59,30 @@ public class StatsService {
     }
 
     public Map<String, Object> getProjectStats(Long projectId) {
-        int inverterCount = inverterMapper.countByProjectId(projectId);
-        int inspectedCount = inverterMapper.countInspectedByProjectId(projectId);
-        double rate = inverterCount > 0 ? (inspectedCount * 100.0 / inverterCount) : 0;
+        int stationCount = stationMapper.countByProjectId(projectId);
 
         Map<String, Object> stats = new HashMap<>();
-        stats.put("inverterCount", inverterCount);
-        stats.put("inspectedCount", inspectedCount);
-        stats.put("uninspectedCount", inverterCount - inspectedCount);
-        stats.put("completionRate", Math.round(rate * 100.0) / 100.0);
+        stats.put("stationCount", stationCount);
 
-        InspectPlan activePlan = planMapper.selectOne(
-                new LambdaQueryWrapper<InspectPlan>()
-                        .eq(InspectPlan::getProjectId, projectId)
-                        .eq(InspectPlan::getStatus, 1)
-                        .last("LIMIT 1")
+        List<InspectPlanProject> pps = planProjectMapper.selectList(
+                new LambdaQueryWrapper<InspectPlanProject>().eq(InspectPlanProject::getProjectId, projectId)
         );
-        if (activePlan != null) {
-            Map<String, Object> ap = new HashMap<>();
-            ap.put("id", activePlan.getId());
-            ap.put("planName", activePlan.getPlanName());
-            stats.put("activePlan", ap);
+        if (!pps.isEmpty()) {
+            List<Long> planIds = pps.stream().map(InspectPlanProject::getPlanId).collect(Collectors.toList());
+            InspectPlan activeInspectPlan = planMapper.selectOne(
+                    new LambdaQueryWrapper<InspectPlan>()
+                            .in(InspectPlan::getId, planIds)
+                            .eq(InspectPlan::getStatus, 1)
+                            .last("LIMIT 1")
+            );
+            if (activeInspectPlan != null) {
+                Map<String, Object> ap = new HashMap<>();
+                ap.put("id", activeInspectPlan.getId());
+                ap.put("planName", activeInspectPlan.getPlanName());
+                stats.put("activePlan", ap);
+            } else {
+                stats.put("activePlan", null);
+            }
         } else {
             stats.put("activePlan", null);
         }

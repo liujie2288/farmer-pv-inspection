@@ -2,11 +2,11 @@ import client from './client';
 
 export interface GlobalStats {
   totalProjects: number;
-  totalInverters: number;
+  totalStations: number;
   totalInspected: number;
   completionRate: number;
   activePlans: Array<{ id: number; planName: string; endTime: string }>;
-  projectRanking: Array<{ projectId: number; projectName: string; inverterCount: number; inspectedCount: number; completionRate: number }>;
+  projectRanking: Array<{ projectId: number; projectName: string; stationCount: number; inspectedCount: number; completionRate: number }>;
 }
 
 export function getGlobalStats() {

@@ -1,48 +1,35 @@
-package com.yldlxj.pv.inspect.inverter;
+package com.yldlxj.pv.inspect.station.dto;
 
-import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
-import com.yldlxj.pv.inspect.common.BaseEntity;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 @Data
-@EqualsAndHashCode(callSuper = true)
-@TableName("inverter")
-public class Inverter extends BaseEntity {
+public class StationViewVo {
 
+    private Long id;
     private Long projectId;
-
-    private String inverterCode;
-
+    private String projectName;
+    private String stationCode;
     private String ownerName;
-
     private String address;
-
     private String powerAccount;
-
     private String inverterSn;
-
     private String inverterBrand;
-
     private String moduleSpec;
-
     private Integer moduleCount;
-
     private BigDecimal capacityKw;
-
     private BigDecimal longitude;
-
     private BigDecimal latitude;
-
-    private Integer status;
-
     private Long lastInspectorId;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime lastInspectTime;
 
+    private Integer status;
+    private List<Map<String, Object>> records;
 }

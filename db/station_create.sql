@@ -1,7 +1,7 @@
-CREATE TABLE `inverter` (
+CREATE TABLE `station` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `project_id` BIGINT NOT NULL COMMENT '所属项目ID',
-  `inverter_code` VARCHAR(50) NOT NULL COMMENT '逆变器编号',
+  `station_code` VARCHAR(50) NOT NULL COMMENT '电站编号',
   `owner_name` VARCHAR(30) NOT NULL COMMENT '户主姓名',
   `address` VARCHAR(255) DEFAULT NULL COMMENT '装机地址',
   `power_account` VARCHAR(50) DEFAULT NULL COMMENT '发电户号',
@@ -18,8 +18,8 @@ CREATE TABLE `inverter` (
   `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_inverter_code` (`inverter_code`),
+  UNIQUE KEY `uk_station_code` (`station_code`),
   KEY `idx_project_id` (`project_id`),
   KEY `idx_owner_name` (`owner_name`),
   KEY `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='逆变器表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='电站表';

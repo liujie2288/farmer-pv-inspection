@@ -21,7 +21,7 @@ export interface DeviceItem {
 }
 
 export interface ProjectStats {
-  inverterCount: number;
+  stationCount: number;
   inspectedCount: number;
   uninspectedCount: number;
   completionRate: number;
@@ -50,4 +50,24 @@ export function getProject(id: number) {
 
 export function getProjectStats(id: number) {
   return client.get<any, { code: number; data: ProjectStats }>(`/projects/${id}/stats`);
+}
+
+export interface ProjectPlan {
+  id: number;
+  planId: number;
+  planName: string;
+  projectId: number;
+  totalCount: number;
+  inspectedCount: number;
+  startTime: string;
+  endTime: string;
+  status: number;
+}
+
+export function getProjectPlan(projectId: number) {
+  return client.get<any, { code: number; data: ProjectPlan | null }>(`/projects/${projectId}/plan`);
+}
+
+export function batchGetProjectPlans(projectIds: number[]) {
+  return client.post<any, { code: number; data: Record<number, ProjectPlan> }>('/projects/plans/batch', projectIds);
 }

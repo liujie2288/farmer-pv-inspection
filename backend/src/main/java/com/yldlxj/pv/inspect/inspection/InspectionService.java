@@ -6,10 +6,12 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yldlxj.pv.inspect.auth.AuthService;
 import com.yldlxj.pv.inspect.common.BusinessException;
 import com.yldlxj.pv.inspect.common.ForbiddenException;
-import com.yldlxj.pv.inspect.inverter.Inverter;
-import com.yldlxj.pv.inspect.inverter.InverterMapper;
+import com.yldlxj.pv.inspect.station.Station;
+import com.yldlxj.pv.inspect.station.StationMapper;
 import com.yldlxj.pv.inspect.plan.InspectPlan;
 import com.yldlxj.pv.inspect.plan.InspectPlanMapper;
+import com.yldlxj.pv.inspect.plan.InspectPlanProject;
+import com.yldlxj.pv.inspect.plan.InspectPlanProjectMapper;
 import com.yldlxj.pv.inspect.storage.StorageService;
 import com.yldlxj.pv.inspect.storage.WatermarkService;
 import com.yldlxj.pv.inspect.user.SysUser;
@@ -33,7 +35,8 @@ public class InspectionService {
 
     private final InspectRecordMapper recordMapper;
     private final InspectPlanMapper planMapper;
-    private final InverterMapper inverterMapper;
+    private final InspectPlanProjectMapper planProjectMapper;
+    private final StationMapper stationMapper;
     private final SysUserMapper userMapper;
     private final ProjectMapper projectMapper;
     private final AuthService authService;
@@ -41,7 +44,7 @@ public class InspectionService {
     private final WatermarkService watermarkService;
 
     @Transactional
-    public Long submitRecord(Long planId, Long inverterId, Long projectId,
+    public Long submitRecord(Long planId, Long stationId, Long projectId,
                               Map<String, Object> checklistResult,
                               Map<String, Object> photoUrls,
                               BigDecimal longitude, BigDecimal latitude) {
@@ -56,26 +59,26 @@ public class InspectionService {
             throw new BusinessException("当前巡检计划未在进行中");
         }
 
-        // Validate inverter exists in project
-        Inverter inverter = inverterMapper.selectById(inverterId);
-        if (inverter == null || !inverter.getProjectId().equals(projectId)) {
-            throw new BusinessException("逆变器不存在");
+        // Validate station exists in project
+        Station station = stationMapper.selectById(stationId);
+        if (station == null || !station.getProjectId().equals(projectId)) {
+            throw new BusinessException("电站不存在");
         }
 
         // Check duplicate
         Long existing = recordMapper.selectCount(
                 new LambdaQueryWrapper<InspectRecord>()
                         .eq(InspectRecord::getPlanId, planId)
-                        .eq(InspectRecord::getInverterId, inverterId)
+                        .eq(InspectRecord::getStationId, stationId)
                         .eq(InspectRecord::getInspectorId, inspectorId)
         );
         if (existing > 0) {
-            throw new BusinessException("您已提交过该逆变器的巡检记录");
+            throw new BusinessException("您已提交过该电站的巡检记录");
         }
 
         InspectRecord record = new InspectRecord();
         record.setPlanId(planId);
-        record.setInverterId(inverterId);
+        record.setStationId(stationId);
         record.setInspectorId(inspectorId);
         record.setProjectId(projectId);
         record.setChecklistResult(checklistResult);
@@ -85,8 +88,8 @@ public class InspectionService {
         recordMapper.insert(record);
 
         // Cascade status update
-        updateInverterStatus(inverterId, inspectorId);
-        updatePlanInspectedCount(planId);
+        updateStationStatus(stationId, inspectorId);
+        updatePlanInspectedCount(planId, stationId);
 
         return record.getId();
     }
@@ -125,7 +128,7 @@ public class InspectionService {
         }
 
         InspectPlan plan = planMapper.selectById(record.getPlanId());
-        Inverter inverter = inverterMapper.selectById(record.getInverterId());
+        Station station = stationMapper.selectById(record.getStationId());
         SysUser inspector = userMapper.selectById(record.getInspectorId());
 
         Long currentUserId = authService.getCurrentUserId();
@@ -134,8 +137,8 @@ public class InspectionService {
         Map<String, Object> detail = new LinkedHashMap<>();
         detail.put("id", record.getId());
         detail.put("planName", plan != null ? plan.getPlanName() : "");
-        detail.put("inverterName", inverter != null ? inverter.getOwnerName() : "");
-        detail.put("inverterCode", inverter != null ? inverter.getInverterCode() : "");
+        detail.put("stationName", station != null ? station.getOwnerName() : "");
+        detail.put("stationCode", station != null ? station.getStationCode() : "");
         detail.put("projectName", getProjectName(record.getProjectId()));
         detail.put("inspectorName", inspector != null ? inspector.getRealName() : "");
         detail.put("checklistResult", record.getChecklistResult());
@@ -147,14 +150,14 @@ public class InspectionService {
         return detail;
     }
 
-    public IPage<Map<String, Object>> listRecords(Long inverterId, Long planId, String keyword, Integer status, int page, int size) {
+    public IPage<Map<String, Object>> listRecords(Long stationId, Long planId, String keyword, Integer status, int page, int size) {
         Long currentUserId = authService.getCurrentUserId();
         SysUser currentUser = userMapper.selectById(currentUserId);
         boolean isInspector = currentUser != null && "inspector".equals(currentUser.getRole());
 
         LambdaQueryWrapper<InspectRecord> wrapper = new LambdaQueryWrapper<>();
-        if (inverterId != null && inverterId > 0) {
-            wrapper.eq(InspectRecord::getInverterId, inverterId);
+        if (stationId != null && stationId > 0) {
+            wrapper.eq(InspectRecord::getStationId, stationId);
         }
         if (planId != null) {
             wrapper.eq(InspectRecord::getPlanId, planId);
@@ -173,7 +176,7 @@ public class InspectionService {
             wrapper.in(InspectRecord::getPlanId, statusPlanIds);
         }
 
-        // Keyword search across plan name, inspector name, inverter name
+        // Keyword search across plan name, inspector name, station name
         if (keyword != null && !keyword.isBlank()) {
             List<Long> matchedPlanIds = planMapper.selectList(
                     new LambdaQueryWrapper<InspectPlan>().like(InspectPlan::getPlanName, keyword))
@@ -181,11 +184,11 @@ public class InspectionService {
             List<Long> matchedInspectorIds = userMapper.selectList(
                     new LambdaQueryWrapper<SysUser>().like(SysUser::getRealName, keyword))
                     .stream().map(SysUser::getId).toList();
-            List<Long> matchedInverterIds = inverterMapper.selectList(
-                    new LambdaQueryWrapper<Inverter>().like(Inverter::getOwnerName, keyword))
-                    .stream().map(Inverter::getId).toList();
+            List<Long> matchedStationIds = stationMapper.selectList(
+                    new LambdaQueryWrapper<Station>().like(Station::getOwnerName, keyword))
+                    .stream().map(Station::getId).toList();
 
-            if (matchedPlanIds.isEmpty() && matchedInspectorIds.isEmpty() && matchedInverterIds.isEmpty()) {
+            if (matchedPlanIds.isEmpty() && matchedInspectorIds.isEmpty() && matchedStationIds.isEmpty()) {
                 Page<Map<String, Object>> emptyPage = new Page<>(page, size, 0);
                 emptyPage.setRecords(Collections.emptyList());
                 return emptyPage;
@@ -198,9 +201,9 @@ public class InspectionService {
                     if (!matchedPlanIds.isEmpty()) w.or();
                     w.in(InspectRecord::getInspectorId, matchedInspectorIds);
                 }
-                if (!matchedInverterIds.isEmpty()) {
+                if (!matchedStationIds.isEmpty()) {
                     if (!matchedPlanIds.isEmpty() || !matchedInspectorIds.isEmpty()) w.or();
-                    w.in(InspectRecord::getInverterId, matchedInverterIds);
+                    w.in(InspectRecord::getStationId, matchedStationIds);
                 }
             });
         }
@@ -217,13 +220,13 @@ public class InspectionService {
         for (InspectRecord r : recordPage.getRecords()) {
             InspectPlan plan = planMapper.selectById(r.getPlanId());
             SysUser inspector = userMapper.selectById(r.getInspectorId());
-            Inverter inverter = inverterMapper.selectById(r.getInverterId());
+            Station station = stationMapper.selectById(r.getStationId());
             boolean canEdit = r.getInspectorId().equals(currentUserId) && plan != null && plan.getStatus() == 1;
 
             Map<String, Object> map = new HashMap<>();
             map.put("id", r.getId());
             map.put("planName", plan != null ? plan.getPlanName() : "");
-            map.put("inverterName", inverter != null ? inverter.getOwnerName() : "");
+            map.put("stationName", station != null ? station.getOwnerName() : "");
             map.put("projectName", getProjectName(r.getProjectId()));
             map.put("createTime", r.getCreateTime());
             map.put("inspectorName", inspector != null ? inspector.getRealName() : "");
@@ -270,23 +273,45 @@ public class InspectionService {
         }
     }
 
-    private void updateInverterStatus(Long inverterId, Long inspectorId) {
-        Inverter inverter = inverterMapper.selectById(inverterId);
-        if (inverter != null) {
-            inverter.setStatus(1);
-            inverter.setLastInspectTime(LocalDateTime.now());
-            inverter.setLastInspectorId(inspectorId);
-            inverterMapper.updateById(inverter);
+    private void updateStationStatus(Long stationId, Long inspectorId) {
+        Station station = stationMapper.selectById(stationId);
+        if (station != null) {
+            station.setLastInspectTime(LocalDateTime.now());
+            station.setLastInspectorId(inspectorId);
+            stationMapper.updateById(station);
         }
     }
 
-    private void updatePlanInspectedCount(Long planId) {
+    private void updatePlanInspectedCount(Long planId, Long stationId) {
+        Station station = stationMapper.selectById(stationId);
+        if (station == null) return;
+
+        // Update plan_project level
+        InspectPlanProject pp = planProjectMapper.selectOne(
+                new LambdaQueryWrapper<InspectPlanProject>()
+                        .eq(InspectPlanProject::getPlanId, planId)
+                        .eq(InspectPlanProject::getProjectId, station.getProjectId())
+        );
+        if (pp != null) {
+            Long count = recordMapper.selectCount(
+                    new LambdaQueryWrapper<InspectRecord>()
+                            .eq(InspectRecord::getPlanId, planId)
+                            .in(InspectRecord::getStationId,
+                                    stationMapper.selectList(new LambdaQueryWrapper<Station>()
+                                            .eq(Station::getProjectId, pp.getProjectId()))
+                                            .stream().map(Station::getId).toList())
+            );
+            pp.setInspectedCount(count.intValue());
+            planProjectMapper.updateById(pp);
+        }
+
+        // Update plan total
         InspectPlan plan = planMapper.selectById(planId);
         if (plan != null) {
-            Long count = recordMapper.selectCount(
+            Long totalCount = recordMapper.selectCount(
                     new LambdaQueryWrapper<InspectRecord>().eq(InspectRecord::getPlanId, planId)
             );
-            plan.setInspectedCount(count.intValue());
+            plan.setInspectedCount(totalCount.intValue());
             planMapper.updateById(plan);
         }
     }

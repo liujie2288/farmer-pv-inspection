@@ -1,6 +1,6 @@
 package com.yldlxj.pv.inspect.convert;
 
-import com.yldlxj.pv.inspect.plan.InspectPlan;
+import com.yldlxj.pv.inspect.plan.InspectPlanProject;
 import com.yldlxj.pv.inspect.plan.dto.PlanViewVo;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -12,9 +12,13 @@ import java.util.List;
 public interface PlanConvert {
     PlanConvert INSTANCE = Mappers.getMapper(PlanConvert.class);
 
+    @Mapping(target = "planName", ignore = true)
     @Mapping(target = "projectName", ignore = true)
+    @Mapping(target = "startTime", ignore = true)
+    @Mapping(target = "endTime", ignore = true)
+    @Mapping(target = "status", ignore = true)
     @Mapping(target = "completionRate", ignore = true)
-    PlanViewVo toViewVo(InspectPlan plan);
+    PlanViewVo toViewVo(InspectPlanProject pp);
 
-    List<PlanViewVo> toVoList(List<InspectPlan> list);
+    List<PlanViewVo> toVoList(List<InspectPlanProject> list);
 }

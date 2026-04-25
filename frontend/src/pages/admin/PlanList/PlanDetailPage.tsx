@@ -36,7 +36,7 @@ function formatFileSize(bytes: number | null) {
 }
 
 function PlanDetailPage() {
-  const { planGroupId } = useParams<{ planGroupId: string }>();
+  const { planId: routePlanId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
   const [stats, setStats] = useState<PlanStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,7 +44,7 @@ function PlanDetailPage() {
   const [exporting, setExporting] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const gid = Number(planGroupId);
+  const gid = Number(routePlanId);
 
   const loadExportTasks = useCallback(async () => {
     if (!gid) return;
@@ -167,9 +167,9 @@ function PlanDetailPage() {
         <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-gray-400 mb-2">
             <Users size={18} />
-            <span className="text-sm">逆变器总数</span>
+            <span className="text-sm">电站总数</span>
           </div>
-          <p className="text-2xl font-bold text-navy">{stats.inverterCount}<span className="text-sm font-normal text-gray-400 ml-1">户</span></p>
+          <p className="text-2xl font-bold text-navy">{stats.totalCount}<span className="text-sm font-normal text-gray-400 ml-1">户</span></p>
         </div>
         <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-gray-400 mb-2">
@@ -248,7 +248,7 @@ function PlanDetailPage() {
             </button>
           </div>
           <p className="text-xs text-gray-400">
-            PDF报告: 所有巡检记录生成含照片的PDF，打包为ZIP下载 &nbsp;|&nbsp; 巡检照片: 按逆变器分组导出所有巡检照片
+            PDF报告: 所有巡检记录生成含照片的PDF，打包为ZIP下载 &nbsp;|&nbsp; 巡检照片: 按电站分组导出所有巡检照片
           </p>
 
           {/* Export history table */}

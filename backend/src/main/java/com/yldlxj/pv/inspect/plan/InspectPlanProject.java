@@ -5,22 +5,14 @@ import com.yldlxj.pv.inspect.common.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.time.LocalDate;
-
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("inspect_plan")
-public class InspectPlan extends BaseEntity {
+@TableName("inspect_plan_project")
+public class InspectPlanProject extends BaseEntity {
 
-    private String planName;
+    private Long planId;
 
-    private LocalDate startTime;
-
-    private LocalDate endTime;
-
-    private Integer status;
-
-    private Long creatorId;
+    private Long projectId;
 
     private Integer totalCount;
 

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yldlxj.pv.inspect.plan.InspectPlanMapper">
+
+    <select id="countPlanView" resultType="long">
+        SELECT COUNT(*)
+        FROM inspect_plan_project ipp
+        JOIN inspect_plan ip ON ipp.plan_id = ip.id
+        JOIN project p ON ipp.project_id = p.id
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (ip.plan_name LIKE CONCAT('%', #{keyword}, '%')
+                OR p.project_name LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null">
+                AND ip.status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="listPlanView" resultType="com.yldlxj.pv.inspect.plan.dto.PlanViewVo">
+        SELECT
+            pp.id AS id,
+            p.id AS planId,
+            p.plan_name AS planName,
+            pp.project_id AS projectId,
+            proj.project_name AS projectName,
+            p.start_time AS startTime,
+            p.end_time AS endTime,
+            p.status AS status,
+            pp.total_count AS totalCount,
+            pp.inspected_count AS inspectedCount
+        FROM inspect_plan_project pp
+        JOIN inspect_plan p ON pp.plan_id = p.id
+        JOIN project proj ON pp.project_id = proj.id
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (p.plan_name LIKE CONCAT('%', #{keyword}, '%')
+                     OR proj.project_name LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null">
+                AND p.status = #{status}
+            </if>
+        </where>
+        ORDER BY p.end_time DESC, p.id, pp.project_id
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="findActiveByProjectId" resultType="com.yldlxj.pv.inspect.plan.dto.PlanViewVo">
+        SELECT
+        pp.id AS id,
+        pp.project_id AS projectId,
+        pp.total_count AS totalCount,
+        pp.inspected_count AS inspectedCount,
+        p.id AS planId,
+        p.plan_name AS planName,
+        p.start_time AS startTime,
+        p.end_time AS endTime,
+        p.status AS status
+        FROM inspect_plan_project pp
+        JOIN inspect_plan p ON pp.plan_id = p.id AND pp.project_id = #{projectId} AND p.status = 1
+        ORDER BY pp.id DESC
+        LIMIT 1
+    </select>
+
+    <select id="findActiveByProjectIds" resultType="com.yldlxj.pv.inspect.plan.dto.PlanViewVo">
+        SELECT
+            pp.id AS id,
+            pp.project_id AS projectId,
+            pp.total_count AS totalCount,
+            pp.inspected_count AS inspectedCount,
+            p.id AS planId,
+            p.plan_name AS planName,
+            p.start_time AS startTime,
+            p.end_time AS endTime,
+            p.status AS status
+        FROM inspect_plan_project pp
+        JOIN inspect_plan p ON pp.plan_id = p.id AND p.status = 1
+        WHERE pp.project_id IN
+        <foreach collection="projectIds" item="pid" open="(" separator="," close=")">
+            #{pid}
+        </foreach>
+        ORDER BY pp.project_id, pp.id DESC
+    </select>
+
+
+</mapper>

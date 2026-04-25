@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { User, Settings, ClipboardList, ChevronLeft, FileText, Edit3, Trash2, X } from 'lucide-react';
 import {
-  getInverterDetail, updateInverter, deleteInverter, InverterDetail
-} from '@/api/inverters';
+  getStationDetail, updateStation, deleteStation, StationDetail
+} from '@/api/stations';
 import { showToast } from '@/components/ui/Toast';
 import { confirm } from '@/components/ui/Dialog';
 import StatusTag from '@/components/ui/StatusTag';
@@ -41,8 +41,8 @@ function SectionCard({ title, icon, children }: SectionCardProps) {
   );
 }
 
-interface InverterFormState {
-  inverterCode: string;
+interface StationFormState {
+  stationCode: string;
   ownerName: string;
   address: string;
   powerAccount: string;
@@ -55,8 +55,8 @@ interface InverterFormState {
   latitude: string;
 }
 
-const formFields: { key: keyof InverterFormState; label: string; placeholder: string; required?: boolean; type?: string; integer?: boolean }[] = [
-  { key: 'inverterCode', label: '逆变器编号', placeholder: '必填', required: true },
+const formFields: { key: keyof StationFormState; label: string; placeholder: string; required?: boolean; type?: string; integer?: boolean }[] = [
+  { key: 'stationCode', label: '电站编号', placeholder: '必填', required: true },
   { key: 'ownerName', label: '户主姓名', placeholder: '必填', required: true },
   { key: 'address', label: '装机地址', placeholder: '选填' },
   { key: 'powerAccount', label: '发电户号', placeholder: '选填' },
@@ -69,32 +69,32 @@ const formFields: { key: keyof InverterFormState; label: string; placeholder: st
   { key: 'latitude', label: '纬度坐标', placeholder: '选填', type: 'number' },
 ];
 
-function InverterDetailPage() {
-  const { projectId, inverterId } = useParams<{ projectId: string; inverterId: string }>();
+function StationDetailPage({ readOnly }: { readOnly?: boolean } = {}) {
+  const { projectId, stationId } = useParams<{ projectId: string; stationId: string }>();
   const navigate = useNavigate();
   const pid = Number(projectId);
-  const [detail, setDetail] = useState<InverterDetail | null>(null);
+  const [detail, setDetail] = useState<StationDetail | null>(null);
 
   // Edit dialog state
   const [showEdit, setShowEdit] = useState(false);
-  const [editForm, setEditForm] = useState<InverterFormState>({
-    inverterCode: '', ownerName: '', address: '', powerAccount: '',
+  const [editForm, setEditForm] = useState<StationFormState>({
+    stationCode: '', ownerName: '', address: '', powerAccount: '',
     inverterSn: '', inverterBrand: '', moduleSpec: '', moduleCount: '',
     capacityKw: '', longitude: '', latitude: '',
   });
 
   useEffect(() => {
-    if (projectId && inverterId) {
-      getInverterDetail(pid, Number(inverterId))
+    if (projectId && stationId) {
+      getStationDetail(pid, Number(stationId))
         .then(res => setDetail(res.data))
         .catch((e: any) => showToast({ icon: 'fail', content: e.message }));
     }
-  }, [projectId, inverterId]);
+  }, [projectId, stationId]);
 
   const handleOpenEdit = () => {
     if (!detail) return;
     setEditForm({
-      inverterCode: detail.inverterCode || '',
+      stationCode: detail.stationCode || '',
       ownerName: detail.ownerName || '',
       address: detail.address || '',
       powerAccount: detail.powerAccount || '',
@@ -110,13 +110,13 @@ function InverterDetailPage() {
   };
 
   const handleEdit = async () => {
-    if (!editForm.inverterCode.trim() || !editForm.ownerName.trim()) {
-      showToast({ icon: 'fail', content: '请填写逆变器编号和户主姓名' });
+    if (!editForm.stationCode.trim() || !editForm.ownerName.trim()) {
+      showToast({ icon: 'fail', content: '请填写电站编号和户主姓名' });
       return;
     }
     try {
-      await updateInverter(pid, Number(inverterId), {
-        inverterCode: editForm.inverterCode,
+      await updateStation(pid, Number(stationId), {
+        stationCode: editForm.stationCode,
         ownerName: editForm.ownerName,
         address: editForm.address || null,
         powerAccount: editForm.powerAccount || null,
@@ -131,7 +131,7 @@ function InverterDetailPage() {
       showToast({ icon: 'success', content: '修改成功' });
       setShowEdit(false);
       // Refresh detail
-      const res = await getInverterDetail(pid, Number(inverterId));
+      const res = await getStationDetail(pid, Number(stationId));
       setDetail(res.data);
     } catch (e: any) {
       showToast({ icon: 'fail', content: e.message || '修改失败' });
@@ -139,10 +139,10 @@ function InverterDetailPage() {
   };
 
   const handleDelete = async () => {
-    const ok = await confirm({ content: `确定删除逆变器"${detail?.ownerName}"吗？`, title: '删除确认' });
+    const ok = await confirm({ content: `确定删除电站"${detail?.ownerName}"吗？`, title: '删除确认' });
     if (!ok) return;
     try {
-      await deleteInverter(pid, Number(inverterId));
+      await deleteStation(pid, Number(stationId));
       showToast({ icon: 'success', content: '删除成功' });
       navigate(-1);
     } catch (e: any) {
@@ -171,30 +171,34 @@ function InverterDetailPage() {
           </button>
           <div>
             <h1 className="text-lg font-bold text-gray-900">{detail.ownerName}</h1>
-            <p className="text-xs text-gray-400 mt-0.5">逆变器详情</p>
+            <p className="text-xs text-gray-400 mt-0.5">电站详情</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleOpenEdit}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-teal border border-teal/30 rounded-lg hover:bg-teal/10 transition-colors"
-          >
-            <Edit3 size={14} />
-            编辑
-          </button>
-          <button
-            onClick={handleDelete}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
-          >
-            <Trash2 size={14} />
-            删除
-          </button>
+          {!readOnly && (
+            <>
+              <button
+                onClick={handleOpenEdit}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-teal border border-teal/30 rounded-lg hover:bg-teal/10 transition-colors"
+              >
+                <Edit3 size={14} />
+                编辑
+              </button>
+              <button
+                onClick={handleDelete}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                <Trash2 size={14} />
+                删除
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Section 1: Basic info */}
       <SectionCard title="基本信息" icon={<User size={16} />}>
-        <InfoRow label="逆变器编号" value={detail.inverterCode} />
+        <InfoRow label="电站编号" value={detail.stationCode} />
         <InfoRow label="户主姓名" value={detail.ownerName} />
         <InfoRow label="装机地址" value={detail.address || '-'} />
         <InfoRow label="所属项目" value={detail.projectName} />
@@ -250,7 +254,7 @@ function InverterDetailPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowEdit(false)} />
           <div className="bg-white rounded-2xl w-full max-w-md mx-4 shadow-2xl relative animate-fade-in max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-navy">编辑逆变器</h3>
+              <h3 className="text-lg font-bold text-navy">编辑电站</h3>
               <button onClick={() => setShowEdit(false)} className="text-gray-400 hover:text-gray-600">
                 <X size={20} />
               </button>
@@ -295,4 +299,4 @@ function InverterDetailPage() {
   );
 }
 
-export default InverterDetailPage;
+export default StationDetailPage;

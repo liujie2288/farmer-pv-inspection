@@ -82,7 +82,7 @@ function RecordListPage() {
             type="text"
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            placeholder="搜索项目/巡检员/逆变器"
+            placeholder="搜索项目/巡检员/电站"
             className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
           />
         </div>
@@ -135,7 +135,7 @@ function RecordListPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <h3 className="text-base font-semibold text-navy truncate group-hover:text-teal">
-                        {r.projectName ? `${r.projectName} - ${r.inverterName}` : (r.inverterName || r.planName)}
+                        {r.projectName ? `${r.projectName} - ${r.stationName}` : (r.stationName || r.planName)}
                       </h3>
                       <p className="mt-1 text-sm text-gray-500 truncate">
                         {r.planName}{r.inspectorName ? ` · 巡检员: ${r.inspectorName}` : ''}

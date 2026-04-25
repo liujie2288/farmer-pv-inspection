@@ -6,7 +6,7 @@ import com.yldlxj.pv.inspect.common.BusinessException;
 import com.yldlxj.pv.inspect.convert.ProjectConvert;
 import com.yldlxj.pv.inspect.device.InspectDevice;
 import com.yldlxj.pv.inspect.device.InspectDeviceMapper;
-import com.yldlxj.pv.inspect.inverter.InverterMapper;
+import com.yldlxj.pv.inspect.station.StationMapper;
 import com.yldlxj.pv.inspect.project.dto.ProjectDto;
 import com.yldlxj.pv.inspect.project.dto.ProjectViewVo;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 public class ProjectService {
 
     private final ProjectMapper projectMapper;
-    private final InverterMapper inverterMapper;
+    private final StationMapper stationMapper;
     private final InspectDeviceMapper deviceMapper;
 
     public ProjectViewVo getProjectById(Long id) {
@@ -39,7 +39,7 @@ public class ProjectService {
         if (projectName != null && !projectName.isEmpty()) {
             wrapper.like(Project::getProjectName, projectName);
         }
-        wrapper.orderByDesc(Project::getCreateTime);
+        wrapper.orderByDesc(Project::getId);
         return projectMapper.selectPage(new Page<>(page, size), wrapper);
     }
 
@@ -132,8 +132,8 @@ public class ProjectService {
             throw new BusinessException("项目不存在");
         }
 
-        if (inverterMapper.countByProjectId(id) > 0) {
-            throw new BusinessException("该项目下存在逆变器，请先删除");
+        if (stationMapper.countByProjectId(id) > 0) {
+            throw new BusinessException("该项目下存在电站，请先删除");
         }
 
         projectMapper.deleteById(id);
@@ -146,17 +146,11 @@ public class ProjectService {
             throw new BusinessException("项目不存在");
         }
 
-        int inverterCount = inverterMapper.countByProjectId(id);
-        int inspectedCount = inverterMapper.countInspectedByProjectId(id);
-        int uninspectedCount = inverterCount - inspectedCount;
-        double completionRate = inverterCount > 0 ? (inspectedCount * 100.0 / inverterCount) : 0;
+        int stationCount = stationMapper.countByProjectId(id);
 
         Map<String, Object> stats = new HashMap<>();
-        stats.put("inverterCount", inverterCount);
-        stats.put("inspectedCount", inspectedCount);
-        stats.put("uninspectedCount", uninspectedCount);
-        stats.put("completionRate", Math.round(completionRate * 100.0) / 100.0);
-        stats.put("activePlan", null); // Will be populated when plans are implemented
+        stats.put("stationCount", stationCount);
+        stats.put("activePlan", null);
         return stats;
     }
 

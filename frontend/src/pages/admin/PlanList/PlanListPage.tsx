@@ -199,7 +199,7 @@ function PlanListPage() {
         const res = await listPlans({
           page: p,
           size: pageSize,
-          planName: searchText || undefined,
+          keyword: searchText || undefined,
           status: statusFilter,
         });
         const records = res.data.records;
@@ -260,8 +260,7 @@ function PlanListPage() {
             type="text"
             value={searchText}
             onChange={e => setSearchText(e.target.value)}
-            placeholder="搜索计划名称"
-            className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
+            placeholder="搜索计划或项目名称"            className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
           />
         </div>
         <button
@@ -303,7 +302,7 @@ function PlanListPage() {
               return (
                 <div
                   key={plan.id}
-                  onClick={() => navigate(`/admin/plans/${plan.planGroupId}`)}
+                  onClick={() => navigate(`/admin/plans/${plan.planId}`)}
                   className="group cursor-pointer rounded-xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-teal/30 hover:shadow-md"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -328,7 +327,7 @@ function PlanListPage() {
                   <div className="mt-3 flex items-center gap-4 border-t border-gray-50 pt-3">
                     <div className="flex items-center gap-1.5 text-sm text-gray-500">
                       <Users size={14} className="text-gray-400" />
-                      <span>{plan.inspectedCount}/{plan.inverterCount}</span>
+                      <span>{plan.inspectedCount}/{plan.totalCount}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-sm text-gray-500">
                       <Clock size={14} className="text-gray-400" />

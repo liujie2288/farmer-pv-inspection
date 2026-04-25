@@ -1,4 +1,4 @@
-package com.yldlxj.pv.inspect.inverter.dto;
+package com.yldlxj.pv.inspect.station.dto;
 
 import lombok.Data;
 
@@ -6,10 +6,10 @@ import javax.validation.constraints.NotBlank;
 import java.math.BigDecimal;
 
 @Data
-public class InverterDto {
+public class StationDto {
 
-    @NotBlank(message = "逆变器编号不能为空")
-    private String inverterCode;
+    @NotBlank(message = "电站编号不能为空")
+    private String stationCode;
 
     @NotBlank(message = "户主姓名不能为空")
     private String ownerName;
