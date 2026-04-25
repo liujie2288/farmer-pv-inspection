@@ -5,10 +5,10 @@ export interface PhotoMeta {
   name: string;
 }
 
-export type PhotoUrlsMap = Record<string, PhotoMeta[]>;
+export type PhotosMap = Record<string, PhotoMeta[]>;
 
-export function normalizePhotoUrls(raw: Record<string, any>): PhotoUrlsMap {
-  const result: PhotoUrlsMap = {};
+export function normalizePhotos(raw: Record<string, any>): PhotosMap {
+  const result: PhotosMap = {};
   for (const [key, val] of Object.entries(raw || {})) {
     if (Array.isArray(val)) {
       result[key] = val.map((item: any) =>
@@ -24,7 +24,7 @@ export interface InspectionSubmit {
   stationId: number;
   projectId: number;
   checklistResult: any;
-  photoUrls: PhotoUrlsMap;
+  photos: PhotosMap;
   longitude: number;
   latitude: number;
 }

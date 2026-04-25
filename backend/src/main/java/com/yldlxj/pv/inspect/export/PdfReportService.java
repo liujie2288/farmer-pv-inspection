@@ -121,12 +121,12 @@ public class PdfReportService {
 
     @SuppressWarnings("unchecked")
     private void addPhotos(Document document, PdfFont font, InspectRecord record, ExportDataContext ctx) {
-        if (record.getPhotoUrls() == null) return;
+        if (record.getPhotos() == null) return;
 
-        Map<String, Object> photoUrls = record.getPhotoUrls();
+        Map<String, Object> photos = record.getPhotos();
         boolean hasPhotos = false;
 
-        for (Map.Entry<String, Object> entry : photoUrls.entrySet()) {
+        for (Map.Entry<String, Object> entry : photos.entrySet()) {
             List<String> urls;
             Object val = entry.getValue();
             if (val instanceof List) {

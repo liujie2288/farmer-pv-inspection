@@ -1,0 +1,19 @@
+CREATE TABLE IF NOT EXISTS inspect_record (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    plan_id     BIGINT       NOT NULL COMMENT '关联巡检计划',
+    project_id  BIGINT       NOT NULL COMMENT '关联项目',
+    station_id  BIGINT       NOT NULL COMMENT '关联电站',
+    inspector_id BIGINT      NOT NULL COMMENT '巡检人员',
+    weather     VARCHAR(50)   NULL    COMMENT '天气情况',
+    checklist_result JSON    NULL     COMMENT '巡检结果(6大项64小项)',
+    photos      JSON         NULL     COMMENT '照片URL(按section分组)',
+    longitude   DECIMAL(12,6) NULL    COMMENT '经度',
+    latitude    DECIMAL(12,6) NULL    COMMENT '纬度',
+    pdf_url     VARCHAR(255)  NULL    COMMENT '报告PDF文件地址',
+    create_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_plan_id (plan_id),
+    INDEX idx_station_id (station_id),
+    INDEX idx_inspector_id (inspector_id),
+    INDEX idx_project_id (project_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='巡检记录';

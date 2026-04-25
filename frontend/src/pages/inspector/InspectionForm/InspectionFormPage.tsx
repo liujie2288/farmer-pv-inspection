@@ -2,12 +2,11 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import {
-  getChecklistTemplate,
   submitInspection,
   getInspectionDetail,
   updateInspection,
-  normalizePhotoUrls,
-  type PhotoUrlsMap,
+  normalizePhotos,
+  type PhotosMap,
 } from '@/api/inspections';
 import { getStationDetail } from '@/api/stations';
 import { getActivePlan } from '@/api/plans';
@@ -24,7 +23,7 @@ function InspectionFormPage() {
   const isEdit = !!recordId;
 
   const [checklistData, setChecklistData] = useState<any>({ sections: [] });
-  const [photoUrls, setPhotoUrls] = useState<PhotoUrlsMap>({});
+  const [photos, setPhotos] = useState<PhotosMap>({});
   const [longitude, setLongitude] = useState(0);
   const [latitude, setLatitude] = useState(0);
   const [stationInfo, setStationInfo] = useState<any>(null);
@@ -38,13 +37,10 @@ function InspectionFormPage() {
       setLoading(true);
       try {
         if (isEdit && recordId) {
-          const [_, recordRes] = await Promise.all([
-            getChecklistTemplate(),
-            getInspectionDetail(Number(recordId)),
-          ]);
+          const recordRes = await getInspectionDetail(Number(recordId));
           const record = recordRes.data;
           setChecklistData(record.checklistResult || { sections: [] });
-          setPhotoUrls(normalizePhotoUrls(record.photoUrls || {}));
+          setPhotos(normalizePhotos(record.photos || {}));
           setLongitude(record.longitude || 0);
           setLatitude(record.latitude || 0);
           setPlanName(record.planName || '');
@@ -55,10 +51,7 @@ function InspectionFormPage() {
           });
           setResolvedPlanId(null);
         } else {
-          const [_, stationRes] = await Promise.all([
-            getChecklistTemplate(),
-            getStationDetail(Number(projectId), Number(stationId)),
-          ]);
+          const stationRes = await getStationDetail(Number(projectId), Number(stationId));
           setStationInfo(stationRes.data);
 
           const activePlanRes = await getActivePlan(Number(projectId));
@@ -78,7 +71,10 @@ function InspectionFormPage() {
 
   const handleSubmit = async () => {
     const allFilled = checklistData.sections?.every((section: any) =>
-      section.items?.every((item: any) => item.result === '正常' || item.result === '异常')
+      section.items?.every((item: any) => {
+        if (item.itemType === 2) return item.measuredValue?.value != null;
+        return item.result === '正常' || item.result === '异常';
+      })
     );
     if (!allFilled) {
       showToast({ icon: 'warning', content: '请完成所有检查项' });
@@ -90,7 +86,7 @@ function InspectionFormPage() {
       if (isEdit) {
         await updateInspection(Number(recordId), {
           checklistResult: checklistData,
-          photoUrls,
+          photos,
           longitude,
           latitude,
         });
@@ -107,7 +103,7 @@ function InspectionFormPage() {
           stationId: Number(stationId),
           projectId: Number(projectId),
           checklistResult: checklistData,
-          photoUrls,
+          photos,
           longitude,
           latitude,
         });
@@ -200,8 +196,8 @@ function InspectionFormPage() {
           checklistData={checklistData}
           onChange={setChecklistData}
           readOnly={false}
-          photoUrls={photoUrls}
-          onPhotosChange={setPhotoUrls}
+          photos={photos}
+          onPhotosChange={setPhotos}
           longitude={longitude}
           latitude={latitude}
         />

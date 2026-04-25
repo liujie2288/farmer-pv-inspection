@@ -11,7 +11,7 @@ import {
   FileOutput,
   Pencil,
 } from 'lucide-react';
-import { getInspectionDetail, normalizePhotoUrls } from '@/api/inspections';
+import { getInspectionDetail, normalizePhotos } from '@/api/inspections';
 import { fetchPdf } from '@/api/export';
 import { useAuthStore } from '@/store/authStore';
 import { showToast } from '@/components/ui/Toast';
@@ -41,7 +41,7 @@ function RecordDetailPage() {
   }
 
   const editPath = isAdmin ? `/admin/records/${recordId}/edit` : `/records/${recordId}/edit`;
-  const normalizedPhotos = normalizePhotoUrls(detail.photoUrls || {});
+  const normalizedPhotos = normalizePhotos(detail.photos || {});
 
   const infoRows = [
     { label: '巡检计划', value: detail.planName, icon: FileText },

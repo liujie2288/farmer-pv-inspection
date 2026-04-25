@@ -26,9 +26,13 @@ public class InspectRecord extends BaseEntity {
     private Map<String, Object> checklistResult;
 
     @TableField(typeHandler = JacksonTypeHandler.class)
-    private Map<String, Object> photoUrls;
+    private Map<String, Object> photos;
 
     private BigDecimal longitude;
 
     private BigDecimal latitude;
+
+    private String pdfUrl;
+
+    private String weather;
 }

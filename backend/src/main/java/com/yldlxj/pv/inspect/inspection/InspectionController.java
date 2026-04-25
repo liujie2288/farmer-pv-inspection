@@ -27,16 +27,16 @@ public class InspectionController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<Map<String, Long>> submitRecord(@RequestBody Map<String, Object> body) {
         Long planId = Long.valueOf(body.get("planId").toString());
-        Long stationId = Long.valueOf(body.get("farmerId").toString());
+        Long stationId = Long.valueOf(body.get("stationId").toString());
         Long projectId = Long.valueOf(body.get("projectId").toString());
         @SuppressWarnings("unchecked")
         Map<String, Object> checklistResult = (Map<String, Object>) body.get("checklistResult");
         @SuppressWarnings("unchecked")
-        Map<String, Object> photoUrls = (Map<String, Object>) body.get("photoUrls");
+        Map<String, Object> photos = (Map<String, Object>) body.get("photos");
         BigDecimal longitude = body.get("longitude") != null ? new BigDecimal(body.get("longitude").toString()) : BigDecimal.ZERO;
         BigDecimal latitude = body.get("latitude") != null ? new BigDecimal(body.get("latitude").toString()) : BigDecimal.ZERO;
 
-        Long id = inspectionService.submitRecord(planId, stationId, projectId, checklistResult, photoUrls, longitude, latitude);
+        Long id = inspectionService.submitRecord(planId, stationId, projectId, checklistResult, photos, longitude, latitude);
         return ApiResponse.created(Map.of("id", id));
     }
 
@@ -45,11 +45,11 @@ public class InspectionController {
         @SuppressWarnings("unchecked")
         Map<String, Object> checklistResult = (Map<String, Object>) body.get("checklistResult");
         @SuppressWarnings("unchecked")
-        Map<String, Object> photoUrls = (Map<String, Object>) body.get("photoUrls");
+        Map<String, Object> photos = (Map<String, Object>) body.get("photos");
         BigDecimal longitude = body.get("longitude") != null ? new BigDecimal(body.get("longitude").toString()) : null;
         BigDecimal latitude = body.get("latitude") != null ? new BigDecimal(body.get("latitude").toString()) : null;
 
-        inspectionService.updateRecord(id, checklistResult, photoUrls, longitude, latitude);
+        inspectionService.updateRecord(id, checklistResult, photos, longitude, latitude);
         return ApiResponse.success();
     }
 

@@ -176,19 +176,19 @@ public class ExportService {
                     ? station.getStationCode() + "_" + station.getOwnerName() + "/"
                     : "unknown_" + record.getStationId() + "/";
 
-            Map<String, Object> photoUrls = record.getPhotoUrls();
-            if (photoUrls != null) {
-                for (Map.Entry<String, Object> entry : photoUrls.entrySet()) {
+            Map<String, Object> photos = record.getPhotos();
+            if (photos != null) {
+                for (Map.Entry<String, Object> entry : photos.entrySet()) {
                     int sectionId = Integer.parseInt(entry.getKey());
                     String sectionName = ctx.getSectionNameMap().getOrDefault(sectionId, "section_" + sectionId);
                     String sectionDir = stationDir + "section_" + sectionId + "_" + sectionName + "/";
 
                     Object val = entry.getValue();
                     if (!(val instanceof List)) continue;
-                    List<?> photos = (List<?>) val;
+                    List<?> photoList = (List<?>) val;
                     int photoIdx = 0;
 
-                    for (Object photoObj : photos) {
+                    for (Object photoObj : photoList) {
                         String url = (photoObj instanceof String) ? (String) photoObj : null;
                         if (url == null || url.isEmpty()) continue;
 

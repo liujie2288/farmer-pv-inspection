@@ -5,7 +5,8 @@ import {
   AlertTriangle,
   CheckCircle,
 } from 'lucide-react';
-import { getChecklistTemplate, type PhotoUrlsMap } from '@/api/inspections';
+import { getSectionTree, type Section as TemplateSection, type SectionItem as TemplateItem } from '@/api/sections';
+import type { PhotosMap } from '@/api/inspections';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import PhotoUploader from '@/components/ui/PhotoUploader';
 
@@ -13,39 +14,16 @@ import PhotoUploader from '@/components/ui/PhotoUploader';
 // Types
 // ---------------------------------------------------------------------------
 
-interface TemplateNumericLabel {
+interface NumericLabel {
   key: string;
   label: string;
 }
 
-// Backend returns numericLabels as string[] (e.g. ["接地电阻","接触电阻"]).
-// Normalize to {key, label} objects.
-function normalizeLabels(raw: any): TemplateNumericLabel[] | null {
-  if (!raw || !Array.isArray(raw) || raw.length === 0) return null;
-  return raw.map((item: any) =>
-    typeof item === 'string'
-      ? { key: item, label: item }
-      : { key: item.key ?? item.label, label: item.label ?? item.key }
-  );
-}
-
-interface TemplateItem {
-  itemId: number;
-  content: string;
-  hasNumeric: boolean;
-  numericLabels: TemplateNumericLabel[] | null;
-  hasPhoto: boolean;
-}
-
-interface TemplateSection {
-  sectionId: number;
-  sectionName: string;
-  items: TemplateItem[];
-}
-
 interface ChecklistItem {
   itemId: number;
+  itemNo: number;
   content: string;
+  itemType: number;
   result: '' | '正常' | '异常';
   exceptionNote: string;
   measuredValue: Record<string, number | null> | null;
@@ -53,6 +31,7 @@ interface ChecklistItem {
 
 interface ChecklistSection {
   sectionId: number;
+  sectionNo?: number;
   sectionName: string;
   items: ChecklistItem[];
 }
@@ -65,8 +44,8 @@ interface InspectionChecklistProps {
   checklistData: ChecklistData;
   onChange: (data: ChecklistData) => void;
   readOnly?: boolean;
-  photoUrls?: PhotoUrlsMap;
-  onPhotosChange?: (photos: PhotoUrlsMap) => void;
+  photos?: PhotosMap;
+  onPhotosChange?: (photos: PhotosMap) => void;
   longitude?: number;
   latitude?: number;
 }
@@ -78,23 +57,29 @@ interface InspectionChecklistProps {
 function buildInitialData(template: TemplateSection[]): ChecklistData {
   return {
     sections: template.map((sec) => ({
-      sectionId: sec.sectionId,
+      sectionId: sec.id,
+      sectionNo: sec.sectionNo,
       sectionName: sec.sectionName,
-      items: sec.items.map((item) => ({
-        itemId: item.itemId,
-        content: item.content,
-        result: '' as const,
-        exceptionNote: '',
-        measuredValue: item.hasNumeric && item.numericLabels?.length
-          ? Object.fromEntries(item.numericLabels.map((l) => [l.key, null]))
-          : null,
-      })),
+      items: sec.items
+        .filter(item => item.itemType !== 3)
+        .map((item) => ({
+          itemId: item.id,
+          itemNo: item.itemNo,
+          content: item.content,
+          itemType: item.itemType,
+          result: '' as const,
+          exceptionNote: '',
+          measuredValue: item.itemType === 2 ? { value: null } : null,
+        })),
     })),
   };
 }
 
 function sectionIsComplete(section: ChecklistSection): boolean {
-  return section.items.every((item) => item.result !== '');
+  return section.items.every((item) => {
+    if (item.itemType === 2) return item.measuredValue?.value != null;
+    return item.result !== '';
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -160,7 +145,7 @@ const ToggleButtons: React.FC<ToggleButtonsProps> = ({ value, onChange }) => (
 );
 
 interface NumericInputsProps {
-  labels: TemplateNumericLabel[];
+  labels: NumericLabel[];
   values: Record<string, number | null>;
   onChange: (key: string, value: number | null) => void;
   readOnly: boolean;
@@ -200,7 +185,7 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
   checklistData,
   onChange,
   readOnly = false,
-  photoUrls = {},
+  photos = {},
   onPhotosChange,
   longitude,
   latitude,
@@ -216,7 +201,7 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
     const map = new Map<string, TemplateItem>();
     for (const sec of template) {
       for (const item of sec.items) {
-        map.set(`${sec.sectionId}-${item.itemId}`, item);
+        map.set(`${sec.id}-${item.id}`, item);
       }
     }
     return map;
@@ -227,34 +212,18 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
     let cancelled = false;
     (async () => {
       try {
-        const res = await getChecklistTemplate();
+        const res = await getSectionTree();
         if (cancelled) return;
 
-        // Axios interceptor returns response.data = { code, data: { sections: [...] } }.
-        // So res.data = { sections: [...] }. Handle multiple shapes defensively.
-        const payload = (res as any)?.data ?? res;
-        const raw: TemplateSection[] = Array.isArray(payload)
-          ? payload
-          : Array.isArray(payload?.sections)
-            ? payload.sections
-            : null;
-
-        if (!raw) {
+        const raw: TemplateSection[] = res.data;
+        if (!raw || !Array.isArray(raw)) {
           throw new Error('模板数据格式异常');
         }
 
-        const normalized = raw.map((sec: any) => ({
-          ...sec,
-          items: sec.items?.map((item: any) => ({
-            ...item,
-            numericLabels: normalizeLabels(item.numericLabels),
-          })),
-        }));
-
-        setTemplate(normalized);
+        setTemplate(raw);
         // Initialise checklist data if empty
         if (!checklistData.sections || checklistData.sections.length === 0) {
-          onChange(buildInitialData(normalized));
+          onChange(buildInitialData(raw));
         }
       } catch (err: any) {
         if (!cancelled) setError(err.message || '加载检查模板失败');
@@ -338,7 +307,7 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
               className="w-full flex items-center justify-between group"
             >
               <h3 className="text-lg font-bold text-navy border-l-4 border-teal pl-3 my-4">
-                {section.sectionId}. {section.sectionName}
+                {section.sectionNo ?? section.sectionId}. {section.sectionName}
                 {complete && (
                   <CheckCircle
                     size={14}
@@ -360,7 +329,6 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
                   const tplItem = itemTemplateMap.get(
                     `${section.sectionId}-${item.itemId}`,
                   );
-                  const numericLabels = tplItem?.numericLabels ?? [];
 
                   return (
                     <div
@@ -371,33 +339,38 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-gray-700">
                           <span className="font-medium text-gray-900 mr-1">
-                            {item.itemId}.
+                            {item.itemNo}.
                           </span>
                           {item.content}
                         </p>
 
-                        {/* Numeric inputs */}
-                        {tplItem?.hasNumeric && numericLabels.length > 0 && (
-                          <NumericInputs
-                            labels={numericLabels}
-                            values={item.measuredValue ?? {}}
-                            onChange={(key, val) =>
-                              updateItem(section.sectionId, item.itemId, {
-                                measuredValue: {
-                                  ...(item.measuredValue ?? {}),
-                                  [key]: val,
-                                },
-                              })
-                            }
-                            readOnly={readOnly}
-                          />
+                        {/* Numeric inputs for VALUE items */}
+                        {item.itemType === 2 && (
+                          <div className="mt-1.5">
+                            <div className="flex items-center gap-2">
+                              <label className="text-xs text-gray-500 shrink-0">实测值</label>
+                              <input
+                                type="number"
+                                step="any"
+                                disabled={readOnly}
+                                value={item.measuredValue?.value ?? ''}
+                                onChange={(e) => {
+                                  const raw = e.target.value;
+                                  updateItem(section.sectionId, item.itemId, {
+                                    measuredValue: { value: raw === '' ? null : parseFloat(raw) },
+                                  });
+                                }}
+                                className="w-48 px-3 py-2 border rounded-lg text-base text-center focus:outline-none focus:ring-1 focus:ring-teal disabled:bg-gray-50 disabled:text-gray-400"
+                              />
+                            </div>
+                          </div>
                         )}
 
                         {/* Exception note (only when abnormal) */}
                         {item.result === '异常' && (
                           <textarea
                             disabled={readOnly}
-                            rows={2}
+                            rows={3}
                             placeholder="请填写异常说明..."
                             value={item.exceptionNote}
                             onChange={(e) =>
@@ -405,26 +378,28 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
                                 exceptionNote: e.target.value,
                               })
                             }
-                            className="w-full mt-1 px-3 py-2 border rounded-lg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-teal disabled:bg-gray-50 disabled:text-gray-400"
+                            className="w-full mt-1.5 px-3 py-2 border rounded-lg text-base resize-none focus:outline-none focus:ring-1 focus:ring-teal disabled:bg-gray-50 disabled:text-gray-400"
                           />
                         )}
                       </div>
 
-                      {/* Right: result controls or badge */}
-                      <div className="shrink-0 pt-0.5">
-                        {readOnly ? (
-                          <ResultBadge result={item.result} />
-                        ) : (
-                          <ToggleButtons
-                            value={item.result}
-                            onChange={(val) =>
-                              updateItem(section.sectionId, item.itemId, {
-                                result: val,
-                              })
-                            }
-                          />
-                        )}
-                      </div>
+                      {/* Right: result controls or badge (CHECK items only) */}
+                      {item.itemType !== 2 && (
+                        <div className="shrink-0 pt-0.5">
+                          {readOnly ? (
+                            <ResultBadge result={item.result} />
+                          ) : (
+                            <ToggleButtons
+                              value={item.result}
+                              onChange={(val) =>
+                                updateItem(section.sectionId, item.itemId, {
+                                  result: val,
+                                })
+                              }
+                            />
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -433,10 +408,10 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
                 <div className="py-3 px-2">
                   <PhotoUploader
                     sectionId={section.sectionId}
-                    photos={photoUrls[String(section.sectionId)] || []}
+                    photos={photos[String(section.sectionId)] || []}
                     onChange={(updatedPhotos) =>
                       onPhotosChange?.({
-                        ...photoUrls,
+                        ...photos,
                         [String(section.sectionId)]: updatedPhotos,
                       })
                     }

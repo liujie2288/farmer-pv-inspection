@@ -46,7 +46,7 @@ public class InspectionService {
     @Transactional
     public Long submitRecord(Long planId, Long stationId, Long projectId,
                               Map<String, Object> checklistResult,
-                              Map<String, Object> photoUrls,
+                              Map<String, Object> photos,
                               BigDecimal longitude, BigDecimal latitude) {
         Long inspectorId = authService.getCurrentUserId();
 
@@ -82,7 +82,7 @@ public class InspectionService {
         record.setInspectorId(inspectorId);
         record.setProjectId(projectId);
         record.setChecklistResult(checklistResult);
-        record.setPhotoUrls(photoUrls);
+        record.setPhotos(photos);
         record.setLongitude(longitude);
         record.setLatitude(latitude);
         recordMapper.insert(record);
@@ -96,7 +96,7 @@ public class InspectionService {
 
     @Transactional
     public void updateRecord(Long id, Map<String, Object> checklistResult,
-                              Map<String, Object> photoUrls,
+                              Map<String, Object> photos,
                               BigDecimal longitude, BigDecimal latitude) {
         Long inspectorId = authService.getCurrentUserId();
         InspectRecord record = recordMapper.selectById(id);
@@ -115,7 +115,7 @@ public class InspectionService {
         }
 
         record.setChecklistResult(checklistResult);
-        record.setPhotoUrls(photoUrls);
+        record.setPhotos(photos);
         record.setLongitude(longitude);
         record.setLatitude(latitude);
         recordMapper.updateById(record);
@@ -142,7 +142,7 @@ public class InspectionService {
         detail.put("projectName", getProjectName(record.getProjectId()));
         detail.put("inspectorName", inspector != null ? inspector.getRealName() : "");
         detail.put("checklistResult", record.getChecklistResult());
-        detail.put("photoUrls", record.getPhotoUrls());
+        detail.put("photos", record.getPhotos());
         detail.put("longitude", record.getLongitude());
         detail.put("latitude", record.getLatitude());
         detail.put("createTime", record.getCreateTime());
