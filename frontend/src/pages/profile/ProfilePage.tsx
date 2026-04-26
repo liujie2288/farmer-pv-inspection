@@ -157,7 +157,7 @@ function ProfilePage() {
             <h2 className="text-sm font-semibold text-navy">账号设置</h2>
           </div>
           <div className="divide-y divide-gray-50">
-            <div className={user?.needResetPwd ? 'border-2 border-red-500 m-1 rounded-lg animate-[blink-border_2s_ease-in-out_infinite]' : ''}>
+            <div>
               <button
                 onClick={openChangePasswordDialog}
                 className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"

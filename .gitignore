@@ -36,5 +36,8 @@ Thumbs.db
 # Playwright MCP cache
 .playwright-mcp/
 
+# Local config (each developer creates their own)
+application-local.yml
+
 # Debug screenshots
 screenshots/
