@@ -72,9 +72,9 @@ public class InspectRecordService {
 
         PlanProjectViewVo planProject = planMapper.findActiveByProjectId(station.getProjectId());
         if (planProject == null) {
-            throw new BusinessException("巡检计划不存在或已结束");
+            throw new BusinessException("巡检任务不存在或已结束");
         } else if (planProject.getStatus() != PlanStatus.IN_PROGRESS) {
-            throw new BusinessException("当前巡检计划未在进行中");
+            throw new BusinessException("当前巡检任务未在进行中");
         }
 
         Long existing = recordMapper.selectCount(
@@ -204,7 +204,7 @@ public class InspectRecordService {
         }
         InspectPlan plan = planMapper.selectById(record.getPlanId());
         if (plan == null || plan.getStatus() != PlanStatus.IN_PROGRESS) {
-            throw new BusinessException("巡检计划已结束，无法开放编辑");
+            throw new BusinessException("巡检任务已结束，无法开放编辑");
         }
         recordMapper.updateEditDeadline(id, LocalDateTime.now().plusDays(2));
     }

@@ -64,7 +64,7 @@ public class PdfReportService {
             addInfoRow(infoTable, font, "项目名称", project != null ? project.getProjectName() : "");
             addInfoRow(infoTable, font, "户主姓名", station != null ? station.getOwnerName() : "");
             addInfoRow(infoTable, font, "电站编号", station != null ? station.getStationCode() : "");
-            addInfoRow(infoTable, font, "巡检计划", plan != null ? plan.getPlanName() : "");
+            addInfoRow(infoTable, font, "巡检任务", plan != null ? plan.getPlanName() : "");
             addInfoRow(infoTable, font, "巡检人员", inspector != null ? inspector.getRealName() : "");
             addInfoRow(infoTable, font, "巡检时间", record.getCreateTime() != null ?
                     record.getCreateTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : "");

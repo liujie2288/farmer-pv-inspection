@@ -127,7 +127,7 @@ function DashboardPage() {
             <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
               <Clock size={16} className="text-[#00A8CC]" />
               <h2 className="text-sm font-semibold text-gray-800">
-                进行中的计划
+                进行中的任务
               </h2>
               <span className="ml-auto rounded-full bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-600">
                 {stats.activePlans.length}

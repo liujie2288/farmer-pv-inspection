@@ -93,10 +93,10 @@ public class InspectPlanService {
     public void updatePlan(Long planId, UpdatePlanDto dto) {
         InspectPlan plan = planMapper.selectById(planId);
         if (plan == null) {
-            throw new BusinessException("计划不存在");
+            throw new BusinessException("任务不存在");
         }
         if (plan.getStatus() == PlanStatus.FINISHED) {
-            throw new BusinessException("已结束的计划不可修改");
+            throw new BusinessException("已结束的任务不可修改");
         }
         if (dto.getStartTime() != null) plan.setStartTime(dto.getStartTime());
         if (dto.getEndTime() != null) plan.setEndTime(dto.getEndTime());
@@ -119,10 +119,10 @@ public class InspectPlanService {
     public void deletePlan(Long planId) {
         InspectPlan plan = planMapper.selectById(planId);
         if (plan == null) {
-            throw new BusinessException("计划不存在");
+            throw new BusinessException("任务不存在");
         }
         if (plan.getStatus() != PlanStatus.PENDING) {
-            throw new BusinessException("仅未开始的计划可以删除");
+            throw new BusinessException("仅未开始的任务可以删除");
         }
         planProjectMapper.delete(new LambdaQueryWrapper<InspectPlanProject>()
                 .eq(InspectPlanProject::getPlanId, planId));
@@ -132,7 +132,7 @@ public class InspectPlanService {
     public Map<String, Object> getPlanStats(Long planId) {
         InspectPlan plan = planMapper.selectById(planId);
         if (plan == null) {
-            throw new BusinessException("计划不存在");
+            throw new BusinessException("任务不存在");
         }
 
         List<InspectPlanProject> pps = planProjectMapper.selectList(
@@ -229,7 +229,7 @@ public class InspectPlanService {
                             .in(InspectPlan::getStatus, Arrays.asList(PlanStatus.PENDING, PlanStatus.IN_PROGRESS))
             );
             if (count > 0) {
-                throw new BusinessException("勾选的项目中关联有未结束的巡检计划");
+                throw new BusinessException("勾选的项目中关联有未结束的巡检任务");
             }
         }
     }

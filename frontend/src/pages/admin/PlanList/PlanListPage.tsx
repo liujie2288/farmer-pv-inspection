@@ -54,7 +54,7 @@ function CreatePlanDialog({ onClose, onSuccess }: { onClose: () => void; onSucce
 
   const handleSubmit = async () => {
     if (!form.planName || form.planName.length > 30 || !form.startTime || !form.endTime || form.endTime < todayStr) {
-      showToast({ icon: 'warning', content: form.planName.length > 30 ? '计划名称不能超过30字' : form.endTime < todayStr ? '结束时间不能早于今天' : '请填写完整信息' });
+      showToast({ icon: 'warning', content: form.planName.length > 30 ? '任务名称不能超过30字' : form.endTime < todayStr ? '结束时间不能早于今天' : '请填写完整信息' });
       return;
     }
     if (form.selectedProjectIds.length === 0) {
@@ -89,7 +89,7 @@ function CreatePlanDialog({ onClose, onSuccess }: { onClose: () => void; onSucce
         >
           <X size={18} />
         </button>
-        <h3 className="text-lg font-bold text-navy mb-4 pr-6">创建巡检计划</h3>
+        <h3 className="text-lg font-bold text-navy mb-4 pr-6">创建巡检任务</h3>
 
         <div className="text-sm text-gray-600 mb-6">
           <div className="flex flex-col gap-4">
@@ -100,7 +100,7 @@ function CreatePlanDialog({ onClose, onSuccess }: { onClose: () => void; onSucce
               <input
                 type="text"
                 maxLength={30}
-                placeholder="请输入计划名称"
+                placeholder="请输入任务名称"
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
                 value={form.planName}
                 onChange={e => setForm(prev => ({ ...prev, planName: e.target.value }))}
@@ -208,7 +208,7 @@ function PlanListPage() {
         setTotal(res.data.total);
         setPage(p);
       } catch (e: any) {
-        showToast({ icon: 'fail', content: e.message || '加载计划列表失败' });
+        showToast({ icon: 'fail', content: e.message || '加载任务列表失败' });
       } finally {
         setLoading(false);
       }
@@ -234,7 +234,7 @@ function PlanListPage() {
 
   const handleDelete = async (planId: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    const ok = await confirm({ title: '删除计划', content: '确定删除此巡检计划吗？此操作不可撤销。' });
+    const ok = await confirm({ title: '删除任务', content: '确定删除此巡检任务吗？此操作不可撤销。' });
     if (!ok) return;
     try {
       await deletePlan(planId);
@@ -256,7 +256,7 @@ function PlanListPage() {
     <div className="flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-navy">巡检计划</h1>
+        <h1 className="text-xl font-bold text-navy">巡检任务</h1>
         <button
           onClick={() => setCreateDialogOpen(true)}
           className="flex items-center gap-2 rounded-lg bg-teal px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-teal-dark"
@@ -307,7 +307,7 @@ function PlanListPage() {
       {loading && plans.length === 0 ? (
         <LoadingSpinner />
       ) : plans.length === 0 ? (
-        <EmptyState icon={ClipboardList} message="暂无巡检计划" />
+        <EmptyState icon={ClipboardList} message="暂无巡检任务" />
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

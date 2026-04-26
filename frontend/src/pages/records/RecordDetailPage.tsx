@@ -87,7 +87,7 @@ function RecordDetailPage() {
   const checklistResult = (detail.checklistResult as ChecklistSectionVo[]) || [];
 
   const infoRows = [
-    { label: '巡检计划', value: detail.planName, icon: FileText },
+    { label: '巡检任务', value: detail.planName, icon: FileText },
     { label: '项目名称', value: detail.projectName, icon: Building2 },
     { label: '电站编号', value: detail.stationCode, icon: FileText },
     { label: '户主姓名', value: detail.stationName, icon: Contact },

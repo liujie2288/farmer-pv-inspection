@@ -12,8 +12,8 @@ import java.util.List;
 @Data
 public class PlanDto {
 
-    @NotBlank(message = "计划名称不能为空")
-    @Size(max = 30, message = "计划名称不能超过30字")
+    @NotBlank(message = "任务名称不能为空")
+    @Size(max = 30, message = "任务名称不能超过30字")
     private String planName;
 
     @NotEmpty(message = "至少选择一个项目")

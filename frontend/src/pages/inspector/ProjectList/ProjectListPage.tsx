@@ -115,7 +115,7 @@ function InspectorProjectListPage() {
               ) : (
                 <div className="mt-3 flex items-center gap-1.5 text-sm text-gray-400">
                   <CheckCircle size={14} />
-                  <span>当前无巡检计划，无需巡检</span>
+                  <span>当前无巡检任务，无需巡检</span>
                 </div>
               )}
             </div>

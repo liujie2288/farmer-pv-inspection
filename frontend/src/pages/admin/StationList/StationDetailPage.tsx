@@ -249,7 +249,7 @@ function StationDetailPage({ readOnly }: { readOnly?: boolean } = {}) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 text-gray-500">
-                  <th className="text-left font-medium px-4 py-2.5">巡检计划</th>
+                  <th className="text-left font-medium px-4 py-2.5">巡检任务</th>
                   <th className="text-left font-medium px-4 py-2.5">巡检人员</th>
                   <th className="text-left font-medium px-4 py-2.5">巡检时间</th>
                 </tr>

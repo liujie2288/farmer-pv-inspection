@@ -139,7 +139,7 @@ function InspectionFormPage() {
       } else {
         const effectivePlanId = planId ? Number(planId) : resolvedPlanId;
         if (!effectivePlanId || !stationId || !projectId) {
-          showToast({ icon: 'fail', content: '当前没有可用的巡检计划，无法提交' });
+          showToast({ icon: 'fail', content: '当前没有可用的巡检任务，无法提交' });
           setSubmitting(false);
           return;
         }
@@ -267,7 +267,7 @@ function InspectionFormPage() {
       {/* Submit button */}
       <div className="sticky bottom-0 p-4 bg-white border-t border-gray-100">
         {!isEdit && !planId && !resolvedPlanId && (
-          <p className="text-center text-sm text-amber-600 mb-2">当前项目没有进行中的巡检计划</p>
+          <p className="text-center text-sm text-amber-600 mb-2">当前项目没有进行中的巡检任务</p>
         )}
         <button
           onClick={handleSubmit}

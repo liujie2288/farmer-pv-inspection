@@ -140,7 +140,7 @@ function InspectorStationListPage() {
         ) : (
           <div className="flex items-center justify-center gap-1.5 bg-white rounded-xl p-4 mb-3 text-sm text-gray-400 shadow-sm border border-gray-100">
             <CheckCircle size={16} />
-            <span>当前无巡检计划，无需巡检</span>
+            <span>当前无巡检任务，无需巡检</span>
           </div>
         )}
 

@@ -78,7 +78,7 @@ function PlanDetailPage() {
     setLoading(true);
     getPlanStats(gid)
       .then(res => setStats(res.data))
-      .catch(e => showToast({ icon: 'fail', content: e.message || '加载计划详情失败' }))
+      .catch(e => showToast({ icon: 'fail', content: e.message || '加载任务详情失败' }))
       .finally(() => setLoading(false));
     loadExportTasks().then(() => {
       if (exportTasks.some(t => t.status === 0)) startPolling();
@@ -124,13 +124,13 @@ function PlanDetailPage() {
   const handleFinish = async () => {
     if (!gid) return;
     const ok = await confirm({
-      title: '结束计划',
-      content: '确定手动结束此计划吗？此操作不可撤销。',
+      title: '结束任务',
+      content: '确定手动结束此任务吗？此操作不可撤销。',
     });
     if (!ok) return;
     try {
       await finishPlan(gid);
-      showToast({ icon: 'success', content: '计划已结束' });
+      showToast({ icon: 'success', content: '任务已结束' });
       const res = await getPlanStats(gid);
       setStats(res.data);
     } catch (e: any) {
@@ -346,14 +346,14 @@ function PlanDetailPage() {
           <div className="flex items-start gap-3">
             <AlertTriangle size={20} className="text-red-500 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <h3 className="text-sm font-semibold text-red-700">结束计划</h3>
-              <p className="mt-1 text-xs text-red-500">手动结束后计划将不再接受新的巡检记录，此操作不可撤销。</p>
+              <h3 className="text-sm font-semibold text-red-700">结束任务</h3>
+              <p className="mt-1 text-xs text-red-500">手动结束后任务将不再接受新的巡检记录，此操作不可撤销。</p>
             </div>
             <button
               onClick={handleFinish}
               className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-700 shrink-0"
             >
-              手动结束计划
+              手动结束任务
             </button>
           </div>
         </div>
