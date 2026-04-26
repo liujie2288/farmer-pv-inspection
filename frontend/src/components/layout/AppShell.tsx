@@ -4,7 +4,7 @@ import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import { SidebarProvider } from './SidebarContext';
 import { useAuthStore } from '@/store/authStore';
-import { changePassword, getCurrentUser } from '@/api/auth';
+import { forceChangePassword, getCurrentUser } from '@/api/auth';
 import { showToast } from '@/components/ui/Toast';
 import type { MenuItem } from './Sidebar';
 
@@ -15,14 +15,13 @@ interface AppShellProps {
 
 function ForceChangePasswordOverlay() {
   const setUser = useAuthStore((s) => s.setUser);
-  const [oldPwd, setOldPwd] = useState('');
   const [newPwd, setNewPwd] = useState('');
   const [confirmPwd, setConfirmPwd] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!oldPwd || !newPwd || !confirmPwd) {
+    if (!newPwd || !confirmPwd) {
       showToast({ icon: 'fail', content: '请填写完整' });
       return;
     }
@@ -34,21 +33,19 @@ function ForceChangePasswordOverlay() {
       showToast({ icon: 'fail', content: '密码必须包含字母和数字' });
       return;
     }
-    if (oldPwd === newPwd) {
-      showToast({ icon: 'fail', content: '新密码不能与原密码相同' });
-      return;
-    }
     if (newPwd !== confirmPwd) {
       showToast({ icon: 'fail', content: '两次输入的新密码不一致' });
       return;
     }
     setSubmitting(true);
     try {
-      await changePassword({ oldPassword: oldPwd, newPassword: newPwd });
+      await forceChangePassword(newPwd);
       const res = await getCurrentUser();
       setUser(res.data);
       showToast({ icon: 'success', content: '密码修改成功' });
     } catch (e: any) {
+      const res = await getCurrentUser();
+      setUser(res.data);
       showToast({ icon: 'fail', content: e.message || '修改失败' });
     } finally {
       setSubmitting(false);
@@ -66,16 +63,6 @@ function ForceChangePasswordOverlay() {
           <p className="text-sm text-gray-500 mt-1">为确保账号安全，请设置新密码后继续使用</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">原密码</label>
-            <input
-              type="password"
-              value={oldPwd}
-              onChange={e => setOldPwd(e.target.value)}
-              placeholder="请输入原密码"
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal focus:border-teal outline-none text-base transition"
-            />
-          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">新密码</label>
             <input

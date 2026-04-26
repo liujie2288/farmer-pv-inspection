@@ -20,7 +20,7 @@ export interface ChangePasswordParams {
 }
 
 export function login(params: LoginParams) {
-  return client.post<any, { code: number }>('/auth/login', params);
+  return client.post<any, { code: number; data: UserInfo }>('/auth/login', params);
 }
 
 export function getCurrentUser() {
@@ -29,6 +29,10 @@ export function getCurrentUser() {
 
 export function changePassword(params: ChangePasswordParams) {
   return client.post<any, { code: number }>('/auth/change-password', params);
+}
+
+export function forceChangePassword(newPassword: string) {
+  return client.post<any, { code: number }>('/auth/force-change-password', { newPassword });
 }
 
 export function resetPassword(userId: number) {

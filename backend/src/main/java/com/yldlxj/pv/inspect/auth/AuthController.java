@@ -16,6 +16,7 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 
@@ -46,7 +47,7 @@ public class AuthController {
         ResponseCookie cookie = ResponseCookie.from("accessToken", jwtToken) // Cookie 名称
                 .httpOnly(true)         // 关键：防止 JS 读取，防止 XSS 攻击
                 .secure(jwtUtil.isCookieSecure())   // 开发环境(HTTP)设false，生产环境(HTTPS)设true
-                .maxAge(jwtUtil.getExpiration()/1000) // 过期时间 (秒)
+                .maxAge(jwtUtil.getExpiration() / 1000) // 过期时间 (秒)
                 .path("/")              // 作用域
                 .sameSite("Lax")
                 .build();
@@ -84,13 +85,33 @@ public class AuthController {
         SysUser user = SecurityUtils.getCurrentUser();
         if (user == null) {
             return ApiResponse.error(401, "登录已过期，请重新登录");
-        } else if (dto.getNewPassword().equals(user.getPassword())) {
-            return ApiResponse.error(456, "新密码不能与原密码相同");
         } else if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
             return ApiResponse.error(456, "原密码错误");
+        } else if (passwordEncoder.matches(dto.getNewPassword(), user.getPassword())) {
+            return ApiResponse.error(456, "新密码不能与原密码相同");
         }
 
         userService.changePassword(user.getId(), dto.getNewPassword());
+        return ApiResponse.success();
+    }
+
+    @PostMapping("/force-change-password")
+    public ApiResponse<Void> forceChangePassword(@RequestBody Map<String, String> body) {
+        String newPassword = body.get("newPassword");
+        if (newPassword == null || newPassword.trim().isEmpty()) {
+            return ApiResponse.error(456, "新密码不能为空");
+        }
+        if (newPassword.length() < 6) {
+            return ApiResponse.error(456, "新密码长度不能少于6位");
+        }
+        SysUser user = SecurityUtils.getCurrentUser();
+        if (user == null) {
+            return ApiResponse.error(401, "登录已过期，请重新登录");
+        }
+        if (!Boolean.TRUE.equals(user.getNeedResetPwd())) {
+            return ApiResponse.error(456, "当前无需强制修改密码");
+        }
+        userService.changePassword(user.getId(), newPassword);
         return ApiResponse.success();
     }
 

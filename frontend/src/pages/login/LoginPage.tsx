@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff, Zap } from 'lucide-react';
-import { login, getCurrentUser } from '@/api/auth';
+import { login } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 import { showToast } from '@/components/ui/Toast';
 
@@ -21,10 +21,9 @@ function LoginPage() {
     }
     setLoading(true);
     try {
-      await login({ username, password });
-      const userRes = await getCurrentUser();
-      setUser(userRes.data);
-      navigate(userRes.data.role === 'admin' ? '/admin' : '/', { replace: true });
+      const loginRes = await login({ username, password });
+      setUser(loginRes.data);
+      navigate(loginRes.data.role === 'admin' ? '/admin' : '/', { replace: true });
     } catch (e: any) {
       showToast({ icon: 'fail', content: e.message || '登录失败' });
     } finally {

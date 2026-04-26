@@ -4,7 +4,6 @@ import { useSidebar } from './SidebarContext';
 import { useAuthStore } from '@/store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser } from '@/api/auth';
-import { showToast } from '@/components/ui/Toast';
 import type { LucideIcon } from 'lucide-react';
 
 export interface MenuItem {
@@ -29,14 +28,7 @@ export default function Sidebar({ menuItems }: SidebarProps) {
 
   const handleMenuClick = () => {
     close();
-    getCurrentUser().then(res => {
-      const u = res.data;
-      setUser(u);
-      if (u.needResetPwd) {
-        navigate(u.role === 'admin' ? '/admin/profile' : '/profile', { replace: true });
-        showToast({ icon: 'warning', content: '请先修改密码' });
-      }
-    }).catch(() => {});
+    getCurrentUser().then(res => setUser(res.data)).catch(() => {});
   };
 
   const navContent = (
