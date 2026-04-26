@@ -29,6 +29,7 @@ import InspectionFormPage from '@/pages/inspector/InspectionForm/InspectionFormP
 import DashboardPage from '@/pages/admin/Dashboard/DashboardPage';
 import RecordListPage from '@/pages/records/RecordListPage';
 import RecordDetailPage from '@/pages/records/RecordDetailPage';
+import IconPreviewPage from '@/pages/admin/IconPreview/IconPreviewPage';
 
 const adminMenuItems = [
   { icon: LayoutDashboard, label: '数据概览', path: '/admin' },
@@ -63,6 +64,7 @@ function AdminRoutes() {
             { path: '/records', element: <RecordListPage /> },
             { path: '/records/:recordId', element: <RecordDetailPage /> },
             { path: '/records/:recordId/edit', element: <InspectionFormPage /> },
+            { path: '/icons', element: <IconPreviewPage /> },
             { path: '/profile', element: <ProfilePage /> },
             { path: '*', element: <Navigate to="/admin" replace /> },
           ])}

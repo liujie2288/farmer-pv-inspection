@@ -334,7 +334,7 @@ function StationListPage() {
             </button>
           ))}
           <span className="ml-auto text-sm text-gray-400">
-            共 {total} 户
+            共 {total} 条
           </span>
         </div>
       </div>

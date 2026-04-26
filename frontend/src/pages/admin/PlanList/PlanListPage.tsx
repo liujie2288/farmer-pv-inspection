@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Clock, Users, ClipboardList, X, Trash2, FolderOpen } from 'lucide-react';
+import { Search, Plus, Clock, SolarPanel, ClipboardList, X, Trash2, Building2 } from 'lucide-react';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { listPlans, createPlan, deletePlan, type InspectPlan } from '@/api/plans';
 import { listProjects, type Project } from '@/api/projects';
@@ -331,7 +331,7 @@ function PlanListPage() {
                       </div>
                       <div className="mt-1.5 flex items-center gap-3 text-sm text-gray-500">
                         <span className="flex items-center gap-1">
-                          <FolderOpen size={13} className="text-gray-400" />
+                          <Building2 size={13} className="text-gray-400" />
                           {plan.projectCount} 个项目
                         </span>
                       </div>
@@ -352,7 +352,7 @@ function PlanListPage() {
 
                   <div className="mt-3 flex items-center gap-4 border-t border-gray-50 pt-3">
                     <div className="flex items-center gap-1.5 text-sm text-gray-500">
-                      <Users size={14} className="text-gray-400" />
+                      <SolarPanel size={14} className="text-gray-400" />
                       <span>{plan.inspectedCount}/{plan.totalCount}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-sm text-gray-500">

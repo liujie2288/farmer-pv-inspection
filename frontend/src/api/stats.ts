@@ -3,10 +3,9 @@ import client from './client';
 export interface GlobalStats {
   totalProjects: number;
   totalStations: number;
-  totalInspected: number;
-  completionRate: number;
+  weekInspected: number;
+  monthInspected: number;
   activePlans: Array<{ id: number; planName: string; endTime: string }>;
-  projectRanking: Array<{ projectId: number; projectName: string; stationCount: number; inspectedCount: number; completionRate: number }>;
 }
 
 export function getGlobalStats() {

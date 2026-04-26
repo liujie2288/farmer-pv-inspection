@@ -5,7 +5,8 @@ import {
   MapPin,
   Calendar,
   User,
-  FolderOpen,
+  Building2,
+  Contact,
   CheckCircle2,
   XCircle,
   FileOutput,
@@ -87,9 +88,9 @@ function RecordDetailPage() {
 
   const infoRows = [
     { label: '巡检计划', value: detail.planName, icon: FileText },
-    { label: '项目名称', value: detail.projectName, icon: FolderOpen },
+    { label: '项目名称', value: detail.projectName, icon: Building2 },
     { label: '电站编号', value: detail.stationCode, icon: FileText },
-    { label: '户主姓名', value: detail.stationName, icon: User },
+    { label: '户主姓名', value: detail.stationName, icon: Contact },
     { label: '巡检时间', value: detail.createTime, icon: Calendar },
     { label: '巡检人', value: detail.inspectorName, icon: User },
     { label: '天气', value: detail.weather, icon: CloudSun },

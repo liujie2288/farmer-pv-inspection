@@ -3,9 +3,7 @@ import {
   FolderOpen,
   Users,
   CheckCircle,
-  BarChart3,
   Clock,
-  Trophy,
   RefreshCw,
 } from 'lucide-react';
 import { getGlobalStats, type GlobalStats } from '@/api/stats';
@@ -26,31 +24,12 @@ const statCards = [
     bg: 'bg-[#00A8CC]',
   },
   {
-    key: 'inspected',
-    label: '已巡检',
+    key: 'weekInspected',
+    label: '本周已巡检',
     icon: CheckCircle,
     bg: 'bg-emerald-600',
   },
-  {
-    key: 'rate',
-    label: '完成率',
-    icon: BarChart3,
-    bg: 'bg-[#D4A843]',
-  },
 ] as const;
-
-function getRankBadge(idx: number) {
-  if (idx === 0) return 'bg-amber-400 text-amber-900';
-  if (idx === 1) return 'bg-gray-300 text-gray-700';
-  if (idx === 2) return 'bg-amber-700 text-amber-100';
-  return 'bg-gray-100 text-gray-500';
-}
-
-function getProgressColor(rate: number) {
-  if (rate >= 80) return 'bg-emerald-500';
-  if (rate >= 50) return 'bg-amber-500';
-  return 'bg-red-500';
-}
 
 function DashboardPage() {
   const [stats, setStats] = useState<GlobalStats | null>(null);
@@ -83,8 +62,7 @@ function DashboardPage() {
     ? {
         projects: stats.totalProjects,
         stations: stats.totalStations,
-        inspected: stats.totalInspected,
-        rate: `${stats.completionRate}%`,
+        weekInspected: stats.weekInspected,
       }
     : {};
 
@@ -115,7 +93,7 @@ function DashboardPage() {
 
       {/* Stat Cards — overlap header */}
       <div className="-mt-10 px-4">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-3 gap-3">
           {statCards.map((card) => {
             const Icon = card.icon;
             return (
@@ -174,65 +152,6 @@ function DashboardPage() {
       )}
 
       {/* Project Ranking */}
-      <div className="mt-4 px-4 pb-6">
-        <div className="rounded-xl bg-white shadow-sm">
-          <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
-            <Trophy size={16} className="text-[#D4A843]" />
-            <h2 className="text-sm font-semibold text-gray-800">
-              项目完成排名
-            </h2>
-          </div>
-
-          {!stats || stats.projectRanking.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-gray-300">
-              <BarChart3 size={32} />
-              <p className="mt-2 text-sm text-gray-400">暂无数据</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-50">
-              {stats.projectRanking.map((project, idx) => (
-                <div
-                  key={project.projectId}
-                  className="flex items-center gap-3 px-4 py-3"
-                >
-                  {/* Rank badge */}
-                  <span
-                    className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold ${getRankBadge(idx)}`}
-                  >
-                    {idx + 1}
-                  </span>
-
-                  {/* Name + progress bar */}
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-gray-700">
-                      {project.projectName}
-                    </p>
-                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${getProgressColor(project.completionRate)}`}
-                        style={{ width: `${project.completionRate}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Ratio */}
-                  <span
-                    className={`flex-shrink-0 text-xs font-semibold ${
-                      project.completionRate >= 80
-                        ? 'text-emerald-600'
-                        : project.completionRate >= 50
-                          ? 'text-amber-600'
-                          : 'text-red-500'
-                    }`}
-                  >
-                    {project.inspectedCount}/{project.stationCount}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

@@ -169,14 +169,14 @@ function PlanDetailPage() {
             <Users size={18} />
             <span className="text-sm">电站总数</span>
           </div>
-          <p className="text-2xl font-bold text-navy">{stats.totalCount}<span className="text-sm font-normal text-gray-400 ml-1">户</span></p>
+          <p className="text-2xl font-bold text-navy">{stats.totalCount}</p>
         </div>
         <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-gray-400 mb-2">
             <CheckCircle size={18} />
             <span className="text-sm">已巡检</span>
           </div>
-          <p className="text-2xl font-bold text-teal">{stats.inspectedCount}<span className="text-sm font-normal text-gray-400 ml-1">户</span></p>
+          <p className="text-2xl font-bold text-teal">{stats.inspectedCount}</p>
         </div>
         <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-2 text-gray-400 mb-2">

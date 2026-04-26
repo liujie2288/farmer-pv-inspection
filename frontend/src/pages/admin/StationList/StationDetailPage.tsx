@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { User, Settings, ClipboardList, ChevronLeft, FileText, Edit3, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Home, Wrench, ClipboardList, ChevronLeft, FileText, Edit3, Trash2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import {
   getStationDetail, updateStation, deleteStation, StationDetail
 } from '@/api/stations';
@@ -217,7 +217,7 @@ function StationDetailPage({ readOnly }: { readOnly?: boolean } = {}) {
       </div>
 
       {/* Section 1: Basic info */}
-      <SectionCard title="基本信息" icon={<User size={16} />}>
+      <SectionCard title="基本信息" icon={<Home size={16} />}>
         <InfoRow label="电站编号" value={detail.stationCode} />
         <InfoRow label="户主姓名" value={detail.ownerName} />
         <InfoRow label="装机地址" value={detail.address || '-'} expandable />
@@ -227,7 +227,7 @@ function StationDetailPage({ readOnly }: { readOnly?: boolean } = {}) {
       </SectionCard>
 
       {/* Section 2: Equipment info */}
-      <SectionCard title="设备信息" icon={<Settings size={16} />}>
+      <SectionCard title="设备信息" icon={<Wrench size={16} />}>
         <InfoRow label="逆变器序列号" value={detail.inverterSn || '-'} />
         <InfoRow label="逆变器品牌型号" value={detail.inverterBrand || '-'} />
         <InfoRow label="装机容量" value={detail.capacityKw != null ? `${detail.capacityKw} kW` : '-'} />

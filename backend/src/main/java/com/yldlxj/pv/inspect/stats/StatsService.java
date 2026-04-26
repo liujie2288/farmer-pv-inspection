@@ -1,16 +1,20 @@
 package com.yldlxj.pv.inspect.stats;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.yldlxj.pv.inspect.common.enums.PlanStatus;
+import com.yldlxj.pv.inspect.record.InspectRecord;
+import com.yldlxj.pv.inspect.record.InspectRecordMapper;
 import com.yldlxj.pv.inspect.station.StationMapper;
 import com.yldlxj.pv.inspect.plan.InspectPlan;
 import com.yldlxj.pv.inspect.plan.InspectPlanMapper;
-import com.yldlxj.pv.inspect.plan.InspectPlanProject;
-import com.yldlxj.pv.inspect.plan.InspectPlanProjectMapper;
 import com.yldlxj.pv.inspect.project.Project;
 import com.yldlxj.pv.inspect.project.ProjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -21,7 +25,7 @@ public class StatsService {
     private final ProjectMapper projectMapper;
     private final StationMapper stationMapper;
     private final InspectPlanMapper planMapper;
-    private final InspectPlanProjectMapper planProjectMapper;
+    private final InspectRecordMapper recordMapper;
 
     public Map<String, Object> getGlobalStats() {
         List<Project> projects = projectMapper.selectList(null);
@@ -30,23 +34,32 @@ public class StatsService {
                 .mapToInt(p -> stationMapper.countByProjectId(p.getId()))
                 .sum();
 
-        List<InspectPlan> activePlans = planMapper.selectList(
-                new LambdaQueryWrapper<InspectPlan>()
-                        .eq(InspectPlan::getStatus, 1)
+        // 本周已巡检
+        LocalDate today = LocalDate.now();
+        LocalDateTime weekStart = today.with(DayOfWeek.MONDAY).atStartOfDay();
+        long weekInspected = recordMapper.selectCount(
+                new LambdaQueryWrapper<InspectRecord>()
+                        .ge(InspectRecord::getCreateTime, weekStart)
         );
 
-        List<Map<String, Object>> ranking = projects.stream().map(p -> {
-            int fc = stationMapper.countByProjectId(p.getId());
-            Map<String, Object> item = new HashMap<>();
-            item.put("projectId", p.getId());
-            item.put("projectName", p.getProjectName());
-            item.put("stationCount", fc);
-            return item;
-        }).collect(Collectors.toList());
+        // 本月已巡检
+        LocalDateTime monthStart = today.withDayOfMonth(1).atStartOfDay();
+        long monthInspected = recordMapper.selectCount(
+                new LambdaQueryWrapper<InspectRecord>()
+                        .ge(InspectRecord::getCreateTime, monthStart)
+        );
+
+        // 进行中的计划
+        List<InspectPlan> activePlans = planMapper.selectList(
+                new LambdaQueryWrapper<InspectPlan>()
+                        .eq(InspectPlan::getStatus, PlanStatus.IN_PROGRESS)
+        );
 
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalProjects", totalProjects);
         stats.put("totalStations", totalStations);
+        stats.put("weekInspected", weekInspected);
+        stats.put("monthInspected", monthInspected);
         stats.put("activePlans", activePlans.stream().map(p -> {
             Map<String, Object> ap = new HashMap<>();
             ap.put("id", p.getId());
@@ -54,7 +67,6 @@ public class StatsService {
             ap.put("endTime", p.getEndTime());
             return ap;
         }).collect(Collectors.toList()));
-        stats.put("projectRanking", ranking);
         return stats;
     }
 
@@ -64,25 +76,16 @@ public class StatsService {
         Map<String, Object> stats = new HashMap<>();
         stats.put("stationCount", stationCount);
 
-        List<InspectPlanProject> pps = planProjectMapper.selectList(
-                new LambdaQueryWrapper<InspectPlanProject>().eq(InspectPlanProject::getProjectId, projectId)
+        List<InspectPlan> activePlans = planMapper.selectList(
+                new LambdaQueryWrapper<InspectPlan>()
+                        .eq(InspectPlan::getStatus, PlanStatus.IN_PROGRESS)
         );
-        if (!pps.isEmpty()) {
-            List<Long> planIds = pps.stream().map(InspectPlanProject::getPlanId).collect(Collectors.toList());
-            InspectPlan activeInspectPlan = planMapper.selectOne(
-                    new LambdaQueryWrapper<InspectPlan>()
-                            .in(InspectPlan::getId, planIds)
-                            .eq(InspectPlan::getStatus, 1)
-                            .last("LIMIT 1")
-            );
-            if (activeInspectPlan != null) {
-                Map<String, Object> ap = new HashMap<>();
-                ap.put("id", activeInspectPlan.getId());
-                ap.put("planName", activeInspectPlan.getPlanName());
-                stats.put("activePlan", ap);
-            } else {
-                stats.put("activePlan", null);
-            }
+        if (!activePlans.isEmpty()) {
+            InspectPlan plan = activePlans.get(0);
+            Map<String, Object> ap = new HashMap<>();
+            ap.put("id", plan.getId());
+            ap.put("planName", plan.getPlanName());
+            stats.put("activePlan", ap);
         } else {
             stats.put("activePlan", null);
         }
