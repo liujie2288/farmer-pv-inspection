@@ -2,13 +2,11 @@ import client from './client';
 
 export interface InspectPlan {
   id: number;
-  planId: number;
   planName: string;
-  projectId: number;
-  projectName: string;
   startTime: string;
   endTime: string;
   status: number;
+  projectCount: number;
   totalCount: number;
   inspectedCount: number;
   completionRate: number;
@@ -41,6 +39,10 @@ export function createPlan(data: { planName: string; projectIds: number[]; start
 
 export function updatePlan(planId: number, data: { startTime?: string; endTime?: string }) {
   return client.put<any, { code: number }>(`/inspect/plans/${planId}`, data);
+}
+
+export function deletePlan(planId: number) {
+  return client.delete<any, { code: number }>(`/inspect/plans/${planId}`);
 }
 
 export function finishPlan(planId: number) {

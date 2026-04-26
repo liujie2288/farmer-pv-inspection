@@ -6,10 +6,13 @@ import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.common.PageDto;
 import com.yldlxj.pv.inspect.plan.dto.PlanDto;
 import com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo;
+import com.yldlxj.pv.inspect.plan.dto.PlanViewVo;
+import com.yldlxj.pv.inspect.plan.dto.UpdatePlanDto;
 import com.yldlxj.pv.inspect.project.Project;
 import com.yldlxj.pv.inspect.project.ProjectMapper;
 import com.yldlxj.pv.inspect.station.StationMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,13 +29,13 @@ public class InspectPlanService {
     private final ProjectMapper projectMapper;
     private final StationMapper stationMapper;
 
-    public PageDto<PlanProjectViewVo> listPlans(int page, int size, String keyword, Integer status) {
-        long total = planMapper.countPlanView(keyword, status);
+    public PageDto<PlanViewVo> listPlans(int page, int size, String keyword, Integer status) {
+        long total = planMapper.countPlan(keyword, status);
         if (total == 0) {
             return PageDto.of(Collections.emptyList(), 0, page, size);
         }
 
-        List<PlanProjectViewVo> records = planMapper.listPlanView(keyword, status, (page - 1) * size, size);
+        List<PlanViewVo> records = planMapper.listPlan(keyword, status, (page - 1) * size, size);
 
         records.forEach(vo -> {
             double rate = vo.getTotalCount() != null && vo.getTotalCount() > 0
@@ -87,7 +90,7 @@ public class InspectPlanService {
     }
 
     @Transactional
-    public void updatePlan(Long planId, LocalDate startTime, LocalDate endTime) {
+    public void updatePlan(Long planId, UpdatePlanDto dto) {
         InspectPlan plan = planMapper.selectById(planId);
         if (plan == null) {
             throw new BusinessException("计划不存在");
@@ -95,8 +98,8 @@ public class InspectPlanService {
         if (plan.getStatus() == PlanStatus.FINISHED) {
             throw new BusinessException("已结束的计划不可修改");
         }
-        if (startTime != null) plan.setStartTime(startTime);
-        if (endTime != null) plan.setEndTime(endTime);
+        if (dto.getStartTime() != null) plan.setStartTime(dto.getStartTime());
+        if (dto.getEndTime() != null) plan.setEndTime(dto.getEndTime());
         validateTimeRange(plan.getStartTime(), plan.getEndTime());
         planMapper.updateById(plan);
     }
@@ -110,6 +113,20 @@ public class InspectPlanService {
                 planMapper.updateById(plan);
             }
         }
+    }
+
+    @Transactional
+    public void deletePlan(Long planId) {
+        InspectPlan plan = planMapper.selectById(planId);
+        if (plan == null) {
+            throw new BusinessException("计划不存在");
+        }
+        if (plan.getStatus() != PlanStatus.PENDING) {
+            throw new BusinessException("仅未开始的计划可以删除");
+        }
+        planProjectMapper.delete(new LambdaQueryWrapper<InspectPlanProject>()
+                .eq(InspectPlanProject::getPlanId, planId));
+        planMapper.deleteById(planId);
     }
 
     public Map<String, Object> getPlanStats(Long planId) {
@@ -163,8 +180,8 @@ public class InspectPlanService {
         return plan;
     }
 
-    @org.springframework.scheduling.annotation.Scheduled(cron = "5 0 * * * *")
     @Transactional
+    @Scheduled(cron = "5 0,5 * * * *")
     public void autoTransitionStatus() {
         LocalDate today = LocalDate.now();
 
@@ -187,12 +204,6 @@ public class InspectPlanService {
             plan.setStatus(PlanStatus.FINISHED);
             planMapper.updateById(plan);
         }
-    }
-
-    @org.springframework.scheduling.annotation.Scheduled(cron = "0 2 * * * *")
-    @Transactional
-    public void autoTransitionStatusRetry() {
-        autoTransitionStatus();
     }
 
     private void validateProject(Long projectId) {
@@ -218,7 +229,7 @@ public class InspectPlanService {
                             .in(InspectPlan::getStatus, Arrays.asList(PlanStatus.PENDING, PlanStatus.IN_PROGRESS))
             );
             if (count > 0) {
-                throw new BusinessException("该项目当前已有未结束的巡检计划");
+                throw new BusinessException("勾选的项目中关联有未结束的巡检计划");
             }
         }
     }

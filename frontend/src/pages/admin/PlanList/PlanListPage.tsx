@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Clock, Users, ClipboardList, X } from 'lucide-react';
+import { Search, Plus, Clock, Users, ClipboardList, X, Trash2, FolderOpen } from 'lucide-react';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
-import { listPlans, createPlan, type InspectPlan } from '@/api/plans';
+import { listPlans, createPlan, deletePlan, type InspectPlan } from '@/api/plans';
 import { listProjects, type Project } from '@/api/projects';
 import { showToast } from '@/components/ui/Toast';
+import { confirm } from '@/components/ui/Dialog';
 import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
@@ -231,6 +232,19 @@ function PlanListPage() {
     loadPlans(1);
   };
 
+  const handleDelete = async (planId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const ok = await confirm({ title: '删除计划', content: '确定删除此巡检计划吗？此操作不可撤销。' });
+    if (!ok) return;
+    try {
+      await deletePlan(planId);
+      showToast({ icon: 'success', content: '删除成功' });
+      loadPlans(1);
+    } catch (e: any) {
+      showToast({ icon: 'fail', content: e.message || '删除失败' });
+    }
+  };
+
   const hasMore = plans.length < total;
 
   const sentinelRef = useInfiniteScroll(
@@ -302,7 +316,7 @@ function PlanListPage() {
               return (
                 <div
                   key={plan.id}
-                  onClick={() => navigate(`/admin/plans/${plan.planId}`)}
+                  onClick={() => navigate(`/admin/plans/${plan.id}`)}
                   className="group cursor-pointer rounded-xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-teal/30 hover:shadow-md"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -315,13 +329,25 @@ function PlanListPage() {
                           {sc.text}
                         </span>
                       </div>
-                      <p className="mt-1.5 text-sm text-gray-500">
-                        {plan.projectName}
-                      </p>
+                      <div className="mt-1.5 flex items-center gap-3 text-sm text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <FolderOpen size={13} className="text-gray-400" />
+                          {plan.projectCount} 个项目
+                        </span>
+                      </div>
                       <p className="mt-1 text-xs text-gray-400">
                         {plan.startTime} ~ {plan.endTime}
                       </p>
                     </div>
+                    {plan.status === 0 && (
+                      <button
+                        onClick={e => handleDelete(plan.id, e)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        aria-label="删除"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
 
                   <div className="mt-3 flex items-center gap-4 border-t border-gray-50 pt-3">

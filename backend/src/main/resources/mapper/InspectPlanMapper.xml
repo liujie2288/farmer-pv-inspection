@@ -47,6 +47,44 @@
         LIMIT #{offset}, #{limit}
     </select>
 
+    <select id="countPlan" resultType="long">
+        SELECT COUNT(*)
+        FROM inspect_plan p
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (p.plan_name LIKE CONCAT('%', #{keyword}, '%')
+                OR p.id IN (SELECT pp.plan_id FROM inspect_plan_project pp JOIN project proj ON pp.project_id = proj.id WHERE proj.project_name LIKE CONCAT('%', #{keyword}, '%')))
+            </if>
+            <if test="status != null">
+                AND p.status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="listPlan" resultType="com.yldlxj.pv.inspect.plan.dto.PlanViewVo">
+        SELECT
+            p.id AS id,
+            p.plan_name AS planName,
+            p.start_time AS startTime,
+            p.end_time AS endTime,
+            p.status AS status,
+            p.total_count AS totalCount,
+            p.inspected_count AS inspectedCount,
+            (SELECT COUNT(*) FROM inspect_plan_project pp WHERE pp.plan_id = p.id) AS projectCount
+        FROM inspect_plan p
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (p.plan_name LIKE CONCAT('%', #{keyword}, '%')
+                OR p.id IN (SELECT pp2.plan_id FROM inspect_plan_project pp2 JOIN project proj ON pp2.project_id = proj.id WHERE proj.project_name LIKE CONCAT('%', #{keyword}, '%')))
+            </if>
+            <if test="status != null">
+                AND p.status = #{status}
+            </if>
+        </where>
+        ORDER BY p.end_time DESC, p.id DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
     <select id="findActiveByProjectId" resultType="com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo">
         SELECT
         pp.id AS id,
