@@ -1,6 +1,6 @@
 package com.yldlxj.pv.inspect.export;
 
-import com.yldlxj.pv.inspect.auth.AuthService;
+import com.yldlxj.pv.inspect.auth.SecurityUtils;
 import com.yldlxj.pv.inspect.common.ApiResponse;
 import com.yldlxj.pv.inspect.storage.StorageService;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,6 @@ import java.util.Map;
 public class ExportController {
 
     private final ExportService exportService;
-    private final AuthService authService;
     private final StorageService storageService;
 
     @GetMapping("/pdf/{recordId}")
@@ -34,7 +33,7 @@ public class ExportController {
     public ApiResponse<ExportTask> exportPlan(
             @PathVariable Long planId,
             @RequestParam(defaultValue = "0") int exportType) {
-        Long operatorId = authService.getCurrentUserId();
+        Long operatorId = SecurityUtils.checkAndGetCurrentUserId();
         return ApiResponse.success(exportService.createExportTask(planId, operatorId, exportType));
     }
 

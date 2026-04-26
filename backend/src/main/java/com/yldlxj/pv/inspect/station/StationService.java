@@ -35,7 +35,6 @@ import java.util.*;
 public class StationService {
 
     private final StationMapper stationMapper;
-    private final ProjectMapper projectMapper;
     private final InspectRecordMapper inspectRecordMapper;
     private final InspectPlanMapper planMapper;
 

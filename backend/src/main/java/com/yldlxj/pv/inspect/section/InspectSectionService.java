@@ -1,6 +1,8 @@
 package com.yldlxj.pv.inspect.section;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.convert.SectionConvert;
 import com.yldlxj.pv.inspect.section.dto.SectionDto;
@@ -21,20 +23,28 @@ public class InspectSectionService {
     private final InspectSectionMapper sectionMapper;
     private final InspectSectionItemMapper itemMapper;
 
+    private final Cache<String, List<SectionViewVo>> sectionTreeCache = Caffeine.newBuilder()
+            .expireAfterWrite(12, java.util.concurrent.TimeUnit.HOURS)
+            .maximumSize(1)
+            .build();
+
     public List<SectionViewVo> listSectionTree() {
-        List<InspectSection> sections = sectionMapper.selectList(
-                new LambdaQueryWrapper<InspectSection>().orderByAsc(InspectSection::getSectionNo)
-        );
-        List<InspectSectionItem> allItems = itemMapper.selectList(
-                new LambdaQueryWrapper<InspectSectionItem>().orderByAsc(InspectSectionItem::getItemNo)
-        );
+        return sectionTreeCache.get("sectionTree", key -> buildSectionTree());
+    }
 
-        Map<Long, List<SectionItemViewVo>> itemMap = SectionConvert.INSTANCE.toItemVoList(allItems)
-                .stream().collect(Collectors.groupingBy(SectionItemViewVo::getSectionId));
+    public SectionViewVo getSectionBySectionId(Long sectionId) {
+        return listSectionTree().stream()
+                .filter(s -> s.getId().equals(sectionId))
+                .findFirst()
+                .orElse(null);
+    }
 
-        List<SectionViewVo> vos = SectionConvert.INSTANCE.toVoList(sections);
-        vos.forEach(vo -> vo.setItems(itemMap.getOrDefault(vo.getId(), List.of())));
-        return vos;
+    public SectionItemViewVo getSectionItemByItemId(Long itemId) {
+        return listSectionTree().stream()
+                .flatMap(s -> s.getItems().stream())
+                .filter(i -> i.getId().equals(itemId))
+                .findFirst()
+                .orElse(null);
     }
 
     public List<InspectSection> listSections() {
@@ -57,6 +67,7 @@ public class InspectSectionService {
         section.setSectionNo(dto.getSectionNo());
         section.setSectionName(dto.getSectionName());
         sectionMapper.insert(section);
+        sectionTreeCache.invalidateAll();
         return section.getId();
     }
 
@@ -73,6 +84,7 @@ public class InspectSectionService {
             section.setSectionName(dto.getSectionName());
         }
         sectionMapper.updateById(section);
+        sectionTreeCache.invalidateAll();
     }
 
     @Transactional
@@ -82,5 +94,22 @@ public class InspectSectionService {
             throw new BusinessException("大项不存在");
         }
         sectionMapper.deleteById(id);
+        sectionTreeCache.invalidateAll();
+    }
+
+    private List<SectionViewVo> buildSectionTree() {
+        List<InspectSection> sections = sectionMapper.selectList(
+                new LambdaQueryWrapper<InspectSection>().orderByAsc(InspectSection::getSectionNo)
+        );
+        List<InspectSectionItem> allItems = itemMapper.selectList(
+                new LambdaQueryWrapper<InspectSectionItem>().orderByAsc(InspectSectionItem::getItemNo)
+        );
+
+        Map<Long, List<SectionItemViewVo>> itemMap = SectionConvert.INSTANCE.toItemVoList(allItems)
+                .stream().collect(Collectors.groupingBy(SectionItemViewVo::getSectionId));
+
+        List<SectionViewVo> vos = SectionConvert.INSTANCE.toVoList(sections);
+        vos.forEach(vo -> vo.setItems(itemMap.getOrDefault(vo.getId(), List.of())));
+        return vos;
     }
 }

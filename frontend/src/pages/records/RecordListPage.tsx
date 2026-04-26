@@ -128,21 +128,21 @@ function RecordListPage() {
                   : null;
               return (
                 <div
-                  key={r.id}
-                  onClick={() => handleRecordClick(r.id)}
+                  key={r.recordId}
+                  onClick={() => handleRecordClick(r.recordId)}
                   className="group cursor-pointer bg-white rounded-xl shadow-sm border border-gray-100 p-5 transition-all hover:border-teal/30 hover:shadow-md"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <h3 className="text-base font-semibold text-navy truncate group-hover:text-teal">
-                        {r.projectName ? `${r.projectName} - ${r.stationName}` : (r.stationName || r.planName)}
+                        {r.projectName ? `${r.projectName} - ${r.stationOwnerName}` : (r.stationOwnerName || r.planName)}
                       </h3>
                       <p className="mt-1 text-sm text-gray-500 truncate">
                         {r.planName}{r.inspectorName ? ` · 巡检员: ${r.inspectorName}` : ''}
                       </p>
-                      {r.createTime && (
+                      {r.inspectorTime && (
                         <p className="mt-1.5 text-xs text-gray-400">
-                          {r.createTime.substring(0, 19).replace('T', ' ')}
+                          {r.inspectorTime.substring(0, 19).replace('T', ' ')}
                         </p>
                       )}
                     </div>
@@ -152,7 +152,7 @@ function RecordListPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(isAdmin ? `/admin/records/${r.id}/edit` : `/records/${r.id}/edit`);
+                            navigate(isAdmin ? `/admin/records/${r.recordId}/edit` : `/records/${r.recordId}/edit`);
                           }}
                           className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-teal/5 hover:text-teal"
                           title="编辑"

@@ -9,6 +9,7 @@ import {
   batchDeleteStations, importStations, Station
 } from '@/api/stations';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
+import { useDebounce } from '@/hooks/useDebounce';
 import { showToast } from '@/components/ui/Toast';
 import { confirm } from '@/components/ui/Dialog';
 import EmptyState from '@/components/ui/EmptyState';
@@ -74,14 +75,15 @@ function StationListPage() {
 
   // Load stations
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const debouncedSearch = useDebounce(searchText, 500);
 
-  const loadStations = useCallback(async (p: number = 1, append: boolean = false) => {
+  const loadStations = useCallback(async (p: number = 1, append: boolean = false, keyword?: string) => {
     setLoading(true);
     try {
       const res = await listStations(pid, {
         page: p,
         size: PAGE_SIZE,
-        keyword: searchText || undefined,
+        keyword: keyword || undefined,
         inspectStatus: statusFilter,
       });
       if (append) {
@@ -96,14 +98,14 @@ function StationListPage() {
     } finally {
       setLoading(false);
     }
-  }, [pid, searchText, statusFilter]);
+  }, [pid, statusFilter]);
 
-  useEffect(() => { loadStations(1); }, [loadStations]);
+  useEffect(() => { loadStations(1, false, debouncedSearch); }, [loadStations, debouncedSearch]);
 
   // Handle search
   const handleSearch = () => {
     setSelectedIds(new Set());
-    loadStations(1);
+    loadStations(1, false, searchText);
   };
 
   const handleSearchKeyDown = (e: React.KeyboardEvent) => {
@@ -165,7 +167,7 @@ function StationListPage() {
       });
       showToast({ icon: 'success', content: '创建成功' });
       setShowCreate(false);
-      loadStations(1);
+      loadStations(1, false, debouncedSearch);
     } catch (e: any) {
       showToast({ icon: 'fail', content: e.message || '创建失败' });
     }
@@ -188,7 +190,7 @@ function StationListPage() {
       await batchDeleteStations(pid, Array.from(selectedIds));
       showToast({ icon: 'success', content: '批量删除成功' });
       setSelectedIds(new Set());
-      loadStations(1);
+      loadStations(1, false, debouncedSearch);
     } catch (e: any) {
       showToast({ icon: 'fail', content: e.message || '删除失败' });
     }
@@ -204,7 +206,7 @@ function StationListPage() {
       const res = await importStations(pid, file);
       showToast({ icon: 'success', content: `成功导入 ${res.data.successCount} 户` });
       setShowImport(false);
-      loadStations(1);
+      loadStations(1, false, debouncedSearch);
     } catch (e: any) {
       showToast({ icon: 'fail', content: e.message || '导入失败' });
     }
@@ -221,14 +223,14 @@ function StationListPage() {
   const goToPage = (p: number) => {
     if (p < 1 || p > totalPages) return;
     setSelectedIds(new Set());
-    loadStations(p, false);
+    loadStations(p, false, searchText);
   };
 
   // Mobile infinite scroll
   const pageRef = useRef(1);
   pageRef.current = page;
   const mobileSentinelRef = useInfiniteScroll(
-    () => loadStations(pageRef.current + 1, true),
+    () => loadStations(pageRef.current + 1, true, debouncedSearch),
     { hasMore: stations.length < total, loading },
   );
 

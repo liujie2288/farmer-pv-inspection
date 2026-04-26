@@ -3,7 +3,7 @@ package com.yldlxj.pv.inspect.record;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.yldlxj.pv.inspect.auth.AuthService;
+import com.yldlxj.pv.inspect.common.PageDto;
 import com.yldlxj.pv.inspect.auth.SecurityUtils;
 import com.yldlxj.pv.inspect.common.enums.PlanStatus;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
@@ -15,20 +15,22 @@ import com.yldlxj.pv.inspect.plan.InspectPlanProjectMapper;
 import com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo;
 import com.yldlxj.pv.inspect.project.Project;
 import com.yldlxj.pv.inspect.project.ProjectMapper;
+import com.yldlxj.pv.inspect.project.ProjectService;
+import com.yldlxj.pv.inspect.record.dto.ChecklistItemDto;
 import com.yldlxj.pv.inspect.record.dto.ChecklistSectionDto;
 import com.yldlxj.pv.inspect.record.dto.InspectRecordDto;
 import com.yldlxj.pv.inspect.record.dto.PhotoSectionDto;
 import com.yldlxj.pv.inspect.record.dto.vo.*;
-import com.yldlxj.pv.inspect.section.InspectSection;
-import com.yldlxj.pv.inspect.section.InspectSectionItem;
-import com.yldlxj.pv.inspect.section.InspectSectionItemMapper;
-import com.yldlxj.pv.inspect.section.InspectSectionMapper;
+import com.yldlxj.pv.inspect.section.InspectSectionService;
+import com.yldlxj.pv.inspect.section.dto.SectionItemViewVo;
+import com.yldlxj.pv.inspect.section.dto.SectionViewVo;
 import com.yldlxj.pv.inspect.station.Station;
 import com.yldlxj.pv.inspect.station.StationMapper;
 import com.yldlxj.pv.inspect.storage.StorageService;
 import com.yldlxj.pv.inspect.storage.WatermarkService;
 import com.yldlxj.pv.inspect.user.SysUser;
 import com.yldlxj.pv.inspect.user.SysUserMapper;
+import com.yldlxj.pv.inspect.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -52,16 +54,17 @@ public class InspectRecordService {
     private final InspectPlanProjectMapper planProjectMapper;
     private final StationMapper stationMapper;
     private final SysUserMapper userMapper;
-    private final ProjectMapper projectMapper;
-    private final InspectSectionMapper sectionMapper;
-    private final InspectSectionItemMapper sectionItemMapper;
-    private final AuthService authService;
+
+    private final UserService userService;
+    private final ProjectService projectService;
+    private final InspectSectionService sectionService;
+
     private final StorageService storageService;
     private final WatermarkService watermarkService;
 
     @Transactional
     public Long submitRecord(InspectRecordDto dto) {
-        Long inspectorId = SecurityUtils.getCurrentUserId();
+        Long inspectorId = SecurityUtils.checkAndGetCurrentUserId();
 
         Station station = stationMapper.selectById(dto.getStationId());
         if (station == null || !station.getProjectId().equals(dto.getProjectId())) {
@@ -113,7 +116,7 @@ public class InspectRecordService {
 
     @Transactional
     public void updateRecord(Long id, InspectRecordDto dto) {
-        Long inspectorId = authService.getCurrentUserId();
+        Long inspectorId = SecurityUtils.checkAndGetCurrentUserId();
         InspectRecord record = recordMapper.selectById(id);
 
         if (record == null) {
@@ -144,16 +147,17 @@ public class InspectRecordService {
 
         InspectPlan plan = planMapper.selectById(record.getPlanId());
         Station station = stationMapper.selectById(record.getStationId());
-        SysUser inspector = userMapper.selectById(record.getInspectorId());
 
-        Long currentUserId = authService.getCurrentUserId();
+        Long currentUserId = SecurityUtils.checkAndGetCurrentUserId();
         boolean canEdit = record.getInspectorId().equals(currentUserId) && plan != null && plan.getStatus() == PlanStatus.IN_PROGRESS;
 
-        // Lookup template data
-        Map<Long, InspectSection> sectionMap = sectionMapper.selectList(null).stream()
-                .collect(Collectors.toMap(InspectSection::getId, Function.identity()));
-        Map<Long, InspectSectionItem> itemMap = sectionItemMapper.selectList(null).stream()
-                .collect(Collectors.toMap(InspectSectionItem::getId, Function.identity()));
+        // Lookup template data from cache
+        List<SectionViewVo> sectionTree = sectionService.listSectionTree();
+        Map<Long, SectionViewVo> sectionMap = sectionTree.stream()
+                .collect(Collectors.toMap(SectionViewVo::getId, Function.identity()));
+        Map<Long, SectionItemViewVo> itemMap = sectionTree.stream()
+                .flatMap(s -> s.getItems().stream())
+                .collect(Collectors.toMap(SectionItemViewVo::getId, Function.identity()));
 
         // Build enriched checklistResult
         List<ChecklistSectionVo> checklistVo = buildChecklistVo(record.getChecklistResult(), sectionMap, itemMap);
@@ -166,8 +170,8 @@ public class InspectRecordService {
         vo.setPlanName(plan != null ? plan.getPlanName() : "");
         vo.setStationName(station != null ? station.getOwnerName() : "");
         vo.setStationCode(station != null ? station.getStationCode() : "");
-        vo.setProjectName(getProjectName(record.getProjectId()));
-        vo.setInspectorName(inspector != null ? inspector.getRealName() : "");
+        vo.setProjectName(projectService.getNameByProjectId(record.getProjectId()));
+        vo.setInspectorName(userService.findRealNameByUserId(record.getInspectorId()));
         vo.setChecklistResult(checklistVo);
         vo.setPhotos(photoVo);
         vo.setLongitude(record.getLongitude());
@@ -178,96 +182,25 @@ public class InspectRecordService {
         return vo;
     }
 
-    public IPage<Map<String, Object>> listRecords(Long stationId, Long planId, String keyword, Integer status, int page, int size) {
-        Long currentUserId = authService.getCurrentUserId();
-        SysUser currentUser = userMapper.selectById(currentUserId);
+    public PageDto<RecordSimpleVo> listRecords(Long stationId, Long planId, String keyword, Integer status, int page, int size) {
+        SysUser currentUser = SecurityUtils.getCurrentUser();
         boolean isInspector = currentUser != null && "inspector".equals(currentUser.getRole());
+        Long inspectorId = isInspector ? currentUser.getId() : null;
 
-        LambdaQueryWrapper<InspectRecord> wrapper = new LambdaQueryWrapper<>();
-        if (stationId != null && stationId > 0) {
-            wrapper.eq(InspectRecord::getStationId, stationId);
-        }
-        if (planId != null) {
-            wrapper.eq(InspectRecord::getPlanId, planId);
-        }
+        long total = recordMapper.countRecords(stationId, planId, keyword, status, inspectorId);
+        List<RecordSimpleVo> records = recordMapper.listRecords(stationId, planId, keyword, status, inspectorId, (page - 1) * size, size);
 
-        if (status != null) {
-            List<InspectPlan> statusPlans = planMapper.selectList(
-                    new LambdaQueryWrapper<InspectPlan>().eq(InspectPlan::getStatus, status));
-            List<Long> statusPlanIds = statusPlans.stream().map(InspectPlan::getId).toList();
-            if (statusPlanIds.isEmpty()) {
-                Page<Map<String, Object>> emptyPage = new Page<>(page, size, 0);
-                emptyPage.setRecords(Collections.emptyList());
-                return emptyPage;
-            }
-            wrapper.in(InspectRecord::getPlanId, statusPlanIds);
-        }
+        Long currentUserId = currentUser == null ? null : currentUser.getId();
+        records.forEach(vo -> vo.setCanEdit(
+                vo.getInspectorId().equals(currentUserId) && vo.getPlanStatus() != null && vo.getPlanStatus() == PlanStatus.IN_PROGRESS.getCode()
+        ));
 
-        if (keyword != null && !keyword.isBlank()) {
-            List<Long> matchedPlanIds = planMapper.selectList(
-                            new LambdaQueryWrapper<InspectPlan>().like(InspectPlan::getPlanName, keyword))
-                    .stream().map(InspectPlan::getId).toList();
-            List<Long> matchedInspectorIds = userMapper.selectList(
-                            new LambdaQueryWrapper<SysUser>().like(SysUser::getRealName, keyword))
-                    .stream().map(SysUser::getId).toList();
-            List<Long> matchedStationIds = stationMapper.selectList(
-                            new LambdaQueryWrapper<Station>().like(Station::getOwnerName, keyword))
-                    .stream().map(Station::getId).toList();
-
-            if (matchedPlanIds.isEmpty() && matchedInspectorIds.isEmpty() && matchedStationIds.isEmpty()) {
-                Page<Map<String, Object>> emptyPage = new Page<>(page, size, 0);
-                emptyPage.setRecords(Collections.emptyList());
-                return emptyPage;
-            }
-            wrapper.and(w -> {
-                if (!matchedPlanIds.isEmpty()) {
-                    w.in(InspectRecord::getPlanId, matchedPlanIds);
-                }
-                if (!matchedInspectorIds.isEmpty()) {
-                    if (!matchedPlanIds.isEmpty()) w.or();
-                    w.in(InspectRecord::getInspectorId, matchedInspectorIds);
-                }
-                if (!matchedStationIds.isEmpty()) {
-                    if (!matchedPlanIds.isEmpty() || !matchedInspectorIds.isEmpty()) w.or();
-                    w.in(InspectRecord::getStationId, matchedStationIds);
-                }
-            });
-        }
-
-        if (isInspector) {
-            wrapper.eq(InspectRecord::getInspectorId, currentUserId);
-        }
-        wrapper.orderByDesc(InspectRecord::getCreateTime);
-
-        IPage<InspectRecord> recordPage = recordMapper.selectPage(new Page<>(page, size), wrapper);
-
-        Page<Map<String, Object>> resultPage = new Page<>(recordPage.getCurrent(), recordPage.getSize(), recordPage.getTotal());
-        List<Map<String, Object>> records = new ArrayList<>();
-        for (InspectRecord r : recordPage.getRecords()) {
-            InspectPlan plan = planMapper.selectById(r.getPlanId());
-            SysUser inspector = userMapper.selectById(r.getInspectorId());
-            Station station = stationMapper.selectById(r.getStationId());
-            boolean canEdit = r.getInspectorId().equals(currentUserId) && plan != null && plan.getStatus() == PlanStatus.IN_PROGRESS;
-
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", r.getId());
-            map.put("planName", plan != null ? plan.getPlanName() : "");
-            map.put("stationName", station != null ? station.getOwnerName() : "");
-            map.put("projectName", getProjectName(r.getProjectId()));
-            map.put("createTime", r.getCreateTime());
-            map.put("inspectorName", inspector != null ? inspector.getRealName() : "");
-            map.put("canEdit", canEdit);
-            map.put("planStatus", plan != null ? plan.getStatus() : null);
-            records.add(map);
-        }
-        resultPage.setRecords(records);
-        return resultPage;
+        return PageDto.of(records, total, page, size);
     }
 
     public String uploadPhoto(MultipartFile file, Integer sectionId,
                               Double longitude, Double latitude) {
-        Long inspectorId = authService.getCurrentUserId();
-        SysUser inspector = userMapper.selectById(inspectorId);
+        SysUser inspector = SecurityUtils.getCurrentUser();
 
         try {
             String timeStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
@@ -299,15 +232,15 @@ public class InspectRecordService {
     }
 
     private List<ChecklistSectionVo> buildChecklistVo(List<ChecklistSectionDto> sections,
-                                                      Map<Long, InspectSection> sectionMap,
-                                                      Map<Long, InspectSectionItem> itemMap) {
+                                                      Map<Long, SectionViewVo> sectionMap,
+                                                      Map<Long, SectionItemViewVo> itemMap) {
         if (sections == null) return Collections.emptyList();
         List<ChecklistSectionVo> result = new ArrayList<>();
         for (ChecklistSectionDto dto : sections) {
             ChecklistSectionVo vo = new ChecklistSectionVo();
             vo.setSectionId(dto.getSectionId());
 
-            InspectSection section = sectionMap.get(dto.getSectionId());
+            SectionViewVo section = sectionMap.get(dto.getSectionId());
             if (section != null) {
                 vo.setSectionName(section.getSectionName());
                 vo.setSectionNo(section.getSectionNo());
@@ -315,14 +248,14 @@ public class InspectRecordService {
 
             if (dto.getItems() != null) {
                 List<ChecklistItemVo> itemVos = new ArrayList<>();
-                for (com.yldlxj.pv.inspect.record.dto.ChecklistItemDto item : dto.getItems()) {
+                for (ChecklistItemDto item : dto.getItems()) {
                     ChecklistItemVo itemVo = new ChecklistItemVo();
                     itemVo.setItemId(item.getItemId());
                     itemVo.setResult(item.getResult());
                     itemVo.setRemark(item.getRemark());
                     itemVo.setValue(item.getValue());
 
-                    InspectSectionItem templateItem = itemMap.get(item.getItemId());
+                    SectionItemViewVo templateItem = itemMap.get(item.getItemId());
                     if (templateItem != null) {
                         itemVo.setItemNo(templateItem.getItemNo());
                         itemVo.setContent(templateItem.getContent());
@@ -338,14 +271,14 @@ public class InspectRecordService {
     }
 
     private List<PhotoSectionVo> buildPhotoVo(List<PhotoSectionDto> photos,
-                                              Map<Long, InspectSection> sectionMap) {
+                                              Map<Long, SectionViewVo> sectionMap) {
         if (photos == null) return Collections.emptyList();
         List<PhotoSectionVo> result = new ArrayList<>();
         for (PhotoSectionDto dto : photos) {
             PhotoSectionVo vo = new PhotoSectionVo();
             vo.setSectionId(dto.getSectionId());
 
-            InspectSection section = sectionMap.get(dto.getSectionId());
+            SectionViewVo section = sectionMap.get(dto.getSectionId());
             if (section != null) {
                 vo.setSectionName(section.getSectionName());
             }
@@ -363,11 +296,5 @@ public class InspectRecordService {
             result.add(vo);
         }
         return result;
-    }
-
-    private String getProjectName(Long projectId) {
-        if (projectId == null) return "";
-        Project p = projectMapper.selectById(projectId);
-        return p != null ? p.getProjectName() : "";
     }
 }

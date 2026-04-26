@@ -8,7 +8,11 @@ import java.time.LocalDateTime;
 public class RecordSimpleVo {
     private Long recordId;
     private String planName;
+    private Integer planStatus;
+    private String projectName;
+    private String stationOwnerName;
     private Long inspectorId;
     private String inspectorName;
     private LocalDateTime inspectorTime;
+    private Boolean canEdit;
 }

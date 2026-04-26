@@ -4,21 +4,85 @@
 <mapper namespace="com.yldlxj.pv.inspect.record.InspectRecordMapper">
 
     <resultMap id="recordSimpleVo" type="com.yldlxj.pv.inspect.record.dto.vo.RecordSimpleVo">
-        <result column="id" property="recordId"/>
-        <result column="inspector_id" property="inspectorId"/>
+        <result column="record_id" property="recordId"/>
         <result column="plan_name" property="planName"/>
+        <result column="project_name" property="projectName"/>
+        <result column="owner_name" property="stationOwnerName"/>
+        <result column="inspector_id" property="inspectorId"/>
         <result column="real_name" property="inspectorName"/>
-        <result column="create_time" property="inspectorTime"/>
+        <result column="inspector_time" property="inspectorTime"/>
+        <result column="plan_status" property="planStatus"/>
     </resultMap>
+
+    <sql id="recordListColumns">
+        r.id AS record_id,
+        p.plan_name,
+        p.status AS plan_status,
+        pj.project_name,
+        s.owner_name,
+        r.inspector_id,
+        u.real_name,
+        r.create_time AS inspector_time
+    </sql>
+
+    <sql id="recordListJoins">
+        FROM inspect_record r
+        INNER JOIN inspect_plan p ON r.plan_id = p.id
+        INNER JOIN project pj ON r.project_id = pj.id
+        INNER JOIN station s ON r.station_id = s.id
+        LEFT JOIN sys_user u ON r.inspector_id = u.id
+    </sql>
+
+    <sql id="recordListConditions">
+        <where>
+            <if test="stationId != null and stationId > 0">
+                AND r.station_id = #{stationId}
+            </if>
+            <if test="planId != null">
+                AND r.plan_id = #{planId}
+            </if>
+            <if test="status != null">
+                AND p.status = #{status}
+            </if>
+            <if test="inspectorId != null">
+                AND r.inspector_id = #{inspectorId}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                AND (
+                    pj.project_name LIKE CONCAT('%', #{keyword}, '%')
+                    OR u.real_name LIKE CONCAT('%', #{keyword}, '%')
+                    OR s.owner_name LIKE CONCAT('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
+    </sql>
+
+    <select id="listRecords" resultMap="recordSimpleVo">
+        SELECT <include refid="recordListColumns"/>
+        <include refid="recordListJoins"/>
+        <include refid="recordListConditions"/>
+        ORDER BY r.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countRecords" resultType="long">
+        SELECT COUNT(*)
+        <include refid="recordListJoins"/>
+        <include refid="recordListConditions"/>
+    </select>
 
     <select id="listByStationId" resultMap="recordSimpleVo">
         SELECT
-            r.id,
+            r.id AS record_id,
             r.inspector_id,
-            r.create_time,
-            p.plan_name
+            r.create_time AS inspector_time,
+            p.plan_name,
+            p.status AS plan_status,
+            u.real_name
         FROM inspect_record r
-        JOIN inspect_plan p ON r.plan_id = p.id and r.station_id = #{stationId}
+        JOIN inspect_plan p ON r.plan_id = p.id
+        LEFT JOIN sys_user u ON r.inspector_id = u.id
+        WHERE r.station_id = #{stationId}
         ORDER BY r.id DESC
     </select>
 

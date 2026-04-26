@@ -4,6 +4,7 @@ import { ArrowLeft, Search, Users, Calendar, CheckCircle } from 'lucide-react';
 import { listStations, Station } from '@/api/stations';
 import { getProject, getProjectPlan, type ProjectPlan } from '@/api/projects';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
+import { useDebounce } from '@/hooks/useDebounce';
 import { showToast } from '@/components/ui/Toast';
 import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -39,12 +40,14 @@ function InspectorStationListPage() {
     ? undefined
     : filterStatus === 'inspected' ? 1 : 0;
 
-  const loadStations = useCallback(async (p: number = 1) => {
+  const debouncedSearch = useDebounce(searchText, 500);
+
+  const loadStations = useCallback(async (p: number = 1, keyword?: string) => {
     try {
       const res = await listStations(pid, {
         page: p,
         size: 50,
-        keyword: searchText || undefined,
+        keyword: keyword || undefined,
         inspectStatus: statusParam,
       });
       setStations(prev => p === 1 ? res.data.records : [...prev, ...res.data.records]);
@@ -55,22 +58,17 @@ function InspectorStationListPage() {
     } finally {
       setLoading(false);
     }
-  }, [pid, searchText, statusParam]);
+  }, [pid, statusParam]);
 
   useEffect(() => {
     setLoading(true);
-    loadStations(1);
-  }, [loadStations]);
+    loadStations(1, debouncedSearch);
+  }, [loadStations, debouncedSearch]);
 
   const sentinelRef = useInfiniteScroll(
-    () => loadStations(page + 1),
+    () => loadStations(page + 1, debouncedSearch),
     { hasMore: stations.length < total, loading },
   );
-
-  const handleSearch = () => {
-    setLoading(true);
-    loadStations(1);
-  };
 
   const handleInspect = (stationId: number) => {
     const params = plan ? `?planId=${plan.planId}` : '';
@@ -154,7 +152,6 @@ function InspectorStationListPage() {
             placeholder="搜索户主姓名或编号"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             className="w-full bg-white rounded-lg pl-9 pr-4 py-2.5 text-sm border border-gray-200 focus:outline-none focus:border-teal focus:ring-1 focus:ring-teal/30 transition-colors"
           />
         </div>

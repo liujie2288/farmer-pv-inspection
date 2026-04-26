@@ -13,6 +13,14 @@ public class SecurityUtils {
         return Optional.ofNullable(getCurrentUser()).map(BaseEntity::getId).orElse(null);
     }
 
+    public static Long checkAndGetCurrentUserId() {
+        SysUser user = getCurrentUser();
+        if (user == null) {
+            throw new com.yldlxj.pv.inspect.common.exception.UnauthorizedException("用户不存在");
+        }
+        return user.getId();
+    }
+
     public static SysUser getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 

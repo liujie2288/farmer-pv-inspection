@@ -11,4 +11,18 @@ import java.util.List;
 public interface InspectRecordMapper extends BaseMapper<InspectRecord> {
 
     List<RecordSimpleVo> listByStationId(@Param("stationId") Long stationId);
+
+    List<RecordSimpleVo> listRecords(@Param("stationId") Long stationId,
+                                     @Param("planId") Long planId,
+                                     @Param("keyword") String keyword,
+                                     @Param("status") Integer status,
+                                     @Param("inspectorId") Long inspectorId,
+                                     @Param("offset") int offset,
+                                     @Param("limit") int limit);
+
+    long countRecords(@Param("stationId") Long stationId,
+                      @Param("planId") Long planId,
+                      @Param("keyword") String keyword,
+                      @Param("status") Integer status,
+                      @Param("inspectorId") Long inspectorId);
 }

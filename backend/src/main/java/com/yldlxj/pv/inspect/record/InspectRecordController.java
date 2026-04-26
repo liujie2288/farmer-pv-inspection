@@ -1,9 +1,10 @@
 package com.yldlxj.pv.inspect.record;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.yldlxj.pv.inspect.common.ApiResponse;
+import com.yldlxj.pv.inspect.common.PageDto;
 import com.yldlxj.pv.inspect.record.dto.InspectRecordDto;
 import com.yldlxj.pv.inspect.record.dto.vo.RecordDetailVo;
+import com.yldlxj.pv.inspect.record.dto.vo.RecordSimpleVo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -37,7 +38,7 @@ public class InspectRecordController {
     }
 
     @GetMapping
-    public ApiResponse<IPage<Map<String, Object>>> listRecords(
+    public ApiResponse<PageDto<RecordSimpleVo>> listRecords(
             @RequestParam(required = false) Long stationId,
             @RequestParam(required = false) Long planId,
             @RequestParam(required = false) String keyword,
