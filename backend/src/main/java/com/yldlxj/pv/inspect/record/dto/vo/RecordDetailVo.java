@@ -12,9 +12,10 @@ import java.util.List;
 public class RecordDetailVo {
     private Long id;
     private String planName;
-    private String stationName;
-    private String stationCode;
+    private Integer planStatus;
     private String projectName;
+    private String stationCode;
+    private String stationName;
     private String inspectorName;
     private String weather;
     private List<ChecklistSectionVo> checklistResult;
@@ -22,5 +23,6 @@ public class RecordDetailVo {
     private BigDecimal longitude;
     private BigDecimal latitude;
     private LocalDateTime createTime;
+    private LocalDateTime editDeadline;
     private Boolean canEdit;
 }

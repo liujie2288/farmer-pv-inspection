@@ -25,4 +25,6 @@ public interface InspectRecordMapper extends BaseMapper<InspectRecord> {
                       @Param("keyword") String keyword,
                       @Param("status") Integer status,
                       @Param("inspectorId") Long inspectorId);
+
+    void updateEditDeadline(@Param("id") Long id, @Param("editDeadline") java.time.LocalDateTime editDeadline);
 }

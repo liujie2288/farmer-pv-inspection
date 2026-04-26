@@ -1,14 +1,12 @@
 package com.yldlxj.pv.inspect.record;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yldlxj.pv.inspect.common.PageDto;
 import com.yldlxj.pv.inspect.auth.SecurityUtils;
 import com.yldlxj.pv.inspect.common.enums.PlanStatus;
 import com.yldlxj.pv.inspect.common.enums.UserRole;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
-import com.yldlxj.pv.inspect.common.exception.ForbiddenException;
 import com.yldlxj.pv.inspect.plan.InspectPlan;
 import com.yldlxj.pv.inspect.plan.InspectPlanMapper;
 import com.yldlxj.pv.inspect.plan.InspectPlanProject;
@@ -118,18 +116,15 @@ public class InspectRecordService {
 
     @Transactional
     public void updateRecord(Long id, InspectRecordDto dto) {
-        Long inspectorId = SecurityUtils.checkAndGetCurrentUserId();
         InspectRecord record = recordMapper.selectById(id);
 
         if (record == null) {
             throw new BusinessException("巡检记录不存在");
         }
-        if (!record.getInspectorId().equals(inspectorId)) {
-            throw new ForbiddenException("只能修改本人的巡检记录");
-        }
 
-        if (record.getEditDeadline() != null && LocalDateTime.now().isAfter(record.getEditDeadline())) {
-            throw new BusinessException("已超过编辑截止时间，记录不可修改");
+        SysUser currentUser = SecurityUtils.getCurrentUser();
+        if (!canEditRecord(record, currentUser)) {
+            throw new BusinessException("当前无权修改该巡检记录");
         }
 
         if (dto.getWeather() != null) record.setWeather(dto.getWeather());
@@ -149,9 +144,8 @@ public class InspectRecordService {
         InspectPlan plan = planMapper.selectById(record.getPlanId());
         Station station = stationMapper.selectById(record.getStationId());
 
-        Long currentUserId = SecurityUtils.checkAndGetCurrentUserId();
-        boolean canEdit = record.getInspectorId().equals(currentUserId)
-                && (record.getEditDeadline() == null || !LocalDateTime.now().isAfter(record.getEditDeadline()));
+        SysUser currentUser = SecurityUtils.getCurrentUser();
+        boolean canEdit = canEditRecord(record, plan, currentUser);
 
         // Lookup template data from cache
         List<SectionViewVo> sectionTree = sectionService.listSectionTree();
@@ -180,7 +174,9 @@ public class InspectRecordService {
         vo.setLatitude(record.getLatitude());
         vo.setWeather(record.getWeather());
         vo.setCreateTime(record.getCreateTime());
+        vo.setEditDeadline(record.getEditDeadline());
         vo.setCanEdit(canEdit);
+        vo.setPlanStatus(plan != null ? plan.getStatus().getCode() : null);
         return vo;
     }
 
@@ -192,13 +188,25 @@ public class InspectRecordService {
         long total = recordMapper.countRecords(stationId, planId, keyword, status, inspectorId);
         List<RecordSimpleVo> records = recordMapper.listRecords(stationId, planId, keyword, status, inspectorId, (page - 1) * size, size);
 
-        Long currentUserId = currentUser == null ? null : currentUser.getId();
-        LocalDateTime now = LocalDateTime.now();
-        records.forEach(vo -> vo.setCanEdit(
-                vo.getInspectorId().equals(currentUserId) && (vo.getEditDeadline() == null || !now.isAfter(vo.getEditDeadline()))
-        ));
+        records.forEach(vo -> vo.setCanEdit(canEditSimpleRecord(vo, currentUser)));
 
         return PageDto.of(records, total, page, size);
+    }
+
+    public void extendDeadline(Long id) {
+        SysUser currentUser = SecurityUtils.getCurrentUser();
+        if (currentUser == null || currentUser.getRole() != UserRole.ADMIN) {
+            throw new BusinessException("仅管理员可操作");
+        }
+        InspectRecord record = recordMapper.selectById(id);
+        if (record == null) {
+            throw new BusinessException("巡检记录不存在");
+        }
+        InspectPlan plan = planMapper.selectById(record.getPlanId());
+        if (plan == null || plan.getStatus() != PlanStatus.IN_PROGRESS) {
+            throw new BusinessException("巡检计划已结束，无法开放编辑");
+        }
+        recordMapper.updateEditDeadline(id, LocalDateTime.now().plusDays(2));
     }
 
     public String uploadPhoto(MultipartFile file, Integer sectionId,
@@ -232,6 +240,58 @@ public class InspectRecordService {
         } catch (Exception e) {
             throw new BusinessException("照片上传失败: " + e.getMessage());
         }
+    }
+
+    // ---- Edit permission logic ----
+    // canEdit = planInProgress && (isAdmin || beforeEditDeadline || (isSubmitter && within2Days))
+
+    private boolean canEditRecord(InspectRecord record, SysUser currentUser) {
+        InspectPlan plan = planMapper.selectById(record.getPlanId());
+        return canEditRecord(record, plan, currentUser);
+    }
+
+    private boolean canEditRecord(InspectRecord record, InspectPlan plan, SysUser currentUser) {
+        if (plan == null || plan.getStatus() != PlanStatus.IN_PROGRESS) {
+            return false;
+        }
+        if (currentUser == null) {
+            return false;
+        }
+        if (currentUser.getRole() == UserRole.ADMIN) {
+            return true;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (record.getEditDeadline() != null && !now.isAfter(record.getEditDeadline())) {
+            return true;
+        }
+        if (record.getInspectorId().equals(currentUser.getId())
+                && record.getCreateTime() != null
+                && !now.isAfter(record.getCreateTime().plusDays(2))) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean canEditSimpleRecord(RecordSimpleVo vo, SysUser currentUser) {
+        if (vo.getPlanStatus() == null || vo.getPlanStatus() != PlanStatus.IN_PROGRESS.getCode()) {
+            return false;
+        }
+        if (currentUser == null) {
+            return false;
+        }
+        if (currentUser.getRole() == UserRole.ADMIN) {
+            return true;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (vo.getEditDeadline() != null && !now.isAfter(vo.getEditDeadline())) {
+            return true;
+        }
+        if (vo.getInspectorId().equals(currentUser.getId())
+                && vo.getInspectorTime() != null
+                && !now.isAfter(vo.getInspectorTime().plusDays(2))) {
+            return true;
+        }
+        return false;
     }
 
     private List<ChecklistSectionVo> buildChecklistVo(List<ChecklistSectionDto> sections,

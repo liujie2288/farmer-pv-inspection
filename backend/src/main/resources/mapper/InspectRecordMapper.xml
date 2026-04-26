@@ -88,4 +88,8 @@
         ORDER BY r.id DESC
     </select>
 
+    <update id="updateEditDeadline">
+        UPDATE inspect_record SET edit_deadline = #{editDeadline}, update_time = NOW() WHERE id = #{id}
+    </update>
+
 </mapper>

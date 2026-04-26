@@ -15,6 +15,26 @@ import { showToast } from '@/components/ui/Toast';
 
 const WEATHER_PRESETS = ['晴', '多云', '阴', '小雨', '中雨', '大雨', '雷阵雨', '小雪', '大雪', '雾', '大风'];
 
+/** Convert backend VO (boolean result, remark, value) → internal format ('正常'/'异常', exceptionNote, measuredValue) */
+function convertVoToChecklist(vo: any[]): { sections: any[] } {
+  return {
+    sections: (vo || []).map((section: any) => ({
+      sectionId: section.sectionId,
+      sectionNo: section.sectionNo,
+      sectionName: section.sectionName,
+      items: (section.items || []).map((item: any) => ({
+        itemId: item.itemId,
+        itemNo: item.itemNo,
+        content: item.content,
+        itemType: item.itemType,
+        result: item.result === true ? '正常' : item.result === false ? '异常' : '',
+        exceptionNote: item.remark || '',
+        measuredValue: item.itemType === 2 ? { value: item.value || null } : null,
+      })),
+    })),
+  };
+}
+
 function InspectionFormPage() {
   const { projectId, stationId, recordId } = useParams<{ projectId: string; stationId: string; recordId: string }>();
   const [searchParams] = useSearchParams();
@@ -40,7 +60,7 @@ function InspectionFormPage() {
         if (isEdit && recordId) {
           const recordRes = await getInspectionDetail(Number(recordId));
           const record = recordRes.data;
-          setChecklistData(record.checklistResult || { sections: [] });
+          setChecklistData(convertVoToChecklist(record.checklistResult));
           const savedWeather = record.weather || '';
           if (WEATHER_PRESETS.includes(savedWeather)) {
             setWeather(savedWeather);

@@ -32,6 +32,12 @@ public class InspectRecordController {
         return ApiResponse.success();
     }
 
+    @PutMapping("/{id}/extend-deadline")
+    public ApiResponse<Void> extendDeadline(@PathVariable Long id) {
+        recordService.extendDeadline(id);
+        return ApiResponse.success();
+    }
+
     @GetMapping("/{id}")
     public ApiResponse<RecordDetailVo> getRecordDetail(@PathVariable Long id) {
         return ApiResponse.success(recordService.getRecordDetail(id));

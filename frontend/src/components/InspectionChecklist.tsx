@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ChevronDown,
   ChevronUp,
@@ -147,6 +147,10 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Track latest props to avoid stale closure in the init effect
+  const checklistDataRef = useRef(checklistData);
+  checklistDataRef.current = checklistData;
+
   // Fetch template on mount
   useEffect(() => {
     let cancelled = false;
@@ -160,8 +164,9 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
           throw new Error('模板数据格式异常');
         }
 
-        // Initialise checklist data if empty
-        if (!checklistData.sections || checklistData.sections.length === 0) {
+        // Initialise checklist data only if parent hasn't provided any
+        const current = checklistDataRef.current;
+        if (!current.sections || current.sections.length === 0) {
           onChange(buildInitialData(raw));
         }
       } catch (err: any) {
