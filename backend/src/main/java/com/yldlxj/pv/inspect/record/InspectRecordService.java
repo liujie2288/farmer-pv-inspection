@@ -165,7 +165,7 @@ public class InspectRecordService {
         List<ChecklistSectionVo> checklistVo = buildChecklistVo(record.getChecklistResult(), sectionMap, itemMap);
 
         // Build enriched photos
-        List<PhotoSectionVo> photoVo = buildPhotoVo(record.getPhotos(), sectionMap);
+        List<PhotoSectionVo> photoVo = buildPhotoVo(record.getPhotos(), sectionMap, itemMap);
 
         RecordDetailVo vo = new RecordDetailVo();
         vo.setId(record.getId());
@@ -274,7 +274,8 @@ public class InspectRecordService {
     }
 
     private List<PhotoSectionVo> buildPhotoVo(List<PhotoSectionDto> photos,
-                                              Map<Long, SectionViewVo> sectionMap) {
+                                              Map<Long, SectionViewVo> sectionMap,
+                                              Map<Long, SectionItemViewVo> itemMap) {
         if (photos == null) return Collections.emptyList();
         List<PhotoSectionVo> result = new ArrayList<>();
         for (PhotoSectionDto dto : photos) {
@@ -291,7 +292,13 @@ public class InspectRecordService {
                 for (com.yldlxj.pv.inspect.record.dto.PhotoItemDto item : dto.getItems()) {
                     PhotoItemVo itemVo = new PhotoItemVo();
                     itemVo.setItemId(item.getItemId());
+                    itemVo.setItemName(item.getItemName());
                     itemVo.setUrls(item.getUrls());
+
+                    SectionItemViewVo templateItem = itemMap.get(item.getItemId());
+                    if (templateItem != null) {
+                        itemVo.setItemName(templateItem.getContent());
+                    }
                     itemVos.add(itemVo);
                 }
                 vo.setItems(itemVos);

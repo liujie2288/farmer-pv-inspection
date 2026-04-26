@@ -10,13 +10,44 @@ import {
   XCircle,
   FileOutput,
   Pencil,
+  ImageIcon,
+  CloudSun,
 } from 'lucide-react';
-import { getInspectionDetail, normalizePhotos } from '@/api/inspections';
+import { getInspectionDetail } from '@/api/inspections';
 import { fetchPdf } from '@/api/export';
 import { useAuthStore } from '@/store/authStore';
 import { showToast } from '@/components/ui/Toast';
 import { openImagePreview } from '@/components/ui/ImagePreview';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+
+interface ChecklistItemVo {
+  itemId: number;
+  itemNo: number;
+  content: string;
+  itemType: number;
+  result: boolean | null;
+  remark: string | null;
+  value: string | null;
+}
+
+interface ChecklistSectionVo {
+  sectionId: number;
+  sectionName: string;
+  sectionNo: number;
+  items: ChecklistItemVo[];
+}
+
+interface PhotoItemVo {
+  itemId: number;
+  itemName: string;
+  urls: string[];
+}
+
+interface PhotoSectionVo {
+  sectionId: number;
+  sectionName: string;
+  items: PhotoItemVo[];
+}
 
 function RecordDetailPage() {
   const { recordId } = useParams<{ recordId: string }>();
@@ -41,14 +72,25 @@ function RecordDetailPage() {
   }
 
   const editPath = isAdmin ? `/admin/records/${recordId}/edit` : `/records/${recordId}/edit`;
-  const normalizedPhotos = normalizePhotos(detail.photos || {});
+
+  // Build photo lookup: sectionId → items
+  const photoMap = new Map<number, PhotoItemVo[]>();
+  (detail.photos as PhotoSectionVo[] || []).forEach(ps => {
+    if (ps.items?.length) {
+      photoMap.set(ps.sectionId, ps.items);
+    }
+  });
+
+  const checklistResult = (detail.checklistResult as ChecklistSectionVo[]) || [];
 
   const infoRows = [
     { label: '巡检计划', value: detail.planName, icon: FileText },
-    { label: '户主姓名', value: detail.stationName, icon: User },
     { label: '项目名称', value: detail.projectName, icon: FolderOpen },
+    { label: '电站编号', value: detail.stationCode, icon: FileText },
+    { label: '户主姓名', value: detail.stationName, icon: User },
     { label: '巡检员', value: detail.inspectorName, icon: User },
     { label: '巡检时间', value: detail.createTime, icon: Calendar },
+    { label: '天气', value: detail.weather, icon: CloudSun },
     {
       label: 'GPS坐标',
       value: detail.longitude && detail.latitude
@@ -69,10 +111,7 @@ function RecordDetailPage() {
           {infoRows.map((row) => {
             const Icon = row.icon;
             return (
-              <div
-                key={row.label}
-                className="flex items-center justify-between px-4 py-3"
-              >
+              <div key={row.label} className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-2.5 text-sm text-gray-500">
                   <Icon size={16} className="text-gray-400" />
                   <span>{row.label}</span>
@@ -86,85 +125,82 @@ function RecordDetailPage() {
         </div>
       </div>
 
-      {/* Checklist sections */}
-      {detail.checklistResult?.sections?.map((section: any) => (
-        <div
-          key={section.sectionId}
-          className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
-        >
+      {/* Inspection content */}
+      {checklistResult.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-4 py-3 bg-navy/5 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-navy">{section.sectionName}</h2>
+            <h2 className="text-sm font-semibold text-navy">巡检内容</h2>
           </div>
-          <div className="divide-y divide-gray-50">
-            {section.items?.map((item: any, idx: number) => {
-              const isNormal = item.result === '正常';
+          <div className="divide-y divide-gray-100">
+            {checklistResult.map((section) => {
+              const sectionPhotos = photoMap.get(section.sectionId);
               return (
-                <div key={item.itemId} className="px-4 py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm text-gray-800 flex-1">
-                      <span className="text-gray-400 mr-1">{idx + 1}.</span>
-                      {item.content}
-                    </p>
-                    <span
-                      className={`inline-flex items-center gap-1 shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        isNormal
-                          ? 'bg-green-50 text-green-600'
-                          : 'bg-red-50 text-red-600'
-                      }`}
-                    >
-                      {isNormal ? (
-                        <CheckCircle2 size={12} />
-                      ) : (
-                        <XCircle size={12} />
-                      )}
-                      {item.result || '未填写'}
-                    </span>
-                  </div>
+                <div key={section.sectionId} className="px-4 py-3">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-2">
+                    {section.sectionNo}. {section.sectionName}
+                  </h3>
 
-                  {item.exceptionNote && (
-                    <p className="mt-1.5 text-xs text-red-500 pl-5">
-                      异常说明: {item.exceptionNote}
-                    </p>
-                  )}
-
-                  {item.measuredValue &&
-                    Object.keys(item.measuredValue).length > 0 && (
-                      <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 pl-5">
-                        {Object.entries(item.measuredValue).map(([k, v]) => (
-                          <span key={k} className="text-xs text-gray-500">
-                            {k}: {String(v)}
+                  {/* Checklist items */}
+                  {section.items?.map((item) => (
+                    <div key={item.itemId} className="py-1.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-sm text-gray-700">
+                          {item.itemNo}. {item.content}
+                        </span>
+                        {item.itemType !== 2 && (
+                          <span className={`inline-flex items-center gap-1 shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                            item.result ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+                          }`}>
+                            {item.result ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                            {item.result ? '正常' : '异常'}
                           </span>
+                        )}
+                      </div>
+                      {item.value && (
+                        <p className="mt-0.5 text-xs text-gray-500 pl-5">实测值: {item.value}</p>
+                      )}
+                      {item.remark && (
+                        <p className="mt-0.5 text-xs text-red-500 pl-5">异常说明: {item.remark}</p>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Section photos grouped by item */}
+                  {sectionPhotos && sectionPhotos.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-gray-50">
+                      <div className="flex items-center gap-1 mb-2">
+                        <ImageIcon size={14} className="text-gray-400" />
+                        <span className="text-xs text-gray-400">现场照片</span>
+                      </div>
+                      <div className="space-y-3">
+                        {sectionPhotos.map((pi) => (
+                          <div key={pi.itemId}>
+                            {pi.itemName && (
+                              <p className="text-sm text-gray-700 mb-1.5">{pi.itemName}</p>
+                            )}
+                            <div className="grid grid-cols-3 lg:grid-cols-8 gap-2">
+                              {pi.urls?.map((url, idx) => (
+                                <div
+                                  key={idx}
+                                  className="aspect-square rounded-lg overflow-hidden bg-gray-100 cursor-pointer"
+                                  onClick={() => openImagePreview(url)}
+                                >
+                                  <img src={url} alt={`照片${idx + 1}`} className="w-full h-full object-cover" />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         ))}
                       </div>
-                    )}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
-
-          {/* Section photos */}
-          {normalizedPhotos[String(section.sectionId)]?.length > 0 && (
-            <div className="px-4 py-3 border-t border-gray-50">
-              <p className="text-xs text-gray-400 mb-2">现场照片</p>
-              <div className="grid grid-cols-3 gap-2">
-                {normalizedPhotos[String(section.sectionId)].map((photo, idx) => (
-                  <div key={idx} className="flex flex-col gap-1">
-                    <div
-                      className="aspect-square rounded-lg overflow-hidden bg-gray-100 cursor-pointer"
-                      onClick={() => openImagePreview(photo.url, photo.name)}
-                    >
-                      <img src={photo.url} alt={photo.name || `照片${idx + 1}`} className="w-full h-full object-cover" />
-                    </div>
-                    {photo.name && (
-                      <p className="text-xs text-gray-500 text-center truncate">{photo.name}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
-      ))}
+      )}
+
       <div className="pt-2 pb-2 flex flex-col gap-3">
         {detail.canEdit && (
           <button

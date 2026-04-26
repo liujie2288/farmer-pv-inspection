@@ -9,5 +9,6 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class PhotoItemVo {
     private Long itemId;
+    private String itemName;
     private List<String> urls;
 }

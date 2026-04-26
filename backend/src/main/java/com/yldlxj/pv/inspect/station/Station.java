@@ -39,8 +39,6 @@ public class Station extends BaseEntity {
 
     private BigDecimal latitude;
 
-    private InspectStatus status;
-
     private Long lastInspectRecordId;
 
     private LocalDateTime lastInspectTime;

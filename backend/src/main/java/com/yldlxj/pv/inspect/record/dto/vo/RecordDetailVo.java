@@ -16,11 +16,11 @@ public class RecordDetailVo {
     private String stationCode;
     private String projectName;
     private String inspectorName;
+    private String weather;
     private List<ChecklistSectionVo> checklistResult;
     private List<PhotoSectionVo> photos;
     private BigDecimal longitude;
     private BigDecimal latitude;
-    private String weather;
     private LocalDateTime createTime;
     private Boolean canEdit;
 }
