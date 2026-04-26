@@ -12,3 +12,8 @@ CREATE TABLE `sys_user` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='系统用户表';
+
+INSERT INTO `sys_user` (`id`, `username`, `password`, `real_name`, `phone`, `role`, `status`, `need_reset_pwd`)
+VALUES
+	(1, 'admin', '$2a$10$6GMhiIiiwnFO5CuexhTpj.uKAkPpVYkeQNFCzBKyakwD/ndqxcVKq', '系统管理员', null, 'admin', 1, 0),
+	(2, 'yanghehu', '$2a$10$EtFf4iLUkcZhymHYvPVV9O25lnEXDfzfW/zIMa3xLDF8Vn3gOiN9O', '杨合虎', '18181833656', 'admin', 1, 1);
