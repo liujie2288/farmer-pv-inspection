@@ -79,7 +79,7 @@ frontend/src/
 
 ## Key Architecture Decisions
 
-- **Station-based model**: Stations (电站) replace the old farmer entity. Each project has multiple stations with inverter/module details.
+- **Station-based model**: Stations (电站) replace the old farmer entity. Each project has multiple stations with inverter/module details. Station `status` field (InspectStatus enum: 0=未巡检, 1=已巡检) tracks inspection state.
 - **Configurable inspection template**: `inspect_section` + `inspect_section_item` tables define sections and items. Projects select which sections to use via `section_ids`.
 - **Plan-Project many-to-many**: `inspect_plan_project` links plans to projects with per-project progress tracking (`total_count` / `inspected_count`).
 - **Status enums**: `PlanStatus` and `InspectStatus` enums eliminate magic numbers.

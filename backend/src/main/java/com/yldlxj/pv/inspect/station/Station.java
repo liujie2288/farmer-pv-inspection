@@ -3,6 +3,7 @@ package com.yldlxj.pv.inspect.station;
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.yldlxj.pv.inspect.common.BaseEntity;
+import com.yldlxj.pv.inspect.common.enums.InspectStatus;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -37,6 +38,8 @@ public class Station extends BaseEntity {
     private BigDecimal longitude;
 
     private BigDecimal latitude;
+
+    private InspectStatus status;
 
     private Long lastInspectRecordId;
 

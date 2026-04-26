@@ -96,8 +96,8 @@ Auth: JWT required; admin role for all endpoints except `/pdf/**` (authenticated
 
 | exportType | ZIP内容 | 目录结构 |
 |------------|---------|----------|
-| 0 | PDF报告（含嵌入照片） | `{farmerCode}_{farmerName}.pdf` |
-| 1 | 原始照片 | `{farmerCode}_{farmerName}/section_{id}_{name}/photo_1.jpg` |
+| 0 | PDF报告（含嵌入照片） | `{stationCode}_{ownerName}.pdf` |
+| 1 | 原始照片 | `{stationCode}_{ownerName}/section_{id}_{name}/photo_1.jpg` |
 
 ## Task Status
 
