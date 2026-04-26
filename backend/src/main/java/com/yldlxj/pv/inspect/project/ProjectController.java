@@ -8,6 +8,7 @@ import com.yldlxj.pv.inspect.plan.InspectPlanService;
 import com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo;
 import com.yldlxj.pv.inspect.project.dto.ProjectDto;
 import com.yldlxj.pv.inspect.project.dto.ProjectViewVo;
+import com.yldlxj.pv.inspect.section.dto.SectionViewVo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -51,6 +52,11 @@ public class ProjectController {
     @GetMapping("/{id}/plan")
     public ApiResponse<PlanProjectViewVo> getProjectPlan(@PathVariable Long id) {
         return ApiResponse.success(inspectPlanService.getActivePlanByProjectId(id));
+    }
+
+    @GetMapping("/{id}/sections")
+    public ApiResponse<List<SectionViewVo>> getProjectSections(@PathVariable Long id) {
+        return ApiResponse.success(projectService.getProjectSections(id));
     }
 
     @PostMapping("/plans/batch")

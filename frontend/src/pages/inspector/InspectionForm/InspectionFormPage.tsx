@@ -260,6 +260,7 @@ function InspectionFormPage() {
           checklistData={checklistData}
           onChange={setChecklistData}
           readOnly={false}
+          projectId={!isEdit && projectId ? Number(projectId) : undefined}
         />
       </div>
 

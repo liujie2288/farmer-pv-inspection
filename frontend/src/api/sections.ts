@@ -19,3 +19,7 @@ export interface Section {
 export function getSectionTree() {
   return client.get<any, { code: number; data: Section[] }>('/sections');
 }
+
+export function getProjectSections(projectId: number) {
+  return client.get<any, { code: number; data: Section[] }>(`/projects/${projectId}/sections`);
+}

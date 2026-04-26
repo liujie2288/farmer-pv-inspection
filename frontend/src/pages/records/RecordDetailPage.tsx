@@ -207,7 +207,7 @@ function RecordDetailPage() {
         {isAdmin && detail.planStatus === 1 && detail.editDeadline && new Date(detail.editDeadline) > new Date() && (
           <div className="flex items-center justify-center gap-1.5 py-2.5 text-sm text-green-600">
             <CheckCircle2 size={14} />
-            <span>已开放编辑至 {detail.editDeadline.replace('T', ' ')}</span>
+            <span>已开放编辑权限至 {detail.editDeadline.replace('T', ' ')}</span>
           </div>
         )}
         {isAdmin && detail.planStatus === 1 && (!detail.editDeadline || new Date(detail.editDeadline) <= new Date()) && (
@@ -227,7 +227,7 @@ function RecordDetailPage() {
             className="w-full flex items-center justify-center gap-2 bg-amber-500 text-white rounded-xl py-3.5 text-sm font-medium shadow-sm hover:bg-amber-600 active:bg-amber-700 transition-colors"
           >
             <Unlock size={18} />
-            开放编辑
+            开放编辑权限
           </button>
         )}
         {detail.canEdit && (

@@ -9,6 +9,8 @@ import com.yldlxj.pv.inspect.device.InspectDeviceMapper;
 import com.yldlxj.pv.inspect.station.StationMapper;
 import com.yldlxj.pv.inspect.project.dto.ProjectDto;
 import com.yldlxj.pv.inspect.project.dto.ProjectViewVo;
+import com.yldlxj.pv.inspect.section.InspectSectionService;
+import com.yldlxj.pv.inspect.section.dto.SectionViewVo;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ public class ProjectService {
     private final ProjectMapper projectMapper;
     private final StationMapper stationMapper;
     private final InspectDeviceMapper deviceMapper;
+    private final InspectSectionService sectionService;
 
     private final Cache<Long, String> projectNameCache = Caffeine.newBuilder()
             .expireAfterWrite(12, TimeUnit.HOURS)
@@ -159,6 +162,21 @@ public class ProjectService {
         projectMapper.deleteById(id);
         projectNameCache.invalidate(id);
         deviceMapper.delete(new LambdaQueryWrapper<InspectDevice>().eq(InspectDevice::getProjectId, id));
+    }
+
+    public List<SectionViewVo> getProjectSections(Long id) {
+        Project project = projectMapper.selectById(id);
+        if (project == null || project.getSectionIds() == null || project.getSectionIds().isBlank()) {
+            return List.of();
+        }
+        Set<Long> ids = Arrays.stream(project.getSectionIds().split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(Long::parseLong)
+                .collect(Collectors.toSet());
+        return sectionService.listSectionTree().stream()
+                .filter(s -> ids.contains(s.getId()))
+                .collect(Collectors.toList());
     }
 
     public Map<String, Object> getProjectStats(Long id) {

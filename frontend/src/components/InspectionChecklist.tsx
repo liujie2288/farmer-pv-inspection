@@ -5,7 +5,7 @@ import {
   AlertTriangle,
   CheckCircle,
 } from 'lucide-react';
-import { getSectionTree, type Section as TemplateSection } from '@/api/sections';
+import { getSectionTree, getProjectSections, type Section as TemplateSection } from '@/api/sections';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 // ---------------------------------------------------------------------------
@@ -37,6 +37,7 @@ interface InspectionChecklistProps {
   checklistData: ChecklistData;
   onChange: (data: ChecklistData) => void;
   readOnly?: boolean;
+  projectId?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -141,6 +142,7 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
   checklistData,
   onChange,
   readOnly = false,
+  projectId,
 }) => {
   // collapsed sections tracked by sectionId
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
@@ -156,7 +158,9 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
     let cancelled = false;
     (async () => {
       try {
-        const res = await getSectionTree();
+        const res = projectId
+          ? await getProjectSections(projectId)
+          : await getSectionTree();
         if (cancelled) return;
 
         const raw: TemplateSection[] = res.data;
