@@ -3,6 +3,7 @@ package com.yldlxj.pv.inspect.user;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.yldlxj.pv.inspect.common.enums.UserRole;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.convert.UserConvert;
 import com.yldlxj.pv.inspect.user.dto.UserCreateDto;
@@ -52,7 +53,7 @@ public class UserService {
             );
         }
         if (role != null && !role.isEmpty()) {
-            wrapper.eq(SysUser::getRole, role);
+            wrapper.eq(SysUser::getRole, UserRole.of(role));
         }
         if (status != null) {
             wrapper.eq(SysUser::getStatus, status);
@@ -90,7 +91,7 @@ public class UserService {
 
         user.setRealName(dto.getRealName());
         user.setPhone(dto.getPhone());
-        user.setRole(dto.getRole());
+        user.setRole(UserRole.of(dto.getRole()));
 
         userMapper.updateById(user);
         userCache.invalidate(id);

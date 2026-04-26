@@ -10,6 +10,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -40,4 +41,6 @@ public class InspectRecord extends BaseEntity {
     private String pdfUrl;
 
     private String weather;
+
+    private LocalDateTime editDeadline;
 }

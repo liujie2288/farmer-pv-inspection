@@ -2,6 +2,7 @@ package com.yldlxj.pv.inspect.user;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.yldlxj.pv.inspect.common.BaseEntity;
+import com.yldlxj.pv.inspect.common.enums.UserRole;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -18,7 +19,7 @@ public class SysUser extends BaseEntity {
 
     private String phone;
 
-    private String role;
+    private UserRole role;
 
     private Integer status;
 

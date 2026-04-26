@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yldlxj.pv.inspect.common.PageDto;
 import com.yldlxj.pv.inspect.auth.SecurityUtils;
 import com.yldlxj.pv.inspect.common.enums.PlanStatus;
+import com.yldlxj.pv.inspect.common.enums.UserRole;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.common.exception.ForbiddenException;
 import com.yldlxj.pv.inspect.plan.InspectPlan;
@@ -99,6 +100,7 @@ public class InspectRecordService {
         record.setPhotos(dto.getPhotos());
         record.setLongitude(dto.getLongitude());
         record.setLatitude(dto.getLatitude());
+        record.setEditDeadline(planProject.getEndTime() != null ? planProject.getEndTime().atTime(23, 59, 59) : null);
         recordMapper.insert(record);
 
         // 更新电站最后巡检记录
@@ -126,9 +128,8 @@ public class InspectRecordService {
             throw new ForbiddenException("只能修改本人的巡检记录");
         }
 
-        InspectPlan plan = planMapper.selectById(record.getPlanId());
-        if (plan != null && plan.getStatus() == PlanStatus.FINISHED) {
-            throw new BusinessException("巡检计划已结束，记录不可修改");
+        if (record.getEditDeadline() != null && LocalDateTime.now().isAfter(record.getEditDeadline())) {
+            throw new BusinessException("已超过编辑截止时间，记录不可修改");
         }
 
         if (dto.getWeather() != null) record.setWeather(dto.getWeather());
@@ -149,7 +150,8 @@ public class InspectRecordService {
         Station station = stationMapper.selectById(record.getStationId());
 
         Long currentUserId = SecurityUtils.checkAndGetCurrentUserId();
-        boolean canEdit = record.getInspectorId().equals(currentUserId) && plan != null && plan.getStatus() == PlanStatus.IN_PROGRESS;
+        boolean canEdit = record.getInspectorId().equals(currentUserId)
+                && (record.getEditDeadline() == null || !LocalDateTime.now().isAfter(record.getEditDeadline()));
 
         // Lookup template data from cache
         List<SectionViewVo> sectionTree = sectionService.listSectionTree();
@@ -184,15 +186,16 @@ public class InspectRecordService {
 
     public PageDto<RecordSimpleVo> listRecords(Long stationId, Long planId, String keyword, Integer status, int page, int size) {
         SysUser currentUser = SecurityUtils.getCurrentUser();
-        boolean isInspector = currentUser != null && "inspector".equals(currentUser.getRole());
+        boolean isInspector = currentUser != null && UserRole.INSPECTOR == currentUser.getRole();
         Long inspectorId = isInspector ? currentUser.getId() : null;
 
         long total = recordMapper.countRecords(stationId, planId, keyword, status, inspectorId);
         List<RecordSimpleVo> records = recordMapper.listRecords(stationId, planId, keyword, status, inspectorId, (page - 1) * size, size);
 
         Long currentUserId = currentUser == null ? null : currentUser.getId();
+        LocalDateTime now = LocalDateTime.now();
         records.forEach(vo -> vo.setCanEdit(
-                vo.getInspectorId().equals(currentUserId) && vo.getPlanStatus() != null && vo.getPlanStatus() == PlanStatus.IN_PROGRESS.getCode()
+                vo.getInspectorId().equals(currentUserId) && (vo.getEditDeadline() == null || !now.isAfter(vo.getEditDeadline()))
         ));
 
         return PageDto.of(records, total, page, size);

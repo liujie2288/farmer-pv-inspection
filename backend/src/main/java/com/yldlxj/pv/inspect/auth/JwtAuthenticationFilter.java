@@ -48,7 +48,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 response.getWriter().write("{\"code\":403,\"message\":\"用户不存在或已禁用\"}");
                 return;
             }
-            String role = user.getRole() == null ? null : user.getRole().toUpperCase();
+            String role = user.getRole() != null ? user.getRole().getCode().toUpperCase() : null;
 
             UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(user, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role)));
             SecurityContextHolder.getContext().setAuthentication(auth);

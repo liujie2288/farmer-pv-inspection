@@ -14,5 +14,6 @@ public class RecordSimpleVo {
     private Long inspectorId;
     private String inspectorName;
     private LocalDateTime inspectorTime;
+    private LocalDateTime editDeadline;
     private Boolean canEdit;
 }

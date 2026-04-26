@@ -40,7 +40,7 @@ public class AuthController {
         }
 
         // 生成 JWT 字符串
-        String jwtToken = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
+        String jwtToken = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole() != null ? user.getRole().getCode() : null);
 
         // 构建 Cookie
         ResponseCookie cookie = ResponseCookie.from("accessToken", jwtToken) // Cookie 名称
