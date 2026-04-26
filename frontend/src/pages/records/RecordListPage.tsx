@@ -142,7 +142,7 @@ function RecordListPage() {
                       </p>
                       {r.inspectorTime && (
                         <p className="mt-1.5 text-xs text-gray-400">
-                          {r.inspectorTime.substring(0, 19).replace('T', ' ')}
+                          {r.inspectorTime}
                         </p>
                       )}
                     </div>

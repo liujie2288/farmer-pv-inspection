@@ -66,7 +66,7 @@ function InspectorProjectListPage() {
           placeholder="搜索项目名称"
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
-          onKeyDown={handleSearch}
+          onKeyDown={handleKeyDown}
           className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal transition-colors"
         />
       </div>
