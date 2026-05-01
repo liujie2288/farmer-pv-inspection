@@ -14,6 +14,7 @@ import {
   ImageIcon,
   CloudSun,
   Unlock,
+  Wrench,
 } from 'lucide-react';
 import { getInspectionDetail, extendDeadline } from '@/api/inspections';
 import { fetchPdf } from '@/api/export';
@@ -94,6 +95,7 @@ function RecordDetailPage() {
     { label: '巡检时间', value: detail.createTime, icon: Calendar },
     { label: '巡检人', value: detail.inspectorName, icon: User },
     { label: '天气', value: detail.weather, icon: CloudSun },
+    { label: '检测设备', value: detail.deviceName ? `${detail.deviceName}（${detail.deviceModel}）` : '-', icon: Wrench },
     {
       label: 'GPS坐标',
       value: detail.longitude && detail.latitude

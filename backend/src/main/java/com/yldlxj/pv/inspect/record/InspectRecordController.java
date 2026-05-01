@@ -1,17 +1,20 @@
 package com.yldlxj.pv.inspect.record;
 
+import com.yldlxj.pv.inspect.auth.SecurityUtils;
 import com.yldlxj.pv.inspect.common.ApiResponse;
 import com.yldlxj.pv.inspect.common.PageDto;
+import com.yldlxj.pv.inspect.common.annotation.AdminOnly;
 import com.yldlxj.pv.inspect.record.dto.InspectRecordDto;
 import com.yldlxj.pv.inspect.record.dto.vo.RecordDetailVo;
 import com.yldlxj.pv.inspect.record.dto.vo.RecordSimpleVo;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/records")
@@ -23,6 +26,7 @@ public class InspectRecordController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<Map<String, Long>> submitRecord(@RequestBody InspectRecordDto recordDto) {
         Long id = recordService.submitRecord(recordDto);
+        log.info("提交巡检记录: inspectorId={}, recordId={}, stationId={}", SecurityUtils.getCurrentUserId(), id, recordDto.getStationId());
         return ApiResponse.created(Map.of("id", id));
     }
 
@@ -32,6 +36,7 @@ public class InspectRecordController {
         return ApiResponse.success();
     }
 
+    @AdminOnly
     @PutMapping("/{id}/extend-deadline")
     public ApiResponse<Void> extendDeadline(@PathVariable Long id) {
         recordService.extendDeadline(id);
@@ -54,13 +59,4 @@ public class InspectRecordController {
         return ApiResponse.success(recordService.listRecords(stationId, planId, keyword, status, page, size));
     }
 
-    @PostMapping("/photos/upload")
-    public ApiResponse<Map<String, String>> uploadPhoto(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam("sectionId") Integer sectionId,
-            @RequestParam(value = "longitude", required = false) Double longitude,
-            @RequestParam(value = "latitude", required = false) Double latitude) {
-        String url = recordService.uploadPhoto(file, sectionId, longitude, latitude);
-        return ApiResponse.success(Map.of("url", url));
-    }
 }

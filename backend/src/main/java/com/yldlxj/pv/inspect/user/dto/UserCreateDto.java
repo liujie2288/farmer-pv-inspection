@@ -14,7 +14,8 @@ public class UserCreateDto {
     @Pattern(regexp = "^[a-z0-9_]+$", message = "用户名只能包含小写字母、数字和下划线")
     private String username;
 
-    @Size(min = 6, max = 50, message = "密码长度6-50字符")
+    @Size(min = 8, max = 50, message = "密码长度8-50字符")
+    @Pattern(regexp = "^[a-zA-Z0-9!@#$%^&*()_+\\-=\\[\\]{};':\",./<>?`~]*$", message = "密码只能包含字母、数字和常见符号")
     private String password;
 
     @NotBlank(message = "真实姓名不能为空")

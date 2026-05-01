@@ -6,6 +6,7 @@ import com.yldlxj.pv.inspect.station.dto.StationDto;
 import com.yldlxj.pv.inspect.station.dto.StationViewVo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import com.yldlxj.pv.inspect.common.annotation.AdminOnly;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -30,6 +31,7 @@ public class StationController {
         return ApiResponse.success(stationService.listStations(projectId, page, size, keyword, inspectStatus));
     }
 
+    @AdminOnly
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<Map<String, Long>> createStation(@PathVariable Long projectId, @Valid @RequestBody StationDto dto) {
@@ -37,6 +39,7 @@ public class StationController {
         return ApiResponse.created(Map.of("id", id));
     }
 
+    @AdminOnly
     @PostMapping("/import")
     public ApiResponse<Map<String, Object>> importStations(@PathVariable Long projectId, @RequestParam("file") MultipartFile file) {
         return ApiResponse.success(stationService.importStations(projectId, file));
@@ -47,18 +50,21 @@ public class StationController {
         return ApiResponse.success(stationService.getStationDetail(projectId, id));
     }
 
+    @AdminOnly
     @PutMapping("/{id}")
     public ApiResponse<Void> updateStation(@PathVariable Long projectId, @PathVariable Long id, @Valid @RequestBody StationDto dto) {
         stationService.updateStation(projectId, id, dto);
         return ApiResponse.success();
     }
 
+    @AdminOnly
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteStation(@PathVariable Long projectId, @PathVariable Long id) {
         stationService.deleteStation(projectId, id);
         return ApiResponse.success();
     }
 
+    @AdminOnly
     @DeleteMapping("/batch")
     public ApiResponse<Map<String, Integer>> batchDeleteStations(@PathVariable Long projectId, @RequestBody Map<String, List<Long>> body) {
         int count = stationService.batchDeleteStations(projectId, body.get("ids"));

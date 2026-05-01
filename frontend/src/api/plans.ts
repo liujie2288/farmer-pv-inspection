@@ -1,7 +1,7 @@
 import client from './client';
 
 export interface InspectPlan {
-  id: number;
+  planId: number;
   planName: string;
   startTime: string;
   endTime: string;
@@ -19,7 +19,7 @@ export interface PlanStats {
   totalCount: number;
   inspectedCount: number;
   completionRate: number;
-  projectRanking: Array<{
+  items: Array<{
     planProjectId: number;
     projectId: number;
     projectName: string;
@@ -50,7 +50,7 @@ export function finishPlan(planId: number) {
 }
 
 export function getPlanStats(planId: number) {
-  return client.get<any, { code: number; data: PlanStats }>(`/inspect/plans/${planId}/stats`);
+  return client.get<any, { code: number; data: PlanStats }>(`/inspect/plans/${planId}/detail`);
 }
 
 export function getActivePlan(projectId: number) {

@@ -18,10 +18,4 @@ public enum ItemType {
     private final int code;
     private final String label;
 
-    public static ItemType of(int code) {
-        for (ItemType t : values()) {
-            if (t.code == code) return t;
-        }
-        throw new IllegalArgumentException("未知的ItemType: " + code);
-    }
 }

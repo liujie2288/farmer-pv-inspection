@@ -1,4 +1,4 @@
-import { Menu, LogOut, User, Zap } from 'lucide-react';
+import { Menu, LogOut, User, SolarPanel } from 'lucide-react';
 import { useSidebar } from './SidebarContext';
 import { useAuthStore } from '@/store/authStore';
 import { useNavigate } from 'react-router-dom';
@@ -31,7 +31,7 @@ export default function TopBar({ title = '光伏巡检系统' }: TopBarProps) {
 
       {isDesktop && (
         <div className="w-8 h-8 bg-gradient-to-br from-teal to-teal-dark rounded-lg flex items-center justify-center mr-3 shrink-0">
-          <Zap size={16} className="text-white" />
+          <SolarPanel size={16} className="text-white" />
         </div>
       )}
 

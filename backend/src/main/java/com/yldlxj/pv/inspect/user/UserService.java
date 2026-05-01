@@ -3,6 +3,8 @@ package com.yldlxj.pv.inspect.user;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.yldlxj.pv.inspect.auth.RefreshTokenService;
+import com.yldlxj.pv.inspect.common.CommonUtils;
 import com.yldlxj.pv.inspect.common.enums.UserRole;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.convert.UserConvert;
@@ -23,20 +25,19 @@ public class UserService {
 
     private final SysUserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
 
     private final Cache<Long, SysUser> userCache = Caffeine.newBuilder()
             .expireAfterWrite(1, TimeUnit.HOURS)
             .maximumSize(256)
             .build();
 
-    private static final String DEFAULT_PASSWORD = "123456";
-
     public SysUser findByUserId(Long userId) {
         return userCache.get(userId, userMapper::selectById);
     }
 
     public String findRealNameByUserId(Long userId) {
-        return Optional.ofNullable(userCache.get(userId, userMapper::selectById)).map(SysUser::getRealName).orElse(null);
+        return Optional.ofNullable(findByUserId(userId)).map(SysUser::getRealName).orElse(null);
     }
 
     public SysUser findByUsername(String username) {
@@ -59,6 +60,7 @@ public class UserService {
             wrapper.eq(SysUser::getStatus, status);
         }
         wrapper.orderByDesc(SysUser::getId);
+        wrapper.ne(SysUser::getHidden, true);
 
         return userMapper.selectPage(new Page<>(page, size), wrapper);
     }
@@ -107,14 +109,17 @@ public class UserService {
         userCache.invalidate(userId);
     }
 
-    public void resetPassword(Long userId) {
+    public String resetPassword(Long userId) {
         SysUser user = userMapper.selectById(userId);
-        if (user != null) {
-            user.setPassword(passwordEncoder.encode(DEFAULT_PASSWORD));
-            user.setNeedResetPwd(true);
-            userMapper.updateById(user);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
         }
+        String tempPassword = CommonUtils.generateTempPassword();
+        user.setPassword(passwordEncoder.encode(tempPassword));
+        user.setNeedResetPwd(true);
+        userMapper.updateById(user);
         userCache.invalidate(userId);
+        return tempPassword;
     }
 
     public void toggleStatus(Long id, Integer status) {
@@ -122,6 +127,9 @@ public class UserService {
         if (user != null) {
             user.setStatus(status);
             userMapper.updateById(user);
+            if (status == 0) {
+                refreshTokenService.deleteAllByUserId(id);
+            }
         }
         userCache.invalidate(id);
     }
@@ -131,7 +139,9 @@ public class UserService {
         if (user == null) {
             throw new BusinessException("用户不存在");
         }
+        refreshTokenService.deleteAllByUserId(id);
         userMapper.deleteById(id);
         userCache.invalidate(id);
     }
+
 }

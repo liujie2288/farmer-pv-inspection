@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, Eye, EyeOff, Zap } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, SolarPanel } from 'lucide-react';
 import { login } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 import { showToast } from '@/components/ui/Toast';
@@ -36,7 +36,7 @@ function LoginPage() {
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-br from-teal to-teal-dark rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-            <Zap size={28} className="text-white" />
+            <SolarPanel size={28} className="text-white" />
           </div>
           <h1 className="text-xl font-bold text-navy">光伏巡检系统</h1>
           <p className="text-sm text-gray-500 mt-1">分布式光伏发电项目管理平台</p>

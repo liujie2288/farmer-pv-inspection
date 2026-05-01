@@ -34,24 +34,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = extractToken(request);
 
-        if (StringUtils.hasText(token)) {
-            if (!jwtUtil.validateToken(token)) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.setContentType("application/json;charset=UTF-8");
-                response.getWriter().write("{\"code\":401,\"message\":\"登录已过期，请重新登录\"}");
-                return;
-            }
+        if (StringUtils.hasText(token) && jwtUtil.validateToken(token)) {
             SysUser user = userService.findByUserId(jwtUtil.getUserId(token));
-            if (user == null || user.getStatus() == 0) {
-                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                response.setContentType("application/json;charset=UTF-8");
-                response.getWriter().write("{\"code\":403,\"message\":\"用户不存在或已禁用\"}");
-                return;
+            if (user != null && user.getStatus() != 0) {
+                String role = user.getRole() != null ? user.getRole().getCode().toUpperCase() : null;
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                        user, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role)));
+                SecurityContextHolder.getContext().setAuthentication(auth);
             }
-            String role = user.getRole() != null ? user.getRole().getCode().toUpperCase() : null;
-
-            UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(user, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role)));
-            SecurityContextHolder.getContext().setAuthentication(auth);
         }
 
         filterChain.doFilter(request, response);

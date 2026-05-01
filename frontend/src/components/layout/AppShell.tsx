@@ -25,8 +25,12 @@ function ForceChangePasswordOverlay() {
       showToast({ icon: 'fail', content: '请填写完整' });
       return;
     }
-    if (newPwd.length < 6) {
-      showToast({ icon: 'fail', content: '新密码至少6位' });
+    if (newPwd.length < 8) {
+      showToast({ icon: 'fail', content: '新密码至少8位' });
+      return;
+    }
+    if (/[^a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':",./<>?`~]/.test(newPwd)) {
+      showToast({ icon: 'fail', content: '密码只能包含字母、数字和常见符号' });
       return;
     }
     if (!/[a-zA-Z]/.test(newPwd) || !/[0-9]/.test(newPwd)) {
@@ -69,7 +73,7 @@ function ForceChangePasswordOverlay() {
               type="password"
               value={newPwd}
               onChange={e => setNewPwd(e.target.value)}
-              placeholder="至少6位，需包含字母和数字"
+              placeholder="至少8位，需包含字母和数字"
               className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal focus:border-teal outline-none text-base transition"
             />
           </div>

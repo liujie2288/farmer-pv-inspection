@@ -49,7 +49,7 @@ public class StationService {
         long total;
 
         if (activePlan != null) {
-            Long planProjectId = activePlan.getId();
+            Long planProjectId = activePlan.getPlanProjectId();
             // 有活跃计划且筛选已巡检，但没有记录 → 直接返回空
             if (inspectStatus != null && inspectStatus == InspectStatus.INSPECTED.getCode()) {
                 long recordCount = inspectRecordMapper.selectCount(
@@ -134,7 +134,7 @@ public class StationService {
         if (activePlan != null) {
             Long recordCount = inspectRecordMapper.selectCount(
                     new LambdaQueryWrapper<InspectRecord>()
-                            .eq(InspectRecord::getPlanProjectId, activePlan.getId())
+                            .eq(InspectRecord::getPlanProjectId, activePlan.getPlanProjectId())
                             .eq(InspectRecord::getStationId, stationId)
             );
             vo.setStatus(recordCount > 0 ? InspectStatus.INSPECTED : InspectStatus.UNINSPECTED);

@@ -61,7 +61,6 @@ public class ProjectService {
         if (projectName != null && !projectName.isEmpty()) {
             wrapper.like(Project::getProjectName, projectName);
         }
-        wrapper.orderByDesc(Project::getId);
         return projectMapper.selectPage(new Page<>(page, size), wrapper);
     }
 

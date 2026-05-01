@@ -315,8 +315,8 @@ function PlanListPage() {
               const sc = statusConfig[plan.status] || statusConfig[0];
               return (
                 <div
-                  key={plan.id}
-                  onClick={() => navigate(`/admin/plans/${plan.id}`)}
+                  key={plan.planId}
+                  onClick={() => navigate(`/admin/plans/${plan.planId}`)}
                   className="group cursor-pointer rounded-xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-teal/30 hover:shadow-md"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -341,7 +341,7 @@ function PlanListPage() {
                     </div>
                     {plan.status === 0 && (
                       <button
-                        onClick={e => handleDelete(plan.id, e)}
+                        onClick={e => handleDelete(plan.planId, e)}
                         className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                         aria-label="删除"
                       >

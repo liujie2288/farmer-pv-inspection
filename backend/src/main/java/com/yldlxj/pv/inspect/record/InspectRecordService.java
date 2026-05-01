@@ -25,8 +25,6 @@ import com.yldlxj.pv.inspect.section.dto.SectionItemViewVo;
 import com.yldlxj.pv.inspect.section.dto.SectionViewVo;
 import com.yldlxj.pv.inspect.station.Station;
 import com.yldlxj.pv.inspect.station.StationMapper;
-import com.yldlxj.pv.inspect.storage.StorageService;
-import com.yldlxj.pv.inspect.storage.WatermarkService;
 import com.yldlxj.pv.inspect.user.SysUser;
 import com.yldlxj.pv.inspect.user.SysUserMapper;
 import com.yldlxj.pv.inspect.user.UserService;
@@ -34,11 +32,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.io.ByteArrayInputStream;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -58,8 +52,6 @@ public class InspectRecordService {
     private final ProjectService projectService;
     private final InspectSectionService sectionService;
 
-    private final StorageService storageService;
-    private final WatermarkService watermarkService;
 
     @Transactional
     public Long submitRecord(InspectRecordDto dto) {
@@ -79,7 +71,7 @@ public class InspectRecordService {
 
         Long existing = recordMapper.selectCount(
                 new LambdaQueryWrapper<InspectRecord>()
-                        .eq(InspectRecord::getPlanProjectId, planProject.getId())
+                        .eq(InspectRecord::getPlanProjectId, planProject.getPlanProjectId())
                         .eq(InspectRecord::getStationId, dto.getStationId())
                         .eq(InspectRecord::getInspectorId, inspectorId)
         );
@@ -89,11 +81,13 @@ public class InspectRecordService {
 
         InspectRecord record = new InspectRecord();
         record.setPlanId(planProject.getPlanId());
-        record.setPlanProjectId(planProject.getId());
+        record.setPlanProjectId(planProject.getPlanProjectId());
         record.setProjectId(dto.getProjectId());
         record.setStationId(dto.getStationId());
         record.setInspectorId(inspectorId);
         record.setWeather(dto.getWeather());
+        record.setDeviceName(dto.getDeviceName());
+        record.setDeviceModel(dto.getDeviceModel());
         record.setChecklistResult(dto.getChecklistResult());
         record.setPhotos(dto.getPhotos());
         record.setLongitude(dto.getLongitude());
@@ -105,8 +99,8 @@ public class InspectRecordService {
         stationMapper.updateLastInspectRecordId(station.getId(), record.getId());
 
         // 更新已巡检数量
-        Long inspectedCount1 = recordMapper.selectCount(new LambdaQueryWrapper<InspectRecord>().eq(InspectRecord::getPlanProjectId, planProject.getId()));
-        planProjectMapper.updateInspectedCount(planProject.getId(), inspectedCount1);
+        Long inspectedCount1 = recordMapper.selectCount(new LambdaQueryWrapper<InspectRecord>().eq(InspectRecord::getPlanProjectId, planProject.getPlanProjectId()));
+        planProjectMapper.updateInspectedCount(planProject.getPlanProjectId(), inspectedCount1);
 
         Long inspectedCount2 = recordMapper.selectCount(new LambdaQueryWrapper<InspectRecord>().eq(InspectRecord::getPlanId, planProject.getPlanId()));
         planMapper.updateInspectedCount(planProject.getPlanId(), inspectedCount2);
@@ -128,6 +122,8 @@ public class InspectRecordService {
         }
 
         if (dto.getWeather() != null) record.setWeather(dto.getWeather());
+        if (dto.getDeviceName() != null) record.setDeviceName(dto.getDeviceName());
+        if (dto.getDeviceModel() != null) record.setDeviceModel(dto.getDeviceModel());
         if (dto.getChecklistResult() != null) record.setChecklistResult(dto.getChecklistResult());
         if (dto.getPhotos() != null) record.setPhotos(dto.getPhotos());
         if (dto.getLongitude() != null) record.setLongitude(dto.getLongitude());
@@ -167,12 +163,15 @@ public class InspectRecordService {
         vo.setStationName(station != null ? station.getOwnerName() : "");
         vo.setStationCode(station != null ? station.getStationCode() : "");
         vo.setProjectName(projectService.getNameByProjectId(record.getProjectId()));
+        vo.setProjectId(record.getProjectId());
         vo.setInspectorName(userService.findRealNameByUserId(record.getInspectorId()));
         vo.setChecklistResult(checklistVo);
         vo.setPhotos(photoVo);
         vo.setLongitude(record.getLongitude());
         vo.setLatitude(record.getLatitude());
         vo.setWeather(record.getWeather());
+        vo.setDeviceName(record.getDeviceName());
+        vo.setDeviceModel(record.getDeviceModel());
         vo.setCreateTime(record.getCreateTime());
         vo.setEditDeadline(record.getEditDeadline());
         vo.setCanEdit(canEdit);
@@ -209,38 +208,6 @@ public class InspectRecordService {
         recordMapper.updateEditDeadline(id, LocalDateTime.now().plusDays(2));
     }
 
-    public String uploadPhoto(MultipartFile file, Integer sectionId,
-                              Double longitude, Double latitude) {
-        SysUser inspector = SecurityUtils.getCurrentUser();
-
-        try {
-            String timeStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
-            String coordinates = "";
-            if (longitude != null && latitude != null && (longitude != 0 || latitude != 0)) {
-                coordinates = String.format("%.6f, %.6f", longitude, latitude);
-            }
-            java.io.InputStream watermarked = watermarkService.addWatermark(
-                    new ByteArrayInputStream(file.getBytes()),
-                    inspector != null ? inspector.getRealName() : "未知",
-                    timeStr,
-                    coordinates
-            );
-
-            String originalName = file.getOriginalFilename();
-            String ext = originalName != null && originalName.contains(".")
-                    ? originalName.substring(originalName.lastIndexOf("."))
-                    : ".jpg";
-            String objectName = "inspection/" + sectionId + "/" + UUID.randomUUID() + ext;
-
-            byte[] watermarkedBytes = watermarked.readAllBytes();
-            return storageService.upload(objectName,
-                    new ByteArrayInputStream(watermarkedBytes),
-                    watermarkedBytes.length,
-                    file.getContentType());
-        } catch (Exception e) {
-            throw new BusinessException("照片上传失败: " + e.getMessage());
-        }
-    }
 
     // ---- Edit permission logic ----
     // canEdit = planInProgress && (isAdmin || beforeEditDeadline || (isSubmitter && within2Days))

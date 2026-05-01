@@ -12,6 +12,7 @@ import java.util.List;
 public interface PlanConvert {
     PlanConvert INSTANCE = Mappers.getMapper(PlanConvert.class);
 
+    @Mapping(source = "id", target = "planProjectId")
     @Mapping(target = "planName", ignore = true)
     @Mapping(target = "projectName", ignore = true)
     @Mapping(target = "startTime", ignore = true)

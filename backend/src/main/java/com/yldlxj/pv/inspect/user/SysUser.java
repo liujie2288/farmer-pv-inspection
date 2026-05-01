@@ -25,4 +25,6 @@ public class SysUser extends BaseEntity {
 
     @TableField("need_reset_pwd")
     private Boolean needResetPwd;
+
+    private Boolean hidden;
 }

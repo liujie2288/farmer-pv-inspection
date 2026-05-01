@@ -23,6 +23,9 @@ public class JwtUtil {
     @Value("${jwt.cookie-secure:true}")
     private boolean cookieSecure;
 
+    @Value("${jwt.refresh-expiration-days:7}")
+    private long refreshExpirationDays;
+
     private Key key;
 
     @PostConstruct
@@ -38,14 +41,17 @@ public class JwtUtil {
         return cookieSecure;
     }
 
-    public String generateToken(Long userId, String username, String role) {
+    public long getRefreshExpirationDays() {
+        return refreshExpirationDays;
+    }
+
+    public String generateToken(Long userId, String username) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expiration);
 
         return Jwts.builder()
                 .setSubject(String.valueOf(userId))
                 .claim("username", username)
-                .claim("role", role)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -62,10 +68,6 @@ public class JwtUtil {
 
     public Long getUserId(String token) {
         return Long.parseLong(parseToken(token).getSubject());
-    }
-
-    public String getRole(String token) {
-        return parseToken(token).get("role", String.class);
     }
 
     public boolean validateToken(String token) {

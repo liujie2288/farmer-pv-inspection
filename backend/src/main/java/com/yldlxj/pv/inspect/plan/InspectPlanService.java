@@ -12,7 +12,7 @@ import com.yldlxj.pv.inspect.project.Project;
 import com.yldlxj.pv.inspect.project.ProjectMapper;
 import com.yldlxj.pv.inspect.station.StationMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.scheduling.annotation.Scheduled;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class InspectPlanService {
@@ -37,12 +38,6 @@ public class InspectPlanService {
 
         List<PlanViewVo> records = planMapper.listPlan(keyword, status, (page - 1) * size, size);
 
-        records.forEach(vo -> {
-            double rate = vo.getTotalCount() != null && vo.getTotalCount() > 0
-                    ? (vo.getInspectedCount() * 100.0 / vo.getTotalCount()) : 0;
-            vo.setCompletionRate(Math.round(rate * 100.0) / 100.0);
-        });
-
         return PageDto.of(records, total, page, size);
     }
 
@@ -50,9 +45,13 @@ public class InspectPlanService {
     public Map<String, Object> createPlan(Long userId, PlanDto dto) {
         validateTimeRange(dto.getStartTime(), dto.getEndTime());
 
-        for (Long pid : dto.getProjectIds()) {
-            validateProject(pid);
-            checkOneActiveConstraint(pid);
+        for (Long projectId : dto.getProjectIds()) {
+            if (projectMapper.selectById(projectId) == null) {
+                throw new BusinessException("项目不存在");
+            }
+            if (planProjectMapper.countActiveByProjectId(projectId) > 0) {
+                throw new BusinessException("勾选的项目中关联有未结束的巡检任务");
+            }
         }
 
         PlanStatus initialStatus = !dto.getStartTime().isAfter(LocalDate.now()) ? PlanStatus.IN_PROGRESS : PlanStatus.PENDING;
@@ -129,40 +128,36 @@ public class InspectPlanService {
         planMapper.deleteById(planId);
     }
 
-    public Map<String, Object> getPlanStats(Long planId) {
+    public PlanViewVo getPlanDetail(Long planId) {
         InspectPlan plan = planMapper.selectById(planId);
         if (plan == null) {
-            throw new BusinessException("任务不存在");
+            return null;
         }
 
         List<InspectPlanProject> pps = planProjectMapper.selectList(
                 new LambdaQueryWrapper<InspectPlanProject>().eq(InspectPlanProject::getPlanId, planId)
         );
 
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("planId", planId);
-        stats.put("planName", plan.getPlanName());
-        stats.put("status", plan.getStatus());
-        stats.put("totalCount", plan.getTotalCount());
-        stats.put("inspectedCount", plan.getInspectedCount());
-        double rate = plan.getTotalCount() > 0 ? (plan.getInspectedCount() * 100.0 / plan.getTotalCount()) : 0;
-        stats.put("completionRate", Math.round(rate * 100.0) / 100.0);
+        PlanViewVo vo = new PlanViewVo();
+        vo.setPlanId(planId);
+        vo.setPlanName(plan.getPlanName());
+        vo.setStatus(plan.getStatus());
+        vo.setTotalCount(plan.getTotalCount());
+        vo.setInspectedCount(plan.getInspectedCount());
 
-        List<Map<String, Object>> ranking = pps.stream().map(pp -> {
-                    Map<String, Object> item = new HashMap<>();
-                    item.put("planProjectId", pp.getId());
-                    item.put("projectId", pp.getProjectId());
-                    item.put("projectName", getProjectName(pp.getProjectId()));
-                    item.put("totalCount", pp.getTotalCount());
-                    item.put("inspectedCount", pp.getInspectedCount());
-                    double subRate = pp.getTotalCount() > 0 ? (pp.getInspectedCount() * 100.0 / pp.getTotalCount()) : 0;
-                    item.put("completionRate", Math.round(subRate * 100.0) / 100.0);
-                    return item;
-                }).sorted((a, b) -> Double.compare((Double) b.get("completionRate"), (Double) a.get("completionRate")))
-                .collect(Collectors.toList());
+        List<PlanProjectViewVo> ranking = pps.stream().map(pp -> {
+            PlanProjectViewVo item = new PlanProjectViewVo();
+            item.setPlanProjectId(pp.getId());
+            item.setProjectId(pp.getProjectId());
+            item.setProjectName(getProjectName(pp.getProjectId()));
+            item.setTotalCount(pp.getTotalCount());
+            item.setInspectedCount(pp.getInspectedCount());
+            return item;
+        }).sorted((a, b) -> Double.compare(b.getCompletionRate(), a.getCompletionRate()))
+        .collect(Collectors.toList());
 
-        stats.put("projectRanking", ranking);
-        return stats;
+        vo.setItems(ranking);
+        return vo;
     }
 
     public InspectPlan getActivePlan(Long projectId) {
@@ -181,56 +176,31 @@ public class InspectPlanService {
     }
 
     @Transactional
-    @Scheduled(cron = "5 0,5 * * * *")
     public void autoTransitionStatus() {
-        LocalDate today = LocalDate.now();
-
-        List<InspectPlan> toStart = planMapper.selectList(
+        // 先校准所有进行中计划的统计数据
+        List<Long> activePlanIds = planMapper.selectList(
                 new LambdaQueryWrapper<InspectPlan>()
-                        .eq(InspectPlan::getStatus, PlanStatus.PENDING)
-                        .le(InspectPlan::getStartTime, today)
-        );
-        for (InspectPlan plan : toStart) {
-            plan.setStatus(PlanStatus.IN_PROGRESS);
-            planMapper.updateById(plan);
+                        .in(InspectPlan::getStatus, PlanStatus.PENDING, PlanStatus.IN_PROGRESS)
+        ).stream().map(InspectPlan::getId).collect(Collectors.toList());
+
+        if(!activePlanIds.isEmpty()){
+            planProjectMapper.selectList(
+                    new LambdaQueryWrapper<InspectPlanProject>()
+                            .in(InspectPlanProject::getPlanId, activePlanIds)
+            ).forEach(p -> planProjectMapper.recalculateCounts(p.getId()));
+            activePlanIds.forEach(planMapper::recalculateCounts);
         }
 
-        List<InspectPlan> toEnd = planMapper.selectList(
-                new LambdaQueryWrapper<InspectPlan>()
-                        .eq(InspectPlan::getStatus, PlanStatus.IN_PROGRESS)
-                        .lt(InspectPlan::getEndTime, today)
-        );
-        for (InspectPlan plan : toEnd) {
-            plan.setStatus(PlanStatus.FINISHED);
-            planMapper.updateById(plan);
-        }
-    }
-
-    private void validateProject(Long projectId) {
-        if (projectMapper.selectById(projectId) == null) {
-            throw new BusinessException("项目不存在");
+        int started = planMapper.transitionToInProgress();
+        int finished = planMapper.transitionToFinished();
+        if (started > 0 || finished > 0) {
+            log.info("定时任务-计划状态流转: 校准计划数={}, 启动={}, 结束={}", activePlanIds.size(), started, finished);
         }
     }
 
     private void validateTimeRange(LocalDate start, LocalDate end) {
         if (end.isBefore(start) || end.isEqual(start)) {
             throw new BusinessException("结束时间必须晚于开始时间");
-        }
-    }
-
-    private void checkOneActiveConstraint(Long projectId) {
-        List<InspectPlanProject> pps = planProjectMapper.selectList(
-                new LambdaQueryWrapper<InspectPlanProject>().eq(InspectPlanProject::getProjectId, projectId)
-        );
-        if (!pps.isEmpty()) {
-            Long count = planMapper.selectCount(
-                    new LambdaQueryWrapper<InspectPlan>()
-                            .in(InspectPlan::getId, pps.stream().map(InspectPlanProject::getPlanId).collect(Collectors.toList()))
-                            .in(InspectPlan::getStatus, Arrays.asList(PlanStatus.PENDING, PlanStatus.IN_PROGRESS))
-            );
-            if (count > 0) {
-                throw new BusinessException("勾选的项目中关联有未结束的巡检任务");
-            }
         }
     }
 

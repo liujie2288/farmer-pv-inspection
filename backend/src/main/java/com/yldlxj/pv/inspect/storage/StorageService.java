@@ -1,97 +1,95 @@
 package com.yldlxj.pv.inspect.storage;
 
-import io.minio.*;
-import io.minio.http.Method;
-import lombok.RequiredArgsConstructor;
+import com.aliyun.oss.OSS;
+import com.aliyun.oss.HttpMethod;
+import com.aliyun.oss.model.GeneratePresignedUrlRequest;
+import com.aliyun.oss.model.ObjectMetadata;
+import com.aliyun.oss.model.OSSObject;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.TimeUnit;
+import java.util.Date;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class StorageService {
 
-    private final MinioClient minioClient;
+    @Autowired(required = false)
+    private OSS ossClient;
 
-    @Value("${minio.bucket}")
+    @Value("${aliyun.oss.bucket}")
     private String bucket;
+
+    @Value("${aliyun.oss.endpoint}")
+    private String endpoint;
 
     @PostConstruct
     public void initBucket() {
+        if (ossClient == null) {
+            log.info("OSS client not available, storage features disabled");
+            return;
+        }
         try {
-            boolean exists = minioClient.bucketExists(
-                    BucketExistsArgs.builder().bucket(bucket).build()
-            );
-            if (!exists) {
-                minioClient.makeBucket(
-                        MakeBucketArgs.builder().bucket(bucket).build()
-                );
+            if (!ossClient.doesBucketExist(bucket)) {
+                ossClient.createBucket(bucket);
             }
         } catch (Exception e) {
-            log.warn("MinIO bucket init failed: {}", e.getMessage());
+            log.warn("OSS bucket init failed: {}", e.getMessage());
+        }
+    }
+
+    private void ensureClient() {
+        if (ossClient == null) {
+            throw new RuntimeException("OSS 未配置，文件操作不可用");
         }
     }
 
     public String upload(String objectName, InputStream stream, long size, String contentType) {
+        ensureClient();
         try {
-            minioClient.putObject(
-                    PutObjectArgs.builder()
-                            .bucket(bucket)
-                            .object(objectName)
-                            .stream(stream, size, -1)
-                            .contentType(contentType)
-                            .build()
-            );
-            return getPresignedUrl(objectName, 60 * 24 * 7); // 7 days
+            ObjectMetadata meta = new ObjectMetadata();
+            meta.setContentType(contentType);
+            meta.setContentLength(size);
+            ossClient.putObject(bucket, objectName, stream, meta);
+            return getPresignedUrl(objectName, 60 * 24 * 7);
         } catch (Exception e) {
             throw new RuntimeException("文件上传失败: " + e.getMessage(), e);
         }
     }
 
     public InputStream download(String objectName) {
+        ensureClient();
         try {
-            return minioClient.getObject(
-                    GetObjectArgs.builder()
-                            .bucket(bucket)
-                            .object(objectName)
-                            .build()
-            );
+            OSSObject obj = ossClient.getObject(bucket, objectName);
+            return obj.getObjectContent();
         } catch (Exception e) {
             throw new RuntimeException("文件下载失败: " + e.getMessage(), e);
         }
     }
 
     public void delete(String objectName) {
+        if (ossClient == null) return;
         try {
-            minioClient.removeObject(
-                    RemoveObjectArgs.builder()
-                            .bucket(bucket)
-                            .object(objectName)
-                            .build()
-            );
+            ossClient.deleteObject(bucket, objectName);
         } catch (Exception e) {
             log.error("文件删除失败: {}", e.getMessage());
         }
     }
 
     public String getPresignedUrl(String objectName, int expiryMinutes) {
+        ensureClient();
         try {
-            return minioClient.getPresignedObjectUrl(
-                    GetPresignedObjectUrlArgs.builder()
-                            .bucket(bucket)
-                            .object(objectName)
-                            .method(Method.GET)
-                            .expiry(expiryMinutes, TimeUnit.MINUTES)
-                            .build()
-            );
+            Date expiration = new Date(System.currentTimeMillis() + (long) expiryMinutes * 60 * 1000);
+            URL url = ossClient.generatePresignedUrl(bucket, objectName, expiration);
+            return url.toString();
         } catch (Exception e) {
             throw new RuntimeException("获取文件URL失败: " + e.getMessage(), e);
         }
@@ -101,14 +99,38 @@ public class StorageService {
         try {
             URI uri = new URI(presignedOrFullUrl);
             String path = uri.getPath();
+            if (path == null || path.isEmpty() || "/".equals(path)) {
+                return null;
+            }
+
+            // Virtual-hosted style: bucket.oss-cn-xxx.aliyuncs.com/object/key
+            if (uri.getHost() != null && uri.getHost().startsWith(bucket + ".")) {
+                return path.startsWith("/") ? path.substring(1) : path;
+            }
+
+            // Path-style fallback: host/bucket/object/key
             String prefix = "/" + bucket + "/";
             if (path.startsWith(prefix)) {
                 return path.substring(prefix.length());
             }
-            return null;
+
+            return path.startsWith("/") ? path.substring(1) : path;
         } catch (Exception e) {
             return null;
         }
+    }
+
+    public String generateUploadUrl(String objectKey, String contentType, int expiryMinutes) {
+        ensureClient();
+        Date expiration = new Date(System.currentTimeMillis() + (long) expiryMinutes * 60 * 1000);
+        GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(bucket, objectKey, HttpMethod.PUT);
+        request.setExpiration(expiration);
+        request.setContentType(contentType);
+        return ossClient.generatePresignedUrl(request).toString();
+    }
+
+    public String getObjectUrl(String objectKey) {
+        return "https://" + bucket + "." + endpoint + "/" + objectKey;
     }
 
     public String uploadFile(String objectName, Path filePath, String contentType) {

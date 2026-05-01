@@ -17,10 +17,4 @@ public enum InspectStatus {
     private final int code;
     private final String label;
 
-    public static InspectStatus of(int code) {
-        for (InspectStatus s : values()) {
-            if (s.code == code) return s;
-        }
-        throw new IllegalArgumentException("未知的InspectStatus: " + code);
-    }
 }

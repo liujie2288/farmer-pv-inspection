@@ -11,6 +11,7 @@ import com.yldlxj.pv.inspect.project.dto.ProjectViewVo;
 import com.yldlxj.pv.inspect.section.dto.SectionViewVo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import com.yldlxj.pv.inspect.common.annotation.AdminOnly;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -64,6 +65,7 @@ public class ProjectController {
         return ApiResponse.success(inspectPlanService.getActivePlansByProjectIds(projectIds));
     }
 
+    @AdminOnly
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<Map<String, Long>> createProject(@Valid @RequestBody ProjectDto dto) {
@@ -71,12 +73,14 @@ public class ProjectController {
         return ApiResponse.created(Map.of("id", id));
     }
 
+    @AdminOnly
     @PutMapping("/{id}")
     public ApiResponse<Void> updateProject(@PathVariable Long id, @Valid @RequestBody ProjectDto dto) {
         projectService.updateProject(id, dto);
         return ApiResponse.success();
     }
 
+    @AdminOnly
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteProject(@PathVariable Long id) {
         projectService.deleteProject(id);

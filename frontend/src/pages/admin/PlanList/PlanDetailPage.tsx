@@ -57,21 +57,16 @@ function PlanDetailPage() {
   const startPolling = useCallback(() => {
     if (pollRef.current) return;
     pollRef.current = setInterval(async () => {
-      setExportTasks(prev => {
-        const inProgress = prev.filter(t => t.status === 0);
-        if (inProgress.length === 0) {
+      try {
+        const res = await listExportTasks(gid);
+        const tasks = res.data || [];
+        setExportTasks(tasks);
+        if (!tasks.some(t => t.status === 0)) {
           if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-          return prev;
         }
-        Promise.all(inProgress.map(t => getExportTaskStatus(t.id).then(r => r.data).catch(() => t)))
-          .then(updated => {
-            const updatedMap = new Map(updated.map(t => [t.id, t]));
-            setExportTasks(prev => prev.map(t => updatedMap.get(t.id) || t));
-          });
-        return prev;
-      });
+      } catch { /* ignore */ }
     }, 2000);
-  }, []);
+  }, [gid]);
 
   useEffect(() => {
     if (!gid) return;
@@ -81,16 +76,13 @@ function PlanDetailPage() {
       .catch(e => showToast({ icon: 'fail', content: e.message || '加载任务详情失败' }))
       .finally(() => setLoading(false));
     loadExportTasks().then(() => {
-      if (exportTasks.some(t => t.status === 0)) startPolling();
+      startPolling();
     });
   }, [gid]);
 
   useEffect(() => {
-    if (exportTasks.some(t => t.status === 0)) {
-      startPolling();
-    }
     return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
-  }, [exportTasks, startPolling]);
+  }, []);
 
   const handleExport = async (exportType: number) => {
     if (!gid) return;
@@ -104,7 +96,7 @@ function PlanDetailPage() {
       await exportPlan(gid, exportType);
       showToast({ icon: 'success', content: '导出任务已创建' });
       await loadExportTasks();
-      startPolling();
+      if (!pollRef.current) startPolling();
     } catch (e: any) {
       showToast({ icon: 'fail', content: e.message || '创建导出失败' });
     } finally {
@@ -188,14 +180,14 @@ function PlanDetailPage() {
       </div>
 
       {/* Project Ranking */}
-      {stats.projectRanking.length > 0 && (
+      {stats.items.length > 0 && (
         <div className="rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden">
           <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
             <Trophy size={18} className="text-gold" />
             <h2 className="text-base font-semibold text-navy">项目完成排名</h2>
           </div>
           <div className="divide-y divide-gray-50">
-            {stats.projectRanking.map((r, i) => (
+            {stats.items.map((r, i) => (
               <div key={r.projectId} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50/50 transition-colors">
                 <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
                   i === 0 ? 'bg-gold/20 text-gold' :

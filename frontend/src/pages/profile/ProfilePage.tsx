@@ -50,7 +50,7 @@ function ProfilePage() {
             <input
               type="password"
               onChange={(e) => { newPwd = e.target.value; }}
-              placeholder="至少6位，需包含字母和数字"
+              placeholder="至少8位，需包含字母和数字"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal/40 focus:border-teal transition-colors"
             />
           </div>
@@ -75,8 +75,12 @@ function ProfilePage() {
               showToast({ icon: 'fail', content: '请填写完整' });
               return false;
             }
-            if (newPwd.length < 6) {
-              showToast({ icon: 'fail', content: '新密码至少6位' });
+            if (newPwd.length < 8) {
+              showToast({ icon: 'fail', content: '新密码至少8位' });
+              return false;
+            }
+            if (/[^a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':",./<>?`~]/.test(newPwd)) {
+              showToast({ icon: 'fail', content: '密码只能包含字母、数字和常见符号' });
               return false;
             }
             if (!/[a-zA-Z]/.test(newPwd) || !/[0-9]/.test(newPwd)) {

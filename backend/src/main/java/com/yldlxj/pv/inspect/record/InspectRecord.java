@@ -42,5 +42,9 @@ public class InspectRecord extends BaseEntity {
 
     private String weather;
 
+    private String deviceName;
+
+    private String deviceModel;
+
     private LocalDateTime editDeadline;
 }

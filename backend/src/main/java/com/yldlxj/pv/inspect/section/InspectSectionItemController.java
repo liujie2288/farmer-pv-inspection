@@ -4,6 +4,7 @@ import com.yldlxj.pv.inspect.common.ApiResponse;
 import com.yldlxj.pv.inspect.section.dto.SectionItemDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import com.yldlxj.pv.inspect.common.annotation.AdminOnly;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -28,6 +29,7 @@ public class InspectSectionItemController {
         return ApiResponse.success(itemService.getItemById(id));
     }
 
+    @AdminOnly
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<Map<String, Long>> createItem(@Valid @RequestBody SectionItemDto dto) {
@@ -35,12 +37,14 @@ public class InspectSectionItemController {
         return ApiResponse.created(Map.of("id", id));
     }
 
+    @AdminOnly
     @PutMapping("/{id}")
     public ApiResponse<Void> updateItem(@PathVariable Long id, @Valid @RequestBody SectionItemDto dto) {
         itemService.updateItem(id, dto);
         return ApiResponse.success();
     }
 
+    @AdminOnly
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteItem(@PathVariable Long id) {
         itemService.deleteItem(id);

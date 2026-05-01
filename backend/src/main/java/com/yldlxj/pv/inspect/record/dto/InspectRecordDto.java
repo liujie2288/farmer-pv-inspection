@@ -12,6 +12,10 @@ public class InspectRecordDto {
     private Long projectId;
     private String weather;
 
+    private String deviceName;
+
+    private String deviceModel;
+
     private List<ChecklistSectionDto> checklistResult;
     private List<PhotoSectionDto> photos;
 

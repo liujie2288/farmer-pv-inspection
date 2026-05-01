@@ -5,10 +5,11 @@ import {
   submitInspection,
   getInspectionDetail,
   updateInspection,
-  toSubmitFormat,
+  type PhotoSectionSubmit,
 } from '@/api/inspections';
 import { getStationDetail } from '@/api/stations';
 import { getActivePlan } from '@/api/plans';
+import { getProject, type DeviceItem } from '@/api/projects';
 import InspectionChecklist from '@/components/InspectionChecklist';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { showToast } from '@/components/ui/Toast';
@@ -45,11 +46,15 @@ function InspectionFormPage() {
   const [checklistData, setChecklistData] = useState<any>({ sections: [] });
   const [weather, setWeather] = useState('');
   const [customWeather, setCustomWeather] = useState('');
+  const [devices, setDevices] = useState<DeviceItem[]>([]);
+  const [selectedDeviceIdx, setSelectedDeviceIdx] = useState(0);
   const [stationInfo, setStationInfo] = useState<any>(null);
   const [planName, setPlanName] = useState('');
   const [resolvedPlanId, setResolvedPlanId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [photos, setPhotos] = useState<PhotoSectionSubmit[]>([]);
+  const [initialPhotos, setInitialPhotos] = useState<PhotoSectionSubmit[] | undefined>(undefined);
 
   const selectedWeather = customWeather || weather;
 
@@ -76,14 +81,33 @@ function InspectionFormPage() {
             projectName: record.projectName,
           });
           setResolvedPlanId(null);
+
+          if (record.projectId) {
+            const projectRes = await getProject(record.projectId);
+            const projectDevices = projectRes.data?.devices || [];
+            setDevices(projectDevices);
+            if (projectDevices.length > 0) {
+              const idx = projectDevices.findIndex(d => d.deviceName === record.deviceName && d.deviceModel === record.deviceModel);
+              setSelectedDeviceIdx(idx >= 0 ? idx : 0);
+            }
+          }
+
+          if (record.photos?.length) {
+            setInitialPhotos(record.photos);
+          }
         } else {
           const stationRes = await getStationDetail(Number(projectId), Number(stationId));
           setStationInfo(stationRes.data);
 
+          const projectRes = await getProject(Number(projectId));
+          const projectDevices = projectRes.data?.devices || [];
+          setDevices(projectDevices);
+          if (projectDevices.length > 0) setSelectedDeviceIdx(0);
+
           const activePlanRes = await getActivePlan(Number(projectId));
           if (activePlanRes.data) {
             setPlanName(activePlanRes.data.planName);
-            setResolvedPlanId(activePlanRes.data.id);
+            setResolvedPlanId(activePlanRes.data.planId);
           }
         }
       } catch (e: any) {
@@ -109,6 +133,7 @@ function InspectionFormPage() {
     let allFilled = true;
     for (const section of checklistData.sections || []) {
       for (const item of section.items || []) {
+        if (item.itemType === 3) continue;
         const filled = item.itemType === 2
           ? (item.measuredValue?.value ?? '').toString().trim() !== ''
           : item.result === '正常' || item.result === '异常';
@@ -125,15 +150,60 @@ function InspectionFormPage() {
       firstEmptyEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
+    if (!selectedWeather) {
+      showToast({ icon: 'warning', content: '请选择天气' });
+      return;
+    }
+    if (devices.length > 0 && selectedDeviceIdx < 0) {
+      showToast({ icon: 'warning', content: '请选择检测设备' });
+      return;
+    }
+    // Check type=3 photo items have at least one photo
+    for (const section of checklistData.sections || []) {
+      for (const item of section.items || []) {
+        if (item.itemType === 3) {
+          const sectionPhotos = photos.find(p => p.sectionId === section.sectionId);
+          const itemPhoto = sectionPhotos?.items?.find(i => i.itemId === item.itemId);
+          if (!itemPhoto?.urls?.length) {
+            showToast({ icon: 'warning', content: `请上传"${item.content}"照片` });
+            document.getElementById(`checklist-item-${item.itemId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+          }
+        }
+      }
+    }
 
     setSubmitting(true);
     try {
-      const { checklistResult } = toSubmitFormat(checklistData, {});
+      const checklistResult = (checklistData.sections || []).map(
+        (section: any) => ({
+          sectionId: section.sectionId,
+          items: (section.items || [])
+            .filter((item: any) => item.itemType !== 3)
+            .map((item: any) => {
+              const dto: any = { itemId: item.itemId, result: null };
+              if (item.itemType === 2) {
+                const val = item.measuredValue?.value;
+                const hasValue = val != null && String(val).trim() !== '';
+                dto.result = hasValue ? true : null;
+                dto.value = hasValue ? String(val).trim() : null;
+              } else {
+                dto.result = item.result === '正常' ? true : item.result === '异常' ? false : null;
+                dto.remark = item.exceptionNote || undefined;
+              }
+              return dto;
+            }),
+        }),
+      );
 
       if (isEdit) {
+        const selectedDevice = devices[selectedDeviceIdx];
         await updateInspection(Number(recordId), {
           weather: selectedWeather,
+          deviceName: selectedDevice?.deviceName,
+          deviceModel: selectedDevice?.deviceModel,
           checklistResult,
+          photos: photos.length > 0 ? photos : undefined,
         });
         showToast({ icon: 'success', content: '保存成功' });
       } else {
@@ -143,12 +213,16 @@ function InspectionFormPage() {
           setSubmitting(false);
           return;
         }
+        const selectedDevice = devices[selectedDeviceIdx];
         await submitInspection({
           planId: effectivePlanId,
           stationId: Number(stationId),
           projectId: Number(projectId),
           weather: selectedWeather,
+          deviceName: selectedDevice?.deviceName,
+          deviceModel: selectedDevice?.deviceModel,
           checklistResult,
+          photos: photos.length > 0 ? photos : undefined,
         });
         showToast({ icon: 'success', content: '提交成功' });
       }
@@ -226,7 +300,7 @@ function InspectionFormPage() {
 
         {/* Weather */}
         <div className="bg-white rounded-xl p-4 shadow-sm">
-          <h3 className="text-sm font-medium text-gray-500 mb-3">天气情况</h3>
+          <h3 className="text-sm font-medium text-gray-500 mb-3">天气 <span className="text-red-500">*</span></h3>
           <div className="flex flex-wrap gap-2 mb-3">
             {WEATHER_PRESETS.map((w) => (
               <button
@@ -255,12 +329,32 @@ function InspectionFormPage() {
           />
         </div>
 
+        {/* Device selection */}
+        {devices.length > 0 && (
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <h3 className="text-sm font-medium text-gray-500 mb-3">检测设备 <span className="text-red-500">*</span></h3>
+            <select
+              value={selectedDeviceIdx}
+              onChange={(e) => setSelectedDeviceIdx(Number(e.target.value))}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal bg-white"
+            >
+              {devices.map((d, i) => (
+                <option key={d.id ?? i} value={i}>
+                  {d.deviceName}（{d.deviceModel}）
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* Checklist */}
         <InspectionChecklist
           checklistData={checklistData}
           onChange={setChecklistData}
           readOnly={false}
           projectId={!isEdit && projectId ? Number(projectId) : undefined}
+          onPhotosChange={setPhotos}
+          initialPhotos={initialPhotos}
         />
       </div>
 

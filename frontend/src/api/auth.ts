@@ -36,9 +36,13 @@ export function forceChangePassword(newPassword: string) {
 }
 
 export function resetPassword(userId: number) {
-  return client.post<any, { code: number }>('/auth/reset-password', { userId });
+  return client.post<any, { code: number; data: { tempPassword: string } }>('/auth/reset-password', { userId });
 }
 
 export function logout() {
   return client.post<any, { code: number }>('/auth/logout');
+}
+
+export function refreshToken() {
+  return client.post<any, { code: number }>('/auth/refresh');
 }

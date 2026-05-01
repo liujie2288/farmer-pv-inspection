@@ -164,6 +164,14 @@ function UserListPage() {
               showToast({ icon: 'fail', content: '用户名只能包含小写字母、数字和下划线，2-30个字符' });
               return false;
             }
+            if (form.password.length < 8) {
+              showToast({ icon: 'fail', content: '密码至少8位' });
+              return false;
+            }
+            if (/[^a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':",./<>?`~]/.test(form.password)) {
+              showToast({ icon: 'fail', content: '密码只能包含字母、数字和常见符号' });
+              return false;
+            }
             if (form.realName.length > 20) {
               showToast({ icon: 'fail', content: '真实姓名最多20个字符' });
               return false;
@@ -253,12 +261,41 @@ function UserListPage() {
             <button
               type="button"
               onClick={async () => {
-                const ok = await confirm({ content: `确定重置用户"${user.realName}"的密码为默认密码？` });
+                const ok = await confirm({ content: `确定重置用户"${user.realName}"的密码？` });
                 if (!ok) return;
                 try {
-                  await resetPassword(user.id);
-                  showToast({ icon: 'success', content: '密码已重置' });
+                  const res = await resetPassword(user.id);
+                  const tempPassword = res.data.tempPassword;
                   closeRef.current?.();
+                  await showDialog({
+                    title: '密码重置成功',
+                    content: (
+                      <div className="space-y-3">
+                        <p className="text-sm text-gray-600">临时密码已生成，请通知用户尽快登录修改密码。</p>
+                        <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-4 py-3">
+                          <code className="text-lg font-mono font-bold tracking-widest text-navy flex-1 text-center select-all">{tempPassword}</code>
+                          <button
+                            type="button"
+                            onClick={() => {
+                                  const textarea = document.createElement('textarea');
+                                  textarea.value = tempPassword;
+                                  textarea.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+                                  document.body.appendChild(textarea);
+                                  textarea.select();
+                                  textarea.setSelectionRange(0, tempPassword.length);
+                                  try { document.execCommand('copy'); } catch { navigator.clipboard?.writeText(tempPassword); }
+                                  document.body.removeChild(textarea);
+                                  showToast({ icon: 'success', content: '已复制到剪贴板' });
+                                }}
+                            className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-teal text-white hover:bg-teal-dark transition-colors"
+                          >
+                            复制
+                          </button>
+                        </div>
+                      </div>
+                    ),
+                    actions: [{ label: '确定', primary: true, onClick: () => {} }],
+                  });
                 } catch (e: any) {
                   showToast({ icon: 'fail', content: e.message || '重置失败' });
                 }

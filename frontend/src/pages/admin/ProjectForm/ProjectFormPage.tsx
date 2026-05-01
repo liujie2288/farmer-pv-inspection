@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Trash2 } from 'lucide-react';
+import ImageUpload from '@/components/ui/ImageUpload';
 import {
   getProject,
   createProject,
@@ -152,7 +153,19 @@ function ProjectFormPage() {
 
   const handleSave = async () => {
     if (!form.projectName || !form.propertyCompany || !form.stationType) {
-      showToast({ icon: 'warning', content: '请填写必填信息' });
+      showToast({ icon: 'warning', content: '请填写基本信息' });
+      return;
+    }
+    if (!form.droneCertificateUrl || !form.specialOperationCertUrl) {
+      showToast({ icon: 'warning', content: '请上传作业资质图片' });
+      return;
+    }
+    if (form.devices.length === 0 || form.devices.some(d => !d.deviceName.trim() || !d.deviceModel.trim())) {
+      showToast({ icon: 'warning', content: '请完善检测设备信息' });
+      return;
+    }
+    if (form.sectionIds.length === 0) {
+      showToast({ icon: 'warning', content: '请选择巡检内容' });
       return;
     }
     setSaving(true);
@@ -168,7 +181,7 @@ function ProjectFormPage() {
         await createProject(payload);
         showToast({ icon: 'success', content: '创建成功' });
       }
-      navigate('/admin/projects');
+      navigate(isEdit ? `/admin/projects/${projectId}` : '/admin/projects');
     } catch (e: any) {
       showToast({ icon: 'fail', content: e.message || '保存失败' });
     } finally {
@@ -267,37 +280,33 @@ function ProjectFormPage() {
       {/* Certificates */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5">
         <div className="border-b border-gray-100 pb-4">
-          <h2 className="text-sm font-semibold text-navy">资质证书</h2>
+          <h2 className="text-sm font-semibold text-navy">作业资质 <span className="text-red-500">*</span></h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-gray-700">民用无人机驾驶合格证</span>
-            <input
-              type="text"
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-gray-700">民用无人机驾驶员合格证</span>
+            <ImageUpload
               value={form.droneCertificateUrl}
-              placeholder="图片URL地址"
-              className={inputClass}
-              onChange={e => updateField('droneCertificateUrl', e.target.value)}
+              onChange={url => updateField('droneCertificateUrl', url)}
+              placeholder="上传合格证图片"
             />
-          </label>
+          </div>
 
-          <label className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-gray-700">特种作业操作证</span>
-            <input
-              type="text"
+            <ImageUpload
               value={form.specialOperationCertUrl}
-              placeholder="图片URL地址"
-              className={inputClass}
-              onChange={e => updateField('specialOperationCertUrl', e.target.value)}
+              onChange={url => updateField('specialOperationCertUrl', url)}
+              placeholder="上传操作证图片"
             />
-          </label>
+          </div>
         </div>
       </div>
 
       {/* Devices */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
         <div className="border-b border-gray-100 pb-4">
-          <h2 className="text-sm font-semibold text-navy">检测设备</h2>
+          <h2 className="text-sm font-semibold text-navy">检测设备 <span className="text-red-500">*</span></h2>
         </div>
         <DeviceListEditor
           devices={form.devices}
@@ -309,7 +318,7 @@ function ProjectFormPage() {
       {sections.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
           <div className="border-b border-gray-100 pb-4">
-            <h2 className="text-sm font-semibold text-navy">巡检内容</h2>
+            <h2 className="text-sm font-semibold text-navy">巡检内容 <span className="text-red-500">*</span></h2>
           </div>
           <div className="space-y-3">
             {sections.map(section => {

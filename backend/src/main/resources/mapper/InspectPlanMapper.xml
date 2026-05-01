@@ -21,7 +21,7 @@
 
     <select id="listPlanView" resultType="com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo">
         SELECT
-            pp.id AS id,
+            pp.id AS planProjectId,
             p.id AS planId,
             p.plan_name AS planName,
             pp.project_id AS projectId,
@@ -63,7 +63,7 @@
 
     <select id="listPlan" resultType="com.yldlxj.pv.inspect.plan.dto.PlanViewVo">
         SELECT
-            p.id AS id,
+            p.id AS planId,
             p.plan_name AS planName,
             p.start_time AS startTime,
             p.end_time AS endTime,
@@ -87,7 +87,7 @@
 
     <select id="findActiveByProjectId" resultType="com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo">
         SELECT
-        pp.id AS id,
+        pp.id AS planProjectId,
         pp.project_id AS projectId,
         pp.total_count AS totalCount,
         pp.inspected_count AS inspectedCount,
@@ -104,7 +104,7 @@
 
     <select id="findActiveByProjectIds" resultType="com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo">
         SELECT
-            pp.id AS id,
+            pp.id AS planProjectId,
             pp.project_id AS projectId,
             pp.total_count AS totalCount,
             pp.inspected_count AS inspectedCount,
@@ -122,5 +122,29 @@
         ORDER BY pp.project_id, pp.id DESC
     </select>
 
+    <update id="updateInspectedCount">
+        UPDATE inspect_plan SET inspected_count = #{inspectedCount} WHERE id = #{id}
+    </update>
+
+    <update id="recalculateCounts">
+        UPDATE inspect_plan p
+        LEFT JOIN (
+            SELECT plan_id, SUM(total_count) AS total_sum, SUM(inspected_count) AS inspected_sum
+            FROM inspect_plan_project
+            WHERE plan_id = #{id}
+            GROUP BY plan_id
+        ) pp ON p.id = pp.plan_id
+        SET p.total_count = COALESCE(pp.total_sum, 0),
+            p.inspected_count = COALESCE(pp.inspected_sum, 0)
+        WHERE p.id = #{id}
+    </update>
+
+    <update id="transitionToInProgress">
+        UPDATE inspect_plan SET status = 1 WHERE status = 0 AND start_time &lt;= CURDATE()
+    </update>
+
+    <update id="transitionToFinished">
+        UPDATE inspect_plan SET status = 2 WHERE status = 1 AND end_time &lt; CURDATE()
+    </update>
 
 </mapper>

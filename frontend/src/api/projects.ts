@@ -53,7 +53,7 @@ export function getProjectStats(id: number) {
 }
 
 export interface ProjectPlan {
-  id: number;
+  planProjectId: number;
   planId: number;
   planName: string;
   projectId: number;

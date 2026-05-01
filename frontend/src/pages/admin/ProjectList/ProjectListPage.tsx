@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Pencil, FolderOpen } from 'lucide-react';
+import { Search, Plus, FileText, FolderOpen } from 'lucide-react';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import {
   listProjects,
@@ -138,12 +138,12 @@ function ProjectListPage() {
                     <button
                       onClick={e => {
                         e.stopPropagation();
-                        navigate(`/admin/projects/${p.id}/edit`);
+                        navigate(`/admin/projects/${p.id}`);
                       }}
                       className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-teal"
-                      title="编辑"
+                      title="查看详情"
                     >
-                      <Pencil size={16} />
+                      <FileText size={16} />
                     </button>
                   </div>
                 </div>

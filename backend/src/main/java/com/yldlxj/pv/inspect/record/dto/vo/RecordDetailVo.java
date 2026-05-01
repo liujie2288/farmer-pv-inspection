@@ -14,10 +14,13 @@ public class RecordDetailVo {
     private String planName;
     private Integer planStatus;
     private String projectName;
+    private Long projectId;
     private String stationCode;
     private String stationName;
     private String inspectorName;
     private String weather;
+    private String deviceName;
+    private String deviceModel;
     private List<ChecklistSectionVo> checklistResult;
     private List<PhotoSectionVo> photos;
     private BigDecimal longitude;

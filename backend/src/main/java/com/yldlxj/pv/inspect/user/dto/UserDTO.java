@@ -1,6 +1,5 @@
 package com.yldlxj.pv.inspect.user.dto;
 
-import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 @Data

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yldlxj.pv.inspect.plan.InspectPlanProjectMapper">
+
+    <update id="updateInspectedCount">
+        UPDATE inspect_plan_project SET inspected_count = #{inspectedCount} WHERE id = #{id}
+    </update>
+
+    <update id="recalculateCounts">
+        UPDATE inspect_plan_project pp
+        SET pp.total_count = (SELECT COUNT(*) FROM station s WHERE s.project_id = pp.project_id AND s.deleted = 0),
+            pp.inspected_count = (SELECT COUNT(*) FROM inspect_record r WHERE r.plan_project_id = pp.id)
+        WHERE pp.id = #{id}
+    </update>
+
+    <select id="countActiveByProjectId" resultType="long">
+        SELECT COUNT(*) FROM inspect_plan_project pp
+        INNER JOIN inspect_plan p ON p.id = pp.plan_id
+        WHERE pp.project_id = #{projectId} AND p.status IN (0, 1)
+    </select>
+
+</mapper>

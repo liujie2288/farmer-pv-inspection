@@ -5,7 +5,6 @@ import com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo;
 import com.yldlxj.pv.inspect.plan.dto.PlanViewVo;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -24,6 +23,11 @@ public interface InspectPlanMapper extends BaseMapper<InspectPlan> {
 
     List<PlanProjectViewVo> findActiveByProjectIds(@Param("projectIds") List<Long> projectIds);
 
-    @Update("UPDATE inspect_plan SET inspected_count = #{inspectedCount} WHERE id = #{id}")
-    void updateInspectedCount(Long id, Long inspectedCount);
+    void updateInspectedCount(@Param("id") Long id, @Param("inspectedCount") Long inspectedCount);
+
+    void recalculateCounts(@Param("id") Long id);
+
+    int transitionToInProgress();
+
+    int transitionToFinished();
 }
