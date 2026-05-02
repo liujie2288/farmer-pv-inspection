@@ -15,6 +15,7 @@ import {
   CloudSun,
   Unlock,
   Wrench,
+  Eye,
 } from 'lucide-react';
 import { getInspectionDetail, extendDeadline } from '@/api/inspections';
 import { fetchPdf } from '@/api/export';
@@ -107,6 +108,14 @@ function RecordDetailPage() {
 
   return (
     <div className="space-y-4">
+      {/* Preview report button */}
+      <button
+        onClick={() => window.open(`/api/reports/records/${recordId}`, '_blank')}
+        className="w-full flex items-center justify-center gap-2 bg-white text-navy border border-navy/20 rounded-xl py-3 text-sm font-medium shadow-sm hover:bg-navy/5 active:bg-navy/10 transition-colors"
+      >
+        <Eye size={18} />
+        预览PDF报告
+      </button>
       {/* Basic info card */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-4 py-3 bg-navy/5 border-b border-gray-100">

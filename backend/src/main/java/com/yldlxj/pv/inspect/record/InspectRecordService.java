@@ -160,6 +160,7 @@ public class InspectRecordService {
         RecordDetailVo vo = new RecordDetailVo();
         vo.setId(record.getId());
         vo.setPlanName(plan != null ? plan.getPlanName() : "");
+        vo.setStationId(station != null ? station.getId() : null);
         vo.setStationName(station != null ? station.getOwnerName() : "");
         vo.setStationCode(station != null ? station.getStationCode() : "");
         vo.setProjectName(projectService.getNameByProjectId(record.getProjectId()));

@@ -15,6 +15,7 @@ public class RecordDetailVo {
     private Integer planStatus;
     private String projectName;
     private Long projectId;
+    private Long stationId;
     private String stationCode;
     private String stationName;
     private String inspectorName;
