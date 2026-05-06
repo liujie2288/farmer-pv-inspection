@@ -4,14 +4,16 @@
 <mapper namespace="com.yldlxj.pv.inspect.plan.InspectPlanProjectMapper">
 
     <update id="updateInspectedCount">
-        UPDATE inspect_plan_project SET inspected_count = #{inspectedCount} WHERE id = #{id}
+        UPDATE inspect_plan_project pp
+        SET pp.inspected_count = (SELECT COUNT(DISTINCT r.station_id) FROM inspect_record r WHERE r.plan_project_id = #{id} AND r.status = 1)
+        WHERE pp.id = #{id}
     </update>
 
     <update id="recalculateCounts">
         UPDATE inspect_plan_project pp
-        SET pp.total_count = (SELECT COUNT(*) FROM station s WHERE s.project_id = pp.project_id AND s.deleted = 0),
-            pp.inspected_count = (SELECT COUNT(*) FROM inspect_record r WHERE r.plan_project_id = pp.id)
-        WHERE pp.id = #{id}
+        SET pp.total_count = (SELECT COUNT(*) FROM station s WHERE s.project_id = pp.project_id),
+            pp.inspected_count = (SELECT COUNT(DISTINCT(r.station_id)) FROM inspect_record r WHERE r.plan_project_id = pp.id AND r.status = 1)
+        WHERE pp.plan_id = #{planId}
     </update>
 
     <select id="countActiveByProjectId" resultType="long">

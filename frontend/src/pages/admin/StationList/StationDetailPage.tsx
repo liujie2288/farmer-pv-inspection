@@ -94,6 +94,7 @@ function StationDetailPage({ readOnly }: { readOnly?: boolean } = {}) {
   const navigate = useNavigate();
   const pid = Number(projectId);
   const [detail, setDetail] = useState<StationDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Edit dialog state
   const [showEdit, setShowEdit] = useState(false);
@@ -105,9 +106,13 @@ function StationDetailPage({ readOnly }: { readOnly?: boolean } = {}) {
 
   useEffect(() => {
     if (projectId && stationId) {
+      setError(null);
       getStationDetail(pid, Number(stationId))
         .then(res => setDetail(res.data))
-        .catch((e: any) => showToast({ icon: 'fail', content: e.message }));
+        .catch((e: any) => {
+          showToast({ icon: 'fail', content: e.message });
+          setError(e.message || '加载失败');
+        });
     }
   }, [projectId, stationId]);
 
@@ -171,6 +176,19 @@ function StationDetailPage({ readOnly }: { readOnly?: boolean } = {}) {
   };
 
   if (!detail) {
+    if (error) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+          <p className="text-sm text-gray-500">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 text-sm font-medium text-teal border border-teal/30 rounded-lg hover:bg-teal/10 transition-colors"
+          >
+            重新加载
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <LoadingSpinner size="lg" />
@@ -250,7 +268,7 @@ function StationDetailPage({ readOnly }: { readOnly?: boolean } = {}) {
               <thead>
                 <tr className="bg-gray-50 text-gray-500">
                   <th className="text-left font-medium px-4 py-2.5">巡检任务</th>
-                  <th className="text-left font-medium px-4 py-2.5">巡检人员</th>
+                  <th className="text-left font-medium px-4 py-2.5">巡检人</th>
                   <th className="text-left font-medium px-4 py-2.5">巡检时间</th>
                 </tr>
               </thead>
@@ -261,7 +279,12 @@ function StationDetailPage({ readOnly }: { readOnly?: boolean } = {}) {
                     onClick={() => navigate(`${readOnly ? '/records' : '/admin/records'}/${r.recordId}`)}
                     className="border-t border-gray-100 hover:bg-teal/5 cursor-pointer transition-colors"
                   >
-                    <td className="px-4 py-3 text-gray-900">{r.planName}</td>
+                    <td className="px-4 py-3 text-gray-900">
+                      {r.planName}
+                      {r.status === 2 && (
+                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-500">已驳回</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-gray-700">{r.inspectorName}</td>
                     <td className="px-4 py-3 text-gray-500">{r.inspectorTime}</td>
                   </tr>

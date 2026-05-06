@@ -22,7 +22,6 @@
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <jjwt.version>0.11.5</jjwt.version>
         <easyexcel.version>3.3.3</easyexcel.version>
-        <itext.version>7.2.5</itext.version>
         <aliyun-oss.version>3.17.0</aliyun-oss.version>
     </properties>
 
@@ -113,33 +112,18 @@
             <version>${easyexcel.version}</version>
         </dependency>
 
-        <!-- iText PDF -->
-        <dependency>
-            <groupId>com.itextpdf</groupId>
-            <artifactId>kernel</artifactId>
-            <version>${itext.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.itextpdf</groupId>
-            <artifactId>io</artifactId>
-            <version>${itext.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.itextpdf</groupId>
-            <artifactId>layout</artifactId>
-            <version>${itext.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.itextpdf</groupId>
-            <artifactId>font-asian</artifactId>
-            <version>${itext.version}</version>
-        </dependency>
-
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
+        </dependency>
+
+        <!-- Playwright -->
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>1.49.0</version>
         </dependency>
 
         <!-- Test -->

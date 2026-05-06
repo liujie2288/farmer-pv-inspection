@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Upload, X, Loader2 } from 'lucide-react';
-import { uploadFileToOss, getPresignedUrl } from '@/api/storage';
+import { uploadFileToOss } from '@/api/storage';
 import { showToast } from '@/components/ui/Toast';
 import { openImagePreview } from '@/components/ui/ImagePreview';
 
@@ -12,24 +12,21 @@ interface ImageUploadProps {
 
 export default function ImageUpload({ value, onChange, placeholder = '点击上传图片' }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
-  const [thumbnailUrl, setThumbnailUrl] = useState('');
+  const [progress, setProgress] = useState(0);
+  const [localUrl, setLocalUrl] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const MAX_SIZE = 5 * 1024 * 1024;
 
+  // 清理本地 blob URL
   useEffect(() => {
-    if (!value) {
-      setThumbnailUrl('');
-      return;
-    }
-    let cancelled = false;
-    getPresignedUrl(value).then(url => {
-      if (!cancelled) setThumbnailUrl(url);
-    }).catch(() => {
-      if (!cancelled) setThumbnailUrl('');
-    });
-    return () => { cancelled = true; };
-  }, [value]);
+    return () => {
+      if (localUrl) URL.revokeObjectURL(localUrl);
+    };
+  }, [localUrl]);
+
+  // 本地 blob 优先，否则直接用 value（后端返回的 presigned URL）
+  const previewUrl = localUrl || (value && !value.startsWith('blob:') ? value : '');
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -41,45 +38,66 @@ export default function ImageUpload({ value, onChange, placeholder = '点击上�
       return;
     }
 
+    const blob = URL.createObjectURL(file);
+    setLocalUrl(blob);
     setUploading(true);
+    setProgress(0);
+
     try {
-      const objectKey = await uploadFileToOss(file);
+      const objectKey = await uploadFileToOss(file, 'certificate', {
+        onProgress: (p) => setProgress(p),
+      });
       onChange(objectKey);
     } catch (err: any) {
       showToast({ icon: 'fail', content: err.message || '上传失败' });
+      URL.revokeObjectURL(blob);
+      setLocalUrl('');
     } finally {
       setUploading(false);
+      setProgress(0);
     }
   };
 
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (localUrl) {
+      URL.revokeObjectURL(localUrl);
+      setLocalUrl('');
+    }
     onChange('');
   };
 
   const handlePreview = () => {
-    if (thumbnailUrl) openImagePreview(thumbnailUrl);
+    if (previewUrl) openImagePreview(previewUrl);
   };
 
   return (
     <div className="flex flex-col gap-1.5">
       {value ? (
         <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border border-gray-200 bg-gray-50 max-w-[40%] cursor-pointer"
-             onClick={handlePreview}>
-          {thumbnailUrl ? (
-            <img src={thumbnailUrl} alt="证书图片" className="w-full h-full object-contain" />
+             onClick={uploading ? undefined : handlePreview}>
+          {previewUrl ? (
+            <img src={previewUrl} alt="证书图片" className="w-full h-full object-contain" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <Loader2 size={20} className="animate-spin text-gray-300" />
             </div>
           )}
-          <button
-            type="button"
-            onClick={handleRemove}
-            className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
-          >
-            <X size={14} />
-          </button>
+          {uploading && (
+            <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-1">
+              <Loader2 size={20} className="animate-spin text-white" />
+              <span className="text-xs text-white">{progress}%</span>
+            </div>
+          )}
+          {!uploading && (
+            <button
+              type="button"
+              onClick={handleRemove}
+              className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
       ) : (
         <div
@@ -96,7 +114,7 @@ export default function ImageUpload({ value, onChange, placeholder = '点击上�
           {uploading ? (
             <>
               <Loader2 size={24} className="animate-spin text-teal-500" />
-              <span className="text-xs text-gray-400">上传中...</span>
+              <span className="text-xs text-gray-400">{progress}%</span>
             </>
           ) : (
             <>

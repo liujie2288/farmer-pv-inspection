@@ -1,11 +1,13 @@
 package com.yldlxj.pv.inspect.common;
 
 import java.util.Random;
+import java.util.regex.Pattern;
 
 public class CommonUtils {
 
     private static final Random RANDOM = new Random();
     private static final String LETTERS = "abcdefghijklmnopqrstuvwxyz";
+    private static final Pattern SAFE_NAME_REG = Pattern.compile("[\\\\/:*?\"<>|\\s]+");
 
     public static String generateTempPassword() {
         StringBuilder sb = new StringBuilder();
@@ -21,6 +23,28 @@ public class CommonUtils {
             return "mobile";
         }
         return "pc";
+    }
+
+    public static String truncateFileName(String name) {
+        if (name == null || name.isBlank()) {
+            return "unknown";
+        }
+        String safeName = SAFE_NAME_REG.matcher(name).replaceAll("");
+        return safeName.isEmpty() ? "unknown" : safeName;
+    }
+
+    public static String truncateFileName(String name, int length) {
+        String safeName = truncateFileName(name);
+        return safeName.length() > length ? safeName.substring(0, length) : safeName;
+    }
+
+    public static String getExtension(String key) {
+        int dotIdx = key.lastIndexOf('.');
+        if (dotIdx > 0 && dotIdx > key.lastIndexOf('/')) {
+            String ext = key.substring(dotIdx).toLowerCase();
+            if (ext.length() <= 5) return ext;
+        }
+        return ".jpg";
     }
 
 }

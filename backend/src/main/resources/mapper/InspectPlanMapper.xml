@@ -123,7 +123,9 @@
     </select>
 
     <update id="updateInspectedCount">
-        UPDATE inspect_plan SET inspected_count = #{inspectedCount} WHERE id = #{id}
+        UPDATE inspect_plan p
+        SET p.inspected_count = (SELECT COUNT(DISTINCT r.station_id) FROM inspect_record r WHERE r.plan_id = #{id} AND r.status = 1)
+        WHERE p.id = #{id}
     </update>
 
     <update id="recalculateCounts">

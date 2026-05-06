@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus, X, XCircle } from 'lucide-react';
 import {
   submitInspection,
   getInspectionDetail,
@@ -15,6 +15,13 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { showToast } from '@/components/ui/Toast';
 
 const WEATHER_PRESETS = ['晴', '多云', '阴', '小雨', '中雨', '大雨', '雷阵雨', '小雪', '大雪', '雾', '大风'];
+
+const WATERMARK_FIELD_OPTIONS = [
+  { value: 'projectName', label: '项目名称' },
+  { value: 'ownerName', label: '户主姓名' },
+  { value: 'coordinates', label: '经纬度' },
+  { value: 'timestamp', label: '拍摄时间' },
+];
 
 /** Convert backend VO (boolean result, remark, value) → internal format ('正常'/'异常', exceptionNote, measuredValue) */
 function convertVoToChecklist(vo: any[]): { sections: any[] } {
@@ -53,10 +60,26 @@ function InspectionFormPage() {
   const [resolvedPlanId, setResolvedPlanId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [photos, setPhotos] = useState<PhotoSectionSubmit[]>([]);
   const [initialPhotos, setInitialPhotos] = useState<PhotoSectionSubmit[] | undefined>(undefined);
+  const [rejectReason, setRejectReason] = useState<string | null>(null);
 
   const selectedWeather = customWeather || weather;
+
+  const [watermarkFields, setWatermarkFields] = useState<string[]>([]);
+  const [watermarkCustomTexts, setWatermarkCustomTexts] = useState<string[]>([]);
+
+  const toggleWatermarkField = (field: string) => {
+    setWatermarkFields(prev =>
+      prev.includes(field) ? prev.filter(f => f !== field) : [...prev, field]
+    );
+  };
+
+  const addCustomText = () => setWatermarkCustomTexts(prev => [...prev, '']);
+  const removeCustomText = (idx: number) => setWatermarkCustomTexts(prev => prev.filter((_, i) => i !== idx));
+  const updateCustomText = (idx: number, val: string) =>
+    setWatermarkCustomTexts(prev => prev.map((t, i) => i === idx ? val : t));
 
   useEffect(() => {
     const init = async () => {
@@ -66,6 +89,9 @@ function InspectionFormPage() {
           const recordRes = await getInspectionDetail(Number(recordId));
           const record = recordRes.data;
           setChecklistData(convertVoToChecklist(record.checklistResult));
+          if (record.status === 2 && record.rejectReason) {
+            setRejectReason(record.rejectReason);
+          }
           const savedWeather = record.weather || '';
           if (WEATHER_PRESETS.includes(savedWeather)) {
             setWeather(savedWeather);
@@ -94,6 +120,11 @@ function InspectionFormPage() {
 
           if (record.photos?.length) {
             setInitialPhotos(record.photos);
+          }
+
+          if (record.watermarkConfig) {
+            setWatermarkFields(record.watermarkConfig.fields || []);
+            setWatermarkCustomTexts(record.watermarkConfig.customTexts || []);
           }
         } else {
           const stationRes = await getStationDetail(Number(projectId), Number(stationId));
@@ -173,6 +204,23 @@ function InspectionFormPage() {
       }
     }
 
+    // Check abnormal items have exception note
+    for (const section of checklistData.sections || []) {
+      for (const item of section.items || []) {
+        if (item.itemType !== 3 && item.result === '异常' && !(item.exceptionNote || '').trim()) {
+          showToast({ icon: 'warning', content: '请填写异常说明' });
+          document.getElementById(`checklist-item-${item.itemId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+      }
+    }
+
+    // Check photos uploading
+    if (photoUploading) {
+      showToast({ icon: 'warning', content: '照片正在上传中，请稍候' });
+      return;
+    }
+
     setSubmitting(true);
     try {
       const checklistResult = (checklistData.sections || []).map(
@@ -204,6 +252,9 @@ function InspectionFormPage() {
           deviceModel: selectedDevice?.deviceModel,
           checklistResult,
           photos: photos.length > 0 ? photos : undefined,
+          watermarkConfig: (watermarkFields.length > 0 || watermarkCustomTexts.some(t => t.trim()))
+            ? { fields: watermarkFields.length > 0 ? watermarkFields : undefined, customTexts: watermarkCustomTexts.filter(t => t.trim()).length > 0 ? watermarkCustomTexts.filter(t => t.trim()) : undefined }
+            : undefined,
         });
         showToast({ icon: 'success', content: '保存成功' });
       } else {
@@ -223,6 +274,9 @@ function InspectionFormPage() {
           deviceModel: selectedDevice?.deviceModel,
           checklistResult,
           photos: photos.length > 0 ? photos : undefined,
+          watermarkConfig: (watermarkFields.length > 0 || watermarkCustomTexts.some(t => t.trim()))
+            ? { fields: watermarkFields.length > 0 ? watermarkFields : undefined, customTexts: watermarkCustomTexts.filter(t => t.trim()).length > 0 ? watermarkCustomTexts.filter(t => t.trim()) : undefined }
+            : undefined,
         });
         showToast({ icon: 'success', content: '提交成功' });
       }
@@ -255,9 +309,19 @@ function InspectionFormPage() {
 
       {/* Content */}
       <div className="flex-1 overflow-auto px-4 py-3 space-y-4">
+        {/* Rejected banner */}
+        {rejectReason && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            <div className="flex items-center gap-2 text-red-600 font-medium text-sm">
+              <XCircle size={16} />
+              <span>该记录已被驳回</span>
+            </div>
+            <p className="mt-1.5 text-sm text-red-500 pl-6">驳回原因：{rejectReason}</p>
+          </div>
+        )}
         {/* Auto-filled info card */}
         <div className="bg-white rounded-xl p-4 shadow-sm">
-          <h3 className="text-sm font-medium text-gray-500 mb-2">巡检信息</h3>
+          <h3 className="text-sm font-medium text-gray-500 mb-2">基本信息</h3>
           <div className="grid grid-cols-2 gap-2 text-sm">
             <div>
               <span className="text-gray-400">项目：</span>
@@ -279,7 +343,7 @@ function InspectionFormPage() {
           {stationInfo?.inverterSn && (
             <div className="grid grid-cols-2 gap-2 text-sm mt-2 pt-2 border-t border-gray-50">
               <div>
-                <span className="text-gray-400">电站：</span>
+                <span className="text-gray-400">逆变器序列号：</span>
                 <span className="text-gray-700">{stationInfo.inverterSn}</span>
               </div>
               <div>
@@ -347,6 +411,55 @@ function InspectionFormPage() {
           </div>
         )}
 
+        {/* Watermark config */}
+        <div className="bg-white rounded-xl p-4 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-500 mb-3">照片水印</h3>
+          <div className="flex flex-wrap gap-2">
+            {WATERMARK_FIELD_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => toggleWatermarkField(opt.value)}
+                className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                  watermarkFields.includes(opt.value)
+                    ? 'bg-navy text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 space-y-2">
+            {watermarkCustomTexts.map((text, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={text}
+                  onChange={(e) => updateCustomText(idx, e.target.value)}
+                  placeholder="自定义水印内容"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal/30 focus:border-teal"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeCustomText(idx)}
+                  className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addCustomText}
+              className="flex items-center gap-1.5 text-sm text-teal hover:text-teal-dark transition-colors"
+            >
+              <Plus size={14} />
+              添加自定义内容
+            </button>
+          </div>
+        </div>
+
         {/* Checklist */}
         <InspectionChecklist
           checklistData={checklistData}
@@ -354,6 +467,7 @@ function InspectionFormPage() {
           readOnly={false}
           projectId={!isEdit && projectId ? Number(projectId) : undefined}
           onPhotosChange={setPhotos}
+          onUploadingChange={setPhotoUploading}
           initialPhotos={initialPhotos}
         />
       </div>

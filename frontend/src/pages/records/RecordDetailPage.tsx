@@ -9,20 +9,21 @@ import {
   Contact,
   CheckCircle2,
   XCircle,
-  FileOutput,
+  MinusCircle,
   Pencil,
   ImageIcon,
   CloudSun,
   Unlock,
   Wrench,
-  Eye,
+  Droplets,
+  FileOutput,
 } from 'lucide-react';
-import { getInspectionDetail, extendDeadline } from '@/api/inspections';
-import { fetchPdf } from '@/api/export';
+import { getInspectionDetail, extendDeadline, rejectRecord } from '@/api/inspections';
 import { useAuthStore } from '@/store/authStore';
 import { showToast } from '@/components/ui/Toast';
-import { confirm } from '@/components/ui/Dialog';
+import { confirm, showDialog } from '@/components/ui/Dialog';
 import { openImagePreview } from '@/components/ui/ImagePreview';
+import { getImageUrl } from '@/api/storage';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 interface ChecklistItemVo {
@@ -52,6 +53,37 @@ interface PhotoSectionVo {
   sectionId: number;
   sectionName: string;
   items: PhotoItemVo[];
+}
+
+function RecordPhoto({ url, alt }: { url: string; alt: string }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleClick = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const largeUrl = await getImageUrl(url, 'large');
+      openImagePreview(largeUrl);
+    } catch {
+      openImagePreview(url);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className="aspect-square rounded-lg overflow-hidden bg-gray-100 cursor-pointer relative"
+      onClick={handleClick}
+    >
+      <img src={url} alt={alt} className="w-full h-full object-cover" />
+      {loading && (
+        <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+          <span className="text-white text-xs">加载中...</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function RecordDetailPage() {
@@ -88,11 +120,23 @@ function RecordDetailPage() {
 
   const checklistResult = (detail.checklistResult as ChecklistSectionVo[]) || [];
 
-  const infoRows = [
+  const basicRows = [
     { label: '巡检任务', value: detail.planName, icon: FileText },
     { label: '项目名称', value: detail.projectName, icon: Building2 },
     { label: '电站编号', value: detail.stationCode, icon: FileText },
     { label: '户主姓名', value: detail.stationName, icon: Contact },
+  ];
+
+  const WATERMARK_LABELS: Record<string, string> = {
+    projectName: '项目名称',
+    ownerName: '户主姓名',
+    coordinates: '经纬度',
+    timestamp: '拍摄时间',
+  };
+
+  const wm = detail.watermarkConfig;
+
+  const inspectRows = [
     { label: '巡检时间', value: detail.createTime, icon: Calendar },
     { label: '巡检人', value: detail.inspectorName, icon: User },
     { label: '天气', value: detail.weather, icon: CloudSun },
@@ -101,28 +145,33 @@ function RecordDetailPage() {
       label: 'GPS坐标',
       value: detail.longitude && detail.latitude
         ? `${detail.longitude}, ${detail.latitude}`
-        : '未记录',
+        : '-',
       icon: MapPin,
     },
   ];
 
   return (
     <div className="space-y-4">
-      {/* Preview report button */}
-      <button
-        onClick={() => window.open(`/api/reports/records/${recordId}`, '_blank')}
-        className="w-full flex items-center justify-center gap-2 bg-white text-navy border border-navy/20 rounded-xl py-3 text-sm font-medium shadow-sm hover:bg-navy/5 active:bg-navy/10 transition-colors"
-      >
-        <Eye size={18} />
-        预览PDF报告
-      </button>
+      {/* Rejected banner */}
+      {detail.status === 2 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+          <div className="flex items-center gap-2 text-red-600 font-medium text-sm">
+            <XCircle size={16} />
+            <span>该记录已被驳回</span>
+          </div>
+          {detail.rejectReason && (
+            <p className="mt-1.5 text-sm text-red-500 pl-6">驳回原因：{detail.rejectReason}</p>
+          )}
+        </div>
+      )}
+
       {/* Basic info card */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-4 py-3 bg-navy/5 border-b border-gray-100">
           <h2 className="text-sm font-semibold text-navy">基本信息</h2>
         </div>
         <div className="divide-y divide-gray-50">
-          {infoRows.map((row) => {
+          {basicRows.map((row) => {
             const Icon = row.icon;
             return (
               <div key={row.label} className="flex items-center justify-between px-4 py-3">
@@ -136,6 +185,60 @@ function RecordDetailPage() {
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Inspection info card */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-4 py-3 bg-navy/5 border-b border-gray-100">
+          <h2 className="text-sm font-semibold text-navy">巡检信息</h2>
+        </div>
+        <div className="divide-y divide-gray-50">
+          {inspectRows.map((row) => {
+            const Icon = row.icon;
+            return (
+              <div key={row.label} className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2.5 text-sm text-gray-500">
+                  <Icon size={16} className="text-gray-400" />
+                  <span>{row.label}</span>
+                </div>
+                <span className="text-sm font-medium text-gray-900 text-right max-w-[60%] truncate">
+                  {row.value}
+                </span>
+              </div>
+            );
+          })}
+          {wm && (wm.fields?.length > 0 || wm.customTexts?.length > 0) && (
+            <div className="px-4 py-3">
+              <div className="flex items-start gap-2.5">
+                <div className="flex items-center gap-2.5 text-sm text-gray-500 shrink-0 pt-0.5">
+                  <Droplets size={16} className="text-gray-400" />
+                  <span>照片水印</span>
+                </div>
+                <div className="flex-1 flex flex-wrap gap-1.5 justify-end">
+                  {(wm.fields || []).map((f: string) => (
+                    <span key={f} className="inline-block px-2 py-0.5 bg-navy/10 text-navy text-xs font-medium rounded">
+                      {WATERMARK_LABELS[f] || f}
+                    </span>
+                  ))}
+                  {(wm.customTexts || []).map((t: string, i: number) => (
+                    <span key={`c${i}`} className="inline-block px-2 py-0.5 bg-teal/10 text-teal text-xs font-medium rounded">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          {(!wm || (wm.fields?.length === 0 && wm.customTexts?.length === 0)) && (
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-2.5 text-sm text-gray-500">
+                <Droplets size={16} className="text-gray-400" />
+                <span>照片水印</span>
+              </div>
+              <span className="text-sm font-medium text-gray-900 text-right max-w-[60%] truncate">-</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -157,21 +260,20 @@ function RecordDetailPage() {
                   {/* Checklist items */}
                   {section.items?.map((item) => (
                     <div key={item.itemId} className="py-1.5">
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="text-sm text-gray-700">
-                          {item.itemNo}. {item.content}
-                        </span>
+                      <span className="text-sm text-gray-700">
+                        {item.itemNo}.
                         {item.itemType !== 2 && (
-                          <span className={`inline-flex items-center gap-1 shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${
-                            item.result ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+                          <span className={`inline-flex items-center gap-0.5 text-xs font-semibold px-1.5 py-0.5 rounded-full align-middle ${
+                            item.result === true ? 'bg-green-50 text-green-600' : item.result === false ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-400'
                           }`}>
-                            {item.result ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                            {item.result ? '正常' : '异常'}
+                            {item.result === true ? <><CheckCircle2 size={12} /> 正常</> : item.result === false ? <><XCircle size={12} /> 异常</> : <><MinusCircle size={12} /> 未检查</>}
                           </span>
-                        )}
-                      </div>
-                      {item.value && (
-                        <p className="mt-0.5 text-xs text-gray-500 pl-5">实测值: {item.value}</p>
+                        )} {item.content}
+                      </span>
+                      {item.itemType === 2 && item.value && (
+                        <div className="mt-1 pl-5">
+                          <div className="max-w-[500px] px-3 py-2 border rounded-lg text-sm text-gray-700 bg-gray-50">{item.value}</div>
+                        </div>
                       )}
                       {item.remark && (
                         <p className="mt-0.5 text-xs text-red-500 pl-5">异常说明: {item.remark}</p>
@@ -194,13 +296,7 @@ function RecordDetailPage() {
                             )}
                             <div className="grid grid-cols-3 lg:grid-cols-8 gap-2">
                               {pi.urls?.map((url, idx) => (
-                                <div
-                                  key={idx}
-                                  className="aspect-square rounded-lg overflow-hidden bg-gray-100 cursor-pointer"
-                                  onClick={() => openImagePreview(url)}
-                                >
-                                  <img src={url} alt={`照片${idx + 1}`} className="w-full h-full object-cover" />
-                                </div>
+                                <RecordPhoto key={idx} url={url} alt={`照片${idx + 1}`} />
                               ))}
                             </div>
                           </div>
@@ -221,6 +317,59 @@ function RecordDetailPage() {
             <CheckCircle2 size={14} />
             <span>已开放编辑权限至 {detail.editDeadline.replace('T', ' ')}</span>
           </div>
+        )}
+        {isAdmin && detail.planStatus === 1 && detail.status === 1 && (
+          <button
+            onClick={async () => {
+              let reasonValue = '';
+              const closeRef: { current?: () => void } = {};
+              const ok = await new Promise<boolean>((resolve) => {
+                const close = (result: boolean) => {
+                  closeRef.current?.();
+                  resolve(result);
+                };
+                showDialog({
+                  title: '驳回巡检记录',
+                  content: (
+                    <div className="space-y-3">
+                      <p className="text-sm text-gray-500">驳回后该电站将恢复为未巡检状态，巡检员可重新提交。</p>
+                      <textarea
+                        id="reject-reason-input"
+                        rows={3}
+                        placeholder="请输入驳回原因"
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 resize-none"
+                        onChange={(e) => { reasonValue = e.target.value; }}
+                      />
+                    </div>
+                  ),
+                  actions: [
+                    { label: '取消', onClick: () => close(false) },
+                    { label: '确认驳回', danger: true, onClick: () => {
+                      if (!reasonValue.trim()) {
+                        showToast({ icon: 'warning', content: '请输入驳回原因' });
+                        return false;
+                      }
+                      close(true);
+                    }},
+                  ],
+                  closeRef,
+                });
+              });
+              if (!ok) return;
+              try {
+                await rejectRecord(Number(recordId), reasonValue.trim());
+                showToast({ icon: 'success', content: '已驳回' });
+                const res = await getInspectionDetail(Number(recordId));
+                setDetail(res.data);
+              } catch (e: any) {
+                showToast({ icon: 'fail', content: e.message || '操作失败' });
+              }
+            }}
+            className="w-full flex items-center justify-center gap-2 bg-red-500 text-white rounded-xl py-3.5 text-sm font-medium shadow-sm hover:bg-red-600 active:bg-red-700 transition-colors"
+          >
+            <XCircle size={18} />
+            驳回巡检记录
+          </button>
         )}
         {isAdmin && detail.planStatus === 1 && (!detail.editDeadline || new Date(detail.editDeadline) <= new Date()) && (
           <button
@@ -251,21 +400,25 @@ function RecordDetailPage() {
             编辑巡检记录
           </button>
         )}
-        <button
-          onClick={async () => {
-            try {
-              const blob = await fetchPdf(Number(recordId));
-              const url = URL.createObjectURL(blob);
-              window.open(url, '_blank');
-            } catch (e: any) {
-              showToast({ icon: 'fail', content: e.message || 'PDF加载失败' });
-            }
-          }}
-          className="w-full flex items-center justify-center gap-2 bg-navy text-white rounded-xl py-3.5 text-sm font-medium shadow-sm hover:bg-navy/90 active:bg-navy/80 transition-colors"
-        >
-          <FileOutput size={18} />
-          查看PDF报告
-        </button>
+        {detail.status === 1 && (
+          detail.pdfUrl ? (
+            <button
+              onClick={() => window.open(detail.pdfUrl, '_blank')}
+              className="w-full flex items-center justify-center gap-2 bg-navy text-white rounded-xl py-3.5 text-sm font-medium shadow-sm hover:bg-navy/90 active:bg-navy/80 transition-colors"
+            >
+              <FileOutput size={18} />
+              查看巡检报告
+            </button>
+          ) : (
+            <button
+              disabled
+              className="w-full flex items-center justify-center gap-2 bg-gray-300 text-gray-500 rounded-xl py-3.5 text-sm font-medium cursor-not-allowed"
+            >
+              <FileOutput size={18} />
+              报告生成中…
+            </button>
+          )
+        )}
       </div>
     </div>
   );

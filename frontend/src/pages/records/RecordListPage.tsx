@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, FileText, Pencil, ChevronRight } from 'lucide-react';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
@@ -7,11 +7,12 @@ import { useAuthStore } from '@/store/authStore';
 import { showToast } from '@/components/ui/Toast';
 import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import Pagination from '@/components/ui/Pagination';
 
 const statusTabs: { label: string; value: number | undefined }[] = [
   { label: '全部', value: undefined },
-  { label: '进行中', value: 1 },
-  { label: '已完成', value: 2 },
+  { label: '未驳回', value: 1 },
+  { label: '已驳回', value: 2 },
 ];
 
 function RecordListPage() {
@@ -26,13 +27,16 @@ function RecordListPage() {
   const [keyword, setKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(false);
+  const PAGE_SIZE = 20;
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const load = useCallback(async (p: number = 1, append: boolean = false) => {
     setLoading(true);
     try {
       const res = await listInspections({
         page: p,
-        size: 20,
+        size: PAGE_SIZE,
         keyword: keyword || undefined,
         status: statusFilter,
       });
@@ -60,11 +64,16 @@ function RecordListPage() {
     navigate(isAdmin ? `/admin/records/${id}` : `/records/${id}`);
   };
 
-  const hasMore = records.length < total;
+  const goToPage = (p: number) => {
+    if (p < 1 || p > totalPages) return;
+    load(p, false);
+  };
 
-  const sentinelRef = useInfiniteScroll(
-    () => load(page + 1, true),
-    { hasMore, loading },
+  const pageRef = useRef(1);
+  pageRef.current = page;
+  const mobileSentinelRef = useInfiniteScroll(
+    () => load(pageRef.current + 1, true),
+    { hasMore: records.length < total, loading },
   );
 
   return (
@@ -119,13 +128,16 @@ function RecordListPage() {
         <EmptyState icon={FileText} message="暂无巡检记录" />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          {/* Desktop grid */}
+          <div className="hidden lg:grid grid-cols-1 gap-4 xl:grid-cols-2">
             {records.map((r) => {
-              const statusBadge = r.canEdit
-                ? <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal/10 text-teal"><Pencil size={12} />可编辑</span>
-                : r.planStatus === 2
-                  ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600">已完成</span>
-                  : null;
+              const statusBadge = r.status === 2
+                ? <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-500">已驳回</span>
+                : r.canEdit
+                  ? <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal/10 text-teal"><Pencil size={12} />可编辑</span>
+                  : r.planStatus === 2
+                    ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600">已完成</span>
+                    : null;
               return (
                 <div
                   key={r.recordId}
@@ -168,14 +180,56 @@ function RecordListPage() {
             })}
           </div>
 
-          <div ref={sentinelRef} className="h-1" />
-          {loading && records.length > 0 && (
-            <div className="flex justify-center py-4">
-              <span className="text-sm text-gray-400">加载中...</span>
-            </div>
-          )}
+          {/* Mobile cards with infinite scroll */}
+          <div className="lg:hidden space-y-4">
+            {records.map((r) => {
+              const statusBadge = r.status === 2
+                ? <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-500">已驳回</span>
+                : r.canEdit
+                  ? <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal/10 text-teal"><Pencil size={12} />可编辑</span>
+                  : r.planStatus === 2
+                    ? <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600">已完成</span>
+                    : null;
+              return (
+                <div
+                  key={r.recordId}
+                  onClick={() => handleRecordClick(r.recordId)}
+                  className="group cursor-pointer bg-white rounded-xl shadow-sm border border-gray-100 p-5 transition-all hover:border-teal/30 hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-semibold text-navy truncate group-hover:text-teal">
+                        {r.projectName ? `${r.projectName} - ${r.stationOwnerName}` : (r.stationOwnerName || r.planName)}
+                      </h3>
+                      <p className="mt-1 text-sm text-gray-500 truncate">
+                        {r.planName}{r.inspectorName ? ` · 巡检员: ${r.inspectorName}` : ''}
+                      </p>
+                      {r.inspectorTime && (
+                        <p className="mt-1.5 text-xs text-gray-400">
+                          {r.inspectorTime}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {statusBadge}
+                      <ChevronRight size={16} className="text-gray-400" />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={mobileSentinelRef} className="h-1" />
+            {loading && records.length > 0 && (
+              <div className="flex justify-center py-4">
+                <span className="text-sm text-gray-400">加载中...</span>
+              </div>
+            )}
+          </div>
         </>
       )}
+
+      {/* Pagination — desktop only */}
+      <Pagination page={page} totalPages={totalPages} total={total} onChange={goToPage} />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Search, Plus, Upload, Trash2, ChevronRight,
-  ChevronLeft, ChevronRightIcon, Users, FileSpreadsheet, X
+  Users, FileSpreadsheet, X
 } from 'lucide-react';
 import {
   listStations, createStation,
@@ -15,6 +15,7 @@ import { confirm } from '@/components/ui/Dialog';
 import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import StatusTag from '@/components/ui/StatusTag';
+import Pagination from '@/components/ui/Pagination';
 
 interface StationFormState {
   stationCode: string;
@@ -460,68 +461,7 @@ function StationListPage() {
       </div>
 
       {/* Pagination — desktop only */}
-      {total > 0 && (
-        <div className="hidden lg:flex px-6 py-3 border-t border-gray-100 items-center justify-between">
-          <span className="text-sm text-gray-400">
-            共 {total} 条，第 {page}/{totalPages} 页
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => goToPage(1)}
-              disabled={page <= 1}
-              className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              首页
-            </button>
-            <button
-              onClick={() => goToPage(page - 1)}
-              disabled={page <= 1}
-              className="p-1 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
-              .reduce<(number | string)[]>((acc, p, idx, arr) => {
-                if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('...');
-                acc.push(p);
-                return acc;
-              }, [])
-              .map((p, idx) =>
-                typeof p === 'string' ? (
-                  <span key={`ellipsis-${idx}`} className="px-1 text-sm text-gray-400">...</span>
-                ) : (
-                  <button
-                    key={p}
-                    onClick={() => goToPage(p)}
-                    className={`min-w-[32px] h-8 text-sm rounded transition-colors ${
-                      p === page
-                        ? 'bg-teal text-white font-medium'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    {p}
-                  </button>
-                )
-              )
-            }
-            <button
-              onClick={() => goToPage(page + 1)}
-              disabled={page >= totalPages}
-              className="p-1 text-gray-600 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRightIcon size={18} />
-            </button>
-            <button
-              onClick={() => goToPage(totalPages)}
-              disabled={page >= totalPages}
-              className="px-2 py-1 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              末页
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} total={total} onChange={goToPage} />
 
       {/* Create Dialog */}
       {showCreate && (

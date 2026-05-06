@@ -18,7 +18,6 @@ public interface PlanConvert {
     @Mapping(target = "startTime", ignore = true)
     @Mapping(target = "endTime", ignore = true)
     @Mapping(target = "status", ignore = true)
-    @Mapping(target = "completionRate", ignore = true)
     PlanProjectViewVo toViewVo(InspectPlanProject pp);
 
     List<PlanProjectViewVo> toVoList(List<InspectPlanProject> list);

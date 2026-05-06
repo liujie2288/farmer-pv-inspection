@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Clock, SolarPanel, ClipboardList, X, Trash2, Building2 } from 'lucide-react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { listPlans, createPlan, deletePlan, type InspectPlan } from '@/api/plans';
 import { listProjects, type Project } from '@/api/projects';
@@ -8,6 +9,7 @@ import { showToast } from '@/components/ui/Toast';
 import { confirm } from '@/components/ui/Dialog';
 import EmptyState from '@/components/ui/EmptyState';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import Pagination from '@/components/ui/Pagination';
 
 const statusTabs: { label: string; value: number | undefined }[] = [
   { label: '全部', value: undefined },
@@ -192,6 +194,8 @@ function PlanListPage() {
   const [statusFilter, setStatusFilter] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const pageSize = 20;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const debouncedSearch = useDebounce(searchText, 300);
 
   const loadPlans = useCallback(
     async (p: number = 1, append: boolean = false) => {
@@ -200,7 +204,7 @@ function PlanListPage() {
         const res = await listPlans({
           page: p,
           size: pageSize,
-          keyword: searchText || undefined,
+          keyword: debouncedSearch || undefined,
           status: statusFilter,
         });
         const records = res.data.records;
@@ -213,7 +217,7 @@ function PlanListPage() {
         setLoading(false);
       }
     },
-    [searchText, statusFilter],
+    [debouncedSearch, statusFilter],
   );
 
   useEffect(() => {
@@ -245,11 +249,16 @@ function PlanListPage() {
     }
   };
 
-  const hasMore = plans.length < total;
+  const goToPage = (p: number) => {
+    if (p < 1 || p > totalPages) return;
+    loadPlans(p, false);
+  };
 
-  const sentinelRef = useInfiniteScroll(
-    () => loadPlans(page + 1, true),
-    { hasMore, loading },
+  const pageRef = useRef(1);
+  pageRef.current = page;
+  const mobileSentinelRef = useInfiniteScroll(
+    () => loadPlans(pageRef.current + 1, true),
+    { hasMore: plans.length < total, loading },
   );
 
   return (
@@ -310,7 +319,8 @@ function PlanListPage() {
         <EmptyState icon={ClipboardList} message="暂无巡检任务" />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          {/* Desktop grid */}
+          <div className="hidden lg:grid grid-cols-1 gap-4 xl:grid-cols-2">
             {plans.map(plan => {
               const sc = statusConfig[plan.status] || statusConfig[0];
               return (
@@ -371,14 +381,78 @@ function PlanListPage() {
             })}
           </div>
 
-          <div ref={sentinelRef} className="h-1" />
-          {loading && plans.length > 0 && (
-            <div className="flex justify-center py-4">
-              <span className="text-sm text-gray-400">加载中...</span>
-            </div>
-          )}
+          {/* Mobile cards with infinite scroll */}
+          <div className="lg:hidden space-y-4">
+            {plans.map(plan => {
+              const sc = statusConfig[plan.status] || statusConfig[0];
+              return (
+                <div
+                  key={plan.planId}
+                  onClick={() => navigate(`/admin/plans/${plan.planId}`)}
+                  className="group cursor-pointer rounded-xl border border-gray-100 bg-white p-5 shadow-sm transition-all hover:border-teal/30 hover:shadow-md"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="truncate text-base font-semibold text-navy group-hover:text-teal">
+                          {plan.planName}
+                        </h3>
+                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${sc.bg} ${sc.textClass}`}>
+                          {sc.text}
+                        </span>
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-3 text-sm text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <Building2 size={13} className="text-gray-400" />
+                          {plan.projectCount} 个项目
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-400">
+                        {plan.startTime} ~ {plan.endTime}
+                      </p>
+                    </div>
+                    {plan.status === 0 && (
+                      <button
+                        onClick={e => handleDelete(plan.planId, e)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        aria-label="删除"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-4 border-t border-gray-50 pt-3">
+                    <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                      <SolarPanel size={14} className="text-gray-400" />
+                      <span>{plan.inspectedCount}/{plan.totalCount}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                      <Clock size={14} className="text-gray-400" />
+                      <span>{plan.completionRate}%</span>
+                    </div>
+                    <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-teal transition-all"
+                        style={{ width: `${Math.min(plan.completionRate, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={mobileSentinelRef} className="h-1" />
+            {loading && plans.length > 0 && (
+              <div className="flex justify-center py-4">
+                <span className="text-sm text-gray-400">加载中...</span>
+              </div>
+            )}
+          </div>
         </>
       )}
+
+      {/* Pagination — desktop only */}
+      <Pagination page={page} totalPages={totalPages} total={total} onChange={goToPage} />
 
       {/* Create Plan Dialog */}
       {createDialogOpen && (

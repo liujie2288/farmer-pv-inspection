@@ -35,8 +35,8 @@ import java.util.*;
 public class StationService {
 
     private final StationMapper stationMapper;
-    private final InspectRecordMapper inspectRecordMapper;
     private final InspectPlanMapper planMapper;
+    private final InspectRecordMapper inspectRecordMapper;
 
     private final UserService userService;
     private final ProjectService projectService;
@@ -53,7 +53,9 @@ public class StationService {
             // 有活跃计划且筛选已巡检，但没有记录 → 直接返回空
             if (inspectStatus != null && inspectStatus == InspectStatus.INSPECTED.getCode()) {
                 long recordCount = inspectRecordMapper.selectCount(
-                        new LambdaQueryWrapper<InspectRecord>().eq(InspectRecord::getPlanProjectId, planProjectId)
+                        new LambdaQueryWrapper<InspectRecord>()
+                                .eq(InspectRecord::getPlanProjectId, planProjectId)
+                                .eq(InspectRecord::getStatus, 1)
                 );
                 if (recordCount == 0) {
                     return PageDto.of(Collections.emptyList(), 0, page, size);
@@ -120,6 +122,10 @@ public class StationService {
         return stationMapper.delete(wrapper);
     }
 
+    public Station getStation(Long stationId) {
+       return stationMapper.selectById(stationId);
+    }
+
     public StationViewVo getStationDetail(Long projectId, Long stationId) {
         Station station = stationMapper.selectById(stationId);
         if (station == null || !station.getProjectId().equals(projectId)) {
@@ -136,6 +142,7 @@ public class StationService {
                     new LambdaQueryWrapper<InspectRecord>()
                             .eq(InspectRecord::getPlanProjectId, activePlan.getPlanProjectId())
                             .eq(InspectRecord::getStationId, stationId)
+                            .eq(InspectRecord::getStatus, 1)
             );
             vo.setStatus(recordCount > 0 ? InspectStatus.INSPECTED : InspectStatus.UNINSPECTED);
         } else {

@@ -4,13 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.convert.ProjectConvert;
-import com.yldlxj.pv.inspect.device.InspectDevice;
-import com.yldlxj.pv.inspect.device.InspectDeviceMapper;
 import com.yldlxj.pv.inspect.station.StationMapper;
 import com.yldlxj.pv.inspect.project.dto.ProjectDto;
 import com.yldlxj.pv.inspect.project.dto.ProjectViewVo;
 import com.yldlxj.pv.inspect.section.InspectSectionService;
 import com.yldlxj.pv.inspect.section.dto.SectionViewVo;
+import com.yldlxj.pv.inspect.storage.StorageService;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +28,7 @@ public class ProjectService {
     private final StationMapper stationMapper;
     private final InspectDeviceMapper deviceMapper;
     private final InspectSectionService sectionService;
+    private final StorageService storageService;
 
     private final Cache<Long, String> projectNameCache = Caffeine.newBuilder()
             .expireAfterWrite(12, TimeUnit.HOURS)
@@ -53,7 +53,12 @@ public class ProjectService {
                     new LambdaQueryWrapper<InspectDevice>().eq(InspectDevice::getProjectId, id)
             ));
         }
-        return ProjectConvert.INSTANCE.toViewVo(project);
+        ProjectViewVo vo = ProjectConvert.INSTANCE.toViewVo(project);
+        if (vo != null) {
+            vo.setDroneCertificateUrl(storageService.getImageUrl(vo.getDroneCertificateUrl(), 24 * 60, "thm_cert"));
+            vo.setSpecialOperationCertUrl(storageService.getImageUrl(vo.getSpecialOperationCertUrl(), 3 * 60, "thm_cert"));
+        }
+        return vo;
     }
 
     public Page<Project> listProjects(int page, int size, String projectName) {
@@ -79,8 +84,8 @@ public class ProjectService {
         project.setStationType(dto.getStationType());
         project.setProvince(dto.getProvince());
         project.setCity(dto.getCity());
-        project.setDroneCertificateUrl(dto.getDroneCertificateUrl());
-        project.setSpecialOperationCertUrl(dto.getSpecialOperationCertUrl());
+        project.setDroneCertificateUrl(toObjectKey(dto.getDroneCertificateUrl()));
+        project.setSpecialOperationCertUrl(toObjectKey(dto.getSpecialOperationCertUrl()));
         project.setSectionIds(dto.getSectionIds());
         projectMapper.insert(project);
 
@@ -115,8 +120,8 @@ public class ProjectService {
         project.setStationType(dto.getStationType());
         project.setProvince(dto.getProvince());
         project.setCity(dto.getCity());
-        project.setDroneCertificateUrl(dto.getDroneCertificateUrl());
-        project.setSpecialOperationCertUrl(dto.getSpecialOperationCertUrl());
+        project.setDroneCertificateUrl(toObjectKey(dto.getDroneCertificateUrl()));
+        project.setSpecialOperationCertUrl(toObjectKey(dto.getSpecialOperationCertUrl()));
         project.setSectionIds(dto.getSectionIds());
         projectMapper.updateById(project);
         projectNameCache.invalidate(id);
@@ -192,5 +197,11 @@ public class ProjectService {
         return stats;
     }
 
+    private String toObjectKey(String url) {
+        if (url == null || url.isEmpty()) return url;
+        if (!url.startsWith("http")) return url;
+        String key = storageService.extractObjectKey(url);
+        return key != null ? key : url;
+    }
 
 }

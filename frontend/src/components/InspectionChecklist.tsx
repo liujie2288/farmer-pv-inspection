@@ -10,7 +10,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { getSectionTree, getProjectSections, type Section as TemplateSection } from '@/api/sections';
-import { uploadFileToOss, getPresignedUrl } from '@/api/storage';
+import { uploadFileToOss, getImageUrl } from '@/api/storage';
 import { openImagePreview } from '@/components/ui/ImagePreview';
 import { showToast } from '@/components/ui/Toast';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
@@ -48,6 +48,13 @@ interface CustomPhotoItem {
   title: string;
 }
 
+interface PhotoEntry {
+  objectKey: string;
+  localUrl?: string;
+  uploading?: boolean;
+  progress?: number;
+}
+
 interface InspectionChecklistProps {
   checklistData: ChecklistData;
   onChange: (data: ChecklistData) => void;
@@ -55,6 +62,7 @@ interface InspectionChecklistProps {
   projectId?: number;
   onPhotosChange?: (photos: PhotoSectionSubmit[]) => void;
   initialPhotos?: PhotoSectionSubmit[];
+  onUploadingChange?: (uploading: boolean) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -139,16 +147,11 @@ const ToggleButtons: React.FC<{ value: string; onChange: (v: '正常' | '异常'
   </div>
 );
 
-function PhotoThumb({ objectKey, onRemove }: { objectKey: string; onRemove: () => void }) {
-  const [url, setUrl] = useState('');
+function PhotoThumb({ entry, onRemove }: { entry: PhotoEntry; onRemove: () => void }) {
+  const src = entry.localUrl || entry.objectKey;
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    getPresignedUrl(objectKey).then(u => { if (!cancelled) setUrl(u); }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [objectKey]);
-
-  if (!url) {
+  if (!src) {
     return (
       <div className="aspect-square rounded bg-gray-100 flex items-center justify-center">
         <Loader2 size={12} className="animate-spin text-gray-300" />
@@ -156,32 +159,59 @@ function PhotoThumb({ objectKey, onRemove }: { objectKey: string; onRemove: () =
     );
   }
 
+  const handleClick = async () => {
+    if (entry.uploading || loading) return;
+    // 本地预览直接打开
+    if (entry.localUrl) {
+      openImagePreview(entry.localUrl);
+      return;
+    }
+    // 已上传的图片，请求大图
+    setLoading(true);
+    try {
+      const largeUrl = await getImageUrl(entry.objectKey, 'large');
+      openImagePreview(largeUrl);
+    } catch {
+      openImagePreview(src);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="aspect-square rounded overflow-hidden bg-gray-100 relative group">
-      <img src={url} alt="" className="w-full h-full object-cover cursor-pointer" onClick={() => openImagePreview(url)} />
-      <button
-        type="button"
-        onClick={onRemove}
-        className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        <Trash2 size={8} />
-      </button>
+      <img src={src} alt="" className="w-full h-full object-cover cursor-pointer" onClick={handleClick} />
+      {(entry.uploading || loading) && (
+        <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-0.5">
+          <Loader2 size={12} className="animate-spin text-white" />
+          {entry.uploading && <span className="text-[9px] text-white">{entry.progress || 0}%</span>}
+        </div>
+      )}
+      {!entry.uploading && !loading && (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+        >
+          <Trash2 size={12} />
+        </button>
+      )}
     </div>
   );
 }
 
 // Photo upload row (reused for type=3 items and custom items)
-function PhotoUploadRow({ pKey, urls, onUpload, onRemove, fileInputRef }: {
+function PhotoUploadRow({ pKey, entries, onUpload, onRemove, fileInputRef }: {
   pKey: string;
-  urls: string[];
+  entries: PhotoEntry[];
   onUpload: (key: string, files: FileList) => void;
   onRemove: (key: string, index: number) => void;
   fileInputRef: (key: string, el: HTMLInputElement | null) => void;
 }) {
   return (
-    <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 max-w-[600px]">
-      {urls.map((objectKey, idx) => (
-        <PhotoThumb key={objectKey} objectKey={objectKey} onRemove={() => onRemove(pKey, idx)} />
+    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 max-w-[600px]">
+      {entries.map((entry, idx) => (
+        <PhotoThumb key={entry.objectKey + idx} entry={entry} onRemove={() => onRemove(pKey, idx)} />
       ))}
       <input
         ref={el => fileInputRef(pKey, el)}
@@ -235,13 +265,14 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
   projectId,
   onPhotosChange,
   initialPhotos,
+  onUploadingChange,
 }) => {
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Photo state: key=`sectionId-itemId`, value=objectKey[]
-  const [photoUrls, setPhotoUrls] = useState<Record<string, string[]>>({});
+  // Photo state: key=`sectionId-itemId`, value=PhotoEntry[]
+  const [photoEntries, setPhotoEntries] = useState<Record<string, PhotoEntry[]>>({});
   // Per-section custom photo items
   const [customItems, setCustomItems] = useState<CustomPhotoItem[]>([]);
   // Counter for generating negative itemIds
@@ -302,13 +333,13 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
   // Initialize from existing photos (edit mode)
   useEffect(() => {
     if (!initialPhotos || initialPhotos.length === 0) return;
-    const urls: Record<string, string[]> = {};
+    const entries: Record<string, PhotoEntry[]> = {};
     const customs: CustomPhotoItem[] = [];
 
     for (const section of initialPhotos) {
       for (const item of section.items || []) {
         const key = photoKey(section.sectionId, item.itemId);
-        urls[key] = item.urls || [];
+        entries[key] = (item.urls || []).map(url => ({ objectKey: url }));
         // Negative itemId means custom item
         if (item.itemId < 0) {
           customs.push({
@@ -323,18 +354,19 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
         }
       }
     }
-    setPhotoUrls(urls);
+    setPhotoEntries(entries);
     setCustomItems(customs);
   }, [initialPhotos]);
 
   // Assemble photos for submission
   const assemblePhotos = useCallback((
-    pUrls: Record<string, string[]>,
+    pEntries: Record<string, PhotoEntry[]>,
     cItems: CustomPhotoItem[],
   ): PhotoSectionSubmit[] => {
     const sectionMap = new Map<number, { itemId: number; itemName: string; urls: string[] }[]>();
 
-    for (const [key, urls] of Object.entries(pUrls)) {
+    for (const [key, entries] of Object.entries(pEntries)) {
+      const urls = entries.map(e => e.objectKey).filter(Boolean);
       if (urls.length === 0) continue;
       const dashIdx = key.indexOf('-');
       const sId = Number(key.substring(0, dashIdx));
@@ -367,8 +399,14 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
 
   useEffect(() => {
     if (!onPhotosChange) return;
-    onPhotosChange(assemblePhotos(photoUrls, customItems));
-  }, [photoUrls, customItems, onPhotosChange, assemblePhotos]);
+    onPhotosChange(assemblePhotos(photoEntries, customItems));
+  }, [photoEntries, customItems, onPhotosChange, assemblePhotos]);
+
+  useEffect(() => {
+    if (!onUploadingChange) return;
+    const uploading = Object.values(photoEntries).some(entries => entries.some(e => e.uploading));
+    onUploadingChange(uploading);
+  }, [photoEntries, onUploadingChange]);
 
   // Callbacks
   const toggleCollapse = useCallback((sectionId: number) => {
@@ -394,22 +432,61 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
   );
 
   const handlePhotoUpload = useCallback(async (key: string, files: FileList) => {
-    const newUrls: string[] = [];
-    for (let i = 0; i < files.length; i++) {
+    const fileArr = Array.from(files);
+    // Add local preview entries immediately
+    const newEntries: PhotoEntry[] = fileArr.map(file => ({
+      objectKey: '',
+      localUrl: URL.createObjectURL(file),
+      uploading: true,
+      progress: 0,
+    }));
+    setPhotoEntries(prev => ({ ...prev, [key]: [...(prev[key] || []), ...newEntries] }));
+
+    for (let i = 0; i < fileArr.length; i++) {
       try {
-        const objectKey = await uploadFileToOss(files[i], 'photo');
-        newUrls.push(objectKey);
+        const objectKey = await uploadFileToOss(fileArr[i], 'photo', {
+          onProgress: (p) => {
+            setPhotoEntries(prev => {
+              const arr = [...(prev[key] || [])];
+              const idx = arr.length - fileArr.length + i;
+              if (idx >= 0 && arr[idx]) {
+                arr[idx] = { ...arr[idx], progress: p };
+              }
+              return { ...prev, [key]: arr };
+            });
+          },
+        });
+        setPhotoEntries(prev => {
+          const arr = [...(prev[key] || [])];
+          const idx = arr.length - fileArr.length + i;
+          if (idx >= 0 && arr[idx]) {
+            arr[idx] = { ...arr[idx], objectKey, uploading: false };
+          }
+          return { ...prev, [key]: arr };
+        });
       } catch (e: any) {
         showToast({ icon: 'fail', content: `照片上传失败: ${e.message || '未知错误'}` });
+        // Remove failed entry
+        setPhotoEntries(prev => {
+          const arr = [...(prev[key] || [])];
+          const idx = arr.length - fileArr.length + i;
+          if (idx >= 0 && arr[idx]?.localUrl) {
+            URL.revokeObjectURL(arr[idx].localUrl!);
+          }
+          arr.splice(idx, 1);
+          return { ...prev, [key]: arr };
+        });
       }
-    }
-    if (newUrls.length > 0) {
-      setPhotoUrls(prev => ({ ...prev, [key]: [...(prev[key] || []), ...newUrls] }));
     }
   }, []);
 
   const removePhoto = useCallback((key: string, index: number) => {
-    setPhotoUrls(prev => ({ ...prev, [key]: (prev[key] || []).filter((_, i) => i !== index) }));
+    setPhotoEntries(prev => {
+      const arr = [...(prev[key] || [])];
+      if (arr[index]?.localUrl) URL.revokeObjectURL(arr[index].localUrl!);
+      arr.splice(index, 1);
+      return { ...prev, [key]: arr };
+    });
   }, []);
 
   // Add custom photo item to a section
@@ -428,7 +505,7 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
       const item = prev.find(c => c.id === id);
       if (item) {
         const key = photoKey(item.sectionId, item.itemId);
-        setPhotoUrls(p => {
+        setPhotoEntries(p => {
           const next = { ...p };
           delete next[key];
           return next;
@@ -480,49 +557,42 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
                 {section.items.map((item) => {
                   if (item.itemType === 3) {
                     const key = photoKey(section.sectionId, item.itemId);
-                    const urls = photoUrls[key] || [];
+                    const entries = photoEntries[key] || [];
                     return (
                       <div key={item.itemId} id={`checklist-item-${item.itemId}`} className="py-3 px-2 border-b border-gray-50">
                         <p className="text-sm text-gray-700 mb-2">{item.content}</p>
-                        <PhotoUploadRow pKey={key} urls={urls} onUpload={handlePhotoUpload} onRemove={removePhoto} fileInputRef={() => {}} />
+                        <PhotoUploadRow pKey={key} entries={entries} onUpload={handlePhotoUpload} onRemove={removePhoto} fileInputRef={() => {}} />
                       </div>
                     );
                   }
 
                   return (
-                    <div key={item.itemId} id={`checklist-item-${item.itemId}`} className="flex justify-between items-start py-2.5 px-2 border-b border-gray-50 gap-3">
-                      <div className="flex-1 min-w-0">
+                    <div key={item.itemId} id={`checklist-item-${item.itemId}`} className="py-2.5 px-2 border-b border-gray-50">
                         <p className="text-sm text-gray-700">
                           <span className="font-medium text-gray-900 mr-1">{item.itemNo}.</span>
                           {item.content}
                         </p>
-                        {item.itemType === 2 && (
+                        {item.itemType !== 2 && (
                           <div className="mt-1.5">
-                            <div className="flex items-center gap-2">
-                              <label className="text-xs text-gray-500 shrink-0">实测值</label>
-                              <input
-                                type="text" maxLength={100} disabled={readOnly}
-                                value={item.measuredValue?.value ?? ''}
-                                onChange={(e) => updateItem(section.sectionId, item.itemId, { measuredValue: { value: e.target.value === '' ? null : e.target.value } })}
-                                className="w-48 px-3 py-2 border rounded-lg text-base text-center focus:outline-none focus:ring-1 focus:ring-teal disabled:bg-gray-50 disabled:text-gray-400"
-                              />
-                            </div>
+                            {readOnly ? <ResultBadge result={item.result} /> : <ToggleButtons value={item.result} onChange={(val) => updateItem(section.sectionId, item.itemId, { result: val })} />}
                           </div>
+                        )}
+                        {item.itemType === 2 && (
+                          <textarea
+                            rows={2} maxLength={100} disabled={readOnly}
+                            value={item.measuredValue?.value ?? ''}
+                            onChange={(e) => updateItem(section.sectionId, item.itemId, { measuredValue: { value: e.target.value === '' ? null : e.target.value } })}
+                            className="w-full max-w-[500px] mt-1.5 px-3 py-2 border rounded-lg text-base resize-none focus:outline-none focus:ring-1 focus:ring-teal disabled:bg-gray-50 disabled:text-gray-400"
+                          />
                         )}
                         {item.result === '异常' && (
                           <textarea
                             disabled={readOnly} rows={3} maxLength={300} placeholder="请填写异常说明..."
                             value={item.exceptionNote}
                             onChange={(e) => updateItem(section.sectionId, item.itemId, { exceptionNote: e.target.value })}
-                            className="w-full mt-1.5 px-3 py-2 border rounded-lg text-base resize-none focus:outline-none focus:ring-1 focus:ring-teal disabled:bg-gray-50 disabled:text-gray-400"
+                            className="w-full max-w-[800px] mt-1.5 px-3 py-2 border rounded-lg text-base resize-none focus:outline-none focus:ring-1 focus:ring-teal disabled:bg-gray-50 disabled:text-gray-400"
                           />
                         )}
-                      </div>
-                      {item.itemType !== 2 && (
-                        <div className="shrink-0 pt-0.5">
-                          {readOnly ? <ResultBadge result={item.result} /> : <ToggleButtons value={item.result} onChange={(val) => updateItem(section.sectionId, item.itemId, { result: val })} />}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -530,7 +600,7 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
                 {/* Custom photo items for this section */}
                 {sectionCustoms.map((custom) => {
                   const key = photoKey(custom.sectionId, custom.itemId);
-                  const urls = photoUrls[key] || [];
+                  const entries = photoEntries[key] || [];
                   return (
                     <div key={custom.id} className="py-3 px-2 border-b border-gray-50">
                       <div className="flex items-center gap-2 mb-2">
@@ -545,7 +615,7 @@ const InspectionChecklist: React.FC<InspectionChecklistProps> = ({
                           <Trash2 size={14} />
                         </button>
                       </div>
-                      <PhotoUploadRow pKey={key} urls={urls} onUpload={handlePhotoUpload} onRemove={removePhoto} fileInputRef={() => {}} />
+                      <PhotoUploadRow pKey={key} entries={entries} onUpload={handlePhotoUpload} onRemove={removePhoto} fileInputRef={() => {}} />
                     </div>
                   );
                 })}

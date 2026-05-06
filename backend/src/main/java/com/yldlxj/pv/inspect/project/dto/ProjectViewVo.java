@@ -1,6 +1,6 @@
 package com.yldlxj.pv.inspect.project.dto;
 
-import com.yldlxj.pv.inspect.device.InspectDevice;
+import com.yldlxj.pv.inspect.project.InspectDevice;
 import lombok.Data;
 
 import java.time.LocalDateTime;

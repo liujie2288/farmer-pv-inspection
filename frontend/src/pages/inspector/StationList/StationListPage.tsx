@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, Users, Calendar, CheckCircle } from 'lucide-react';
 import { listStations, Station } from '@/api/stations';
+import { findMyRejectedRecord } from '@/api/inspections';
 import { getProject, getProjectPlan, type ProjectPlan } from '@/api/projects';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -70,9 +71,18 @@ function InspectorStationListPage() {
     { hasMore: stations.length < total, loading },
   );
 
-  const handleInspect = (stationId: number) => {
-    const params = plan ? `?planId=${plan.planId}` : '';
-    navigate(`/projects/${pid}/stations/${stationId}/inspect${params}`);
+  const handleInspect = async (stationId: number) => {
+    if (!plan) return;
+    try {
+      const res = await findMyRejectedRecord(stationId, plan.planProjectId);
+      if (res.data?.recordId) {
+        navigate(`/records/${res.data.recordId}/edit`);
+      } else {
+        navigate(`/projects/${pid}/stations/${stationId}/inspect?planId=${plan.planId}`);
+      }
+    } catch {
+      navigate(`/projects/${pid}/stations/${stationId}/inspect?planId=${plan.planId}`);
+    }
   };
 
   const filterTabs: { key: FilterStatus; label: string }[] = [
@@ -203,9 +213,9 @@ function InspectorStationListPage() {
                   </button>
                   <button
                     onClick={() => handleInspect(station.id)}
-                    disabled={!plan}
+                    disabled={!plan || station.status === 1}
                     className={
-                      plan
+                      plan && station.status !== 1
                         ? 'bg-teal text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-teal-dark transition-colors'
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed px-4 py-1.5 rounded-lg text-sm font-medium'
                     }

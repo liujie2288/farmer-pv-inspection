@@ -17,16 +17,16 @@
         <result column="capacity_kw" property="capacityKw"/>
         <result column="longitude" property="longitude"/>
         <result column="latitude" property="latitude"/>
+        <result column="status" property="status"/>
         <result column="last_inspect_record_id" property="lastInspectRecordId"/>
         <result column="last_inspect_time" property="lastInspectTime"/>
-        <result column="status" property="status"/>
     </resultMap>
 
     <select id="listByProjectId" resultMap="stationViewVo">
         SELECT s.*,
             CASE WHEN EXISTS (
                 SELECT 1 FROM inspect_record r
-                WHERE r.station_id = s.id AND r.plan_project_id = #{planProjectId}
+                WHERE r.station_id = s.id AND r.plan_project_id = #{planProjectId} AND r.status = 1
             ) THEN 1 ELSE 0 END AS status
         FROM station s
         WHERE s.project_id = #{projectId}
@@ -37,13 +37,13 @@
         <if test="inspectStatus != null and inspectStatus == 1">
             AND EXISTS (
                 SELECT 1 FROM inspect_record r
-                WHERE r.station_id = s.id AND r.plan_project_id = #{planProjectId}
+                WHERE r.station_id = s.id AND r.plan_project_id = #{planProjectId} AND r.status = 1
             )
         </if>
         <if test="inspectStatus != null and inspectStatus == 0">
             AND NOT EXISTS (
                 SELECT 1 FROM inspect_record r
-                WHERE r.station_id = s.id AND r.plan_project_id = #{planProjectId}
+                WHERE r.station_id = s.id AND r.plan_project_id = #{planProjectId} AND r.status = 1
             )
         </if>
         ORDER BY s.station_code ASC
@@ -61,13 +61,13 @@
         <if test="inspectStatus != null and inspectStatus == 1">
             AND EXISTS (
                 SELECT 1 FROM inspect_record r
-                WHERE r.station_id = s.id AND r.plan_project_id = #{planProjectId}
+                WHERE r.station_id = s.id AND r.plan_project_id = #{planProjectId} AND r.status = 1
             )
         </if>
         <if test="inspectStatus != null and inspectStatus == 0">
             AND NOT EXISTS (
                 SELECT 1 FROM inspect_record r
-                WHERE r.station_id = s.id AND r.plan_project_id = #{planProjectId}
+                WHERE r.station_id = s.id AND r.plan_project_id = #{planProjectId} AND r.status = 1
             )
         </if>
     </select>

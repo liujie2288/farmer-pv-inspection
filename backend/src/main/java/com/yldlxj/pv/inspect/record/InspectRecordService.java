@@ -1,7 +1,7 @@
 package com.yldlxj.pv.inspect.record;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.yldlxj.pv.inspect.common.Constants;
 import com.yldlxj.pv.inspect.common.PageDto;
 import com.yldlxj.pv.inspect.auth.SecurityUtils;
 import com.yldlxj.pv.inspect.common.enums.PlanStatus;
@@ -9,32 +9,29 @@ import com.yldlxj.pv.inspect.common.enums.UserRole;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.plan.InspectPlan;
 import com.yldlxj.pv.inspect.plan.InspectPlanMapper;
-import com.yldlxj.pv.inspect.plan.InspectPlanProject;
 import com.yldlxj.pv.inspect.plan.InspectPlanProjectMapper;
 import com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo;
-import com.yldlxj.pv.inspect.project.Project;
-import com.yldlxj.pv.inspect.project.ProjectMapper;
 import com.yldlxj.pv.inspect.project.ProjectService;
-import com.yldlxj.pv.inspect.record.dto.ChecklistItemDto;
-import com.yldlxj.pv.inspect.record.dto.ChecklistSectionDto;
-import com.yldlxj.pv.inspect.record.dto.InspectRecordDto;
-import com.yldlxj.pv.inspect.record.dto.PhotoSectionDto;
+import com.yldlxj.pv.inspect.record.dto.*;
 import com.yldlxj.pv.inspect.record.dto.vo.*;
 import com.yldlxj.pv.inspect.section.InspectSectionService;
+import com.yldlxj.pv.inspect.storage.StorageService;
 import com.yldlxj.pv.inspect.section.dto.SectionItemViewVo;
 import com.yldlxj.pv.inspect.section.dto.SectionViewVo;
 import com.yldlxj.pv.inspect.station.Station;
 import com.yldlxj.pv.inspect.station.StationMapper;
 import com.yldlxj.pv.inspect.user.SysUser;
-import com.yldlxj.pv.inspect.user.SysUserMapper;
 import com.yldlxj.pv.inspect.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -42,16 +39,17 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class InspectRecordService {
 
+    private final StationMapper stationMapper;
     private final InspectRecordMapper recordMapper;
     private final InspectPlanMapper planMapper;
     private final InspectPlanProjectMapper planProjectMapper;
-    private final StationMapper stationMapper;
-    private final SysUserMapper userMapper;
 
     private final UserService userService;
     private final ProjectService projectService;
+    private final StorageService storageService;
     private final InspectSectionService sectionService;
 
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Transactional
     public Long submitRecord(InspectRecordDto dto) {
@@ -74,6 +72,7 @@ public class InspectRecordService {
                         .eq(InspectRecord::getPlanProjectId, planProject.getPlanProjectId())
                         .eq(InspectRecord::getStationId, dto.getStationId())
                         .eq(InspectRecord::getInspectorId, inspectorId)
+                        .eq(InspectRecord::getStatus, 1)
         );
         if (existing > 0) {
             throw new BusinessException("您已提交过该电站的巡检记录");
@@ -88,22 +87,19 @@ public class InspectRecordService {
         record.setWeather(dto.getWeather());
         record.setDeviceName(dto.getDeviceName());
         record.setDeviceModel(dto.getDeviceModel());
+        record.setWatermarkConfig(dto.getWatermarkConfig());
         record.setChecklistResult(dto.getChecklistResult());
-        record.setPhotos(dto.getPhotos());
-        record.setLongitude(dto.getLongitude());
-        record.setLatitude(dto.getLatitude());
-        record.setEditDeadline(planProject.getEndTime() != null ? planProject.getEndTime().atTime(23, 59, 59) : null);
+        record.setPhotos(convertPhotoUrls(dto.getPhotos()));
+        record.setLongitude(station.getLongitude());
+        record.setLatitude(station.getLatitude());
         recordMapper.insert(record);
 
         // 更新电站最后巡检记录
         stationMapper.updateLastInspectRecordId(station.getId(), record.getId());
 
         // 更新已巡检数量
-        Long inspectedCount1 = recordMapper.selectCount(new LambdaQueryWrapper<InspectRecord>().eq(InspectRecord::getPlanProjectId, planProject.getPlanProjectId()));
-        planProjectMapper.updateInspectedCount(planProject.getPlanProjectId(), inspectedCount1);
-
-        Long inspectedCount2 = recordMapper.selectCount(new LambdaQueryWrapper<InspectRecord>().eq(InspectRecord::getPlanId, planProject.getPlanId()));
-        planMapper.updateInspectedCount(planProject.getPlanId(), inspectedCount2);
+        planProjectMapper.updateInspectedCount(planProject.getPlanProjectId());
+        planMapper.updateInspectedCount(planProject.getPlanId());
 
         return record.getId();
     }
@@ -121,14 +117,24 @@ public class InspectRecordService {
             throw new BusinessException("当前无权修改该巡检记录");
         }
 
-        if (dto.getWeather() != null) record.setWeather(dto.getWeather());
-        if (dto.getDeviceName() != null) record.setDeviceName(dto.getDeviceName());
-        if (dto.getDeviceModel() != null) record.setDeviceModel(dto.getDeviceModel());
-        if (dto.getChecklistResult() != null) record.setChecklistResult(dto.getChecklistResult());
-        if (dto.getPhotos() != null) record.setPhotos(dto.getPhotos());
+        int oldStatus = record.getStatus() == null ? 0 : record.getStatus();
+
+        record.cleanPdf();
+        record.setStatus(1);
+        record.setWeather(dto.getWeather());
+        record.setDeviceName(dto.getDeviceName());
+        record.setDeviceModel(dto.getDeviceModel());
+        record.setWatermarkConfig(dto.getWatermarkConfig());
+        record.setChecklistResult(dto.getChecklistResult());
+        record.setPhotos(convertPhotoUrls(dto.getPhotos()));
         if (dto.getLongitude() != null) record.setLongitude(dto.getLongitude());
         if (dto.getLatitude() != null) record.setLatitude(dto.getLatitude());
         recordMapper.updateById(record);
+
+        if (oldStatus != 1) {
+            planProjectMapper.updateInspectedCount(record.getPlanProjectId());
+            planMapper.updateInspectedCount(record.getPlanId());
+        }
     }
 
     public RecordDetailVo getRecordDetail(Long id) {
@@ -141,33 +147,19 @@ public class InspectRecordService {
         Station station = stationMapper.selectById(record.getStationId());
 
         SysUser currentUser = SecurityUtils.getCurrentUser();
-        boolean canEdit = canEditRecord(record, plan, currentUser);
-
-        // Lookup template data from cache
-        List<SectionViewVo> sectionTree = sectionService.listSectionTree();
-        Map<Long, SectionViewVo> sectionMap = sectionTree.stream()
-                .collect(Collectors.toMap(SectionViewVo::getId, Function.identity()));
-        Map<Long, SectionItemViewVo> itemMap = sectionTree.stream()
-                .flatMap(s -> s.getItems().stream())
-                .collect(Collectors.toMap(SectionItemViewVo::getId, Function.identity()));
-
-        // Build enriched checklistResult
-        List<ChecklistSectionVo> checklistVo = buildChecklistVo(record.getChecklistResult(), sectionMap, itemMap);
-
-        // Build enriched photos
-        List<PhotoSectionVo> photoVo = buildPhotoVo(record.getPhotos(), sectionMap, itemMap);
 
         RecordDetailVo vo = new RecordDetailVo();
         vo.setId(record.getId());
-        vo.setPlanName(plan != null ? plan.getPlanName() : "");
+        vo.setPlanName(plan != null ? plan.getPlanName() : null);
+        vo.setPlanStatus(plan != null ? plan.getStatus().getCode() : null);
         vo.setStationId(station != null ? station.getId() : null);
-        vo.setStationName(station != null ? station.getOwnerName() : "");
-        vo.setStationCode(station != null ? station.getStationCode() : "");
-        vo.setProjectName(projectService.getNameByProjectId(record.getProjectId()));
+        vo.setStationName(station != null ? station.getOwnerName() : null);
+        vo.setStationCode(station != null ? station.getStationCode() : null);
         vo.setProjectId(record.getProjectId());
+        vo.setProjectName(projectService.getNameByProjectId(record.getProjectId()));
         vo.setInspectorName(userService.findRealNameByUserId(record.getInspectorId()));
-        vo.setChecklistResult(checklistVo);
-        vo.setPhotos(photoVo);
+        vo.setChecklistResult(buildChecklistVo(record.getChecklistResult()));
+        vo.setPhotos(buildPhotoVo(record.getPhotos(), "small", null));
         vo.setLongitude(record.getLongitude());
         vo.setLatitude(record.getLatitude());
         vo.setWeather(record.getWeather());
@@ -175,8 +167,64 @@ public class InspectRecordService {
         vo.setDeviceModel(record.getDeviceModel());
         vo.setCreateTime(record.getCreateTime());
         vo.setEditDeadline(record.getEditDeadline());
-        vo.setCanEdit(canEdit);
-        vo.setPlanStatus(plan != null ? plan.getStatus().getCode() : null);
+        vo.setStatus(record.getStatus());
+        vo.setRejectReason(record.getRejectReason());
+        vo.setWatermarkConfig(record.getWatermarkConfig());
+        vo.setCanEdit(canEditRecord(record, plan, currentUser));
+        if (record.getPdfUrl() != null && !record.getPdfUrl().isEmpty()) {
+            vo.setPdfUrl(storageService.getPresignedUrl(record.getPdfUrl(), 100));
+        }
+        return vo;
+    }
+
+    public RecordDetailVo getReportDetail(Long id) {
+        InspectRecord record = recordMapper.selectById(id);
+        if (record == null) {
+            throw new BusinessException("巡检记录不存在");
+        }
+
+
+        RecordDetailVo vo = new RecordDetailVo();
+        vo.setId(record.getId());
+        vo.setStationId(record.getStationId());
+        vo.setProjectId(record.getProjectId());
+        vo.setProjectName(projectService.getNameByProjectId(record.getProjectId()));
+        vo.setInspectorName(userService.findRealNameByUserId(record.getInspectorId()));
+        vo.setChecklistResult(buildChecklistVo(record.getChecklistResult()));
+        vo.setLongitude(record.getLongitude());
+        vo.setLatitude(record.getLatitude());
+        vo.setWeather(record.getWeather());
+        vo.setDeviceName(record.getDeviceName());
+        vo.setDeviceModel(record.getDeviceModel());
+        vo.setRejectReason(record.getRejectReason());
+        vo.setCreateTime(record.getCreateTime());
+        vo.setStatus(record.getStatus());
+
+        WatermarkConfigDto configDto = record.getWatermarkConfig();
+        vo.setWatermarkConfig(configDto);
+
+        List<String> watermarks = new ArrayList<>();
+
+        if (configDto != null && configDto.hasField(Constants.WM_PROJECT_NAME)) {
+            watermarks.add("项目：" + projectService.getNameByProjectId(record.getProjectId()));
+        }
+        if (configDto != null && configDto.hasField(Constants.WM_OWNER_NAME)) {
+            Station station = stationMapper.selectById(record.getStationId());
+            watermarks.add("户主：" + (station == null ? "" : station.getOwnerName()));
+        }
+        if (configDto != null && configDto.hasField(Constants.WM_COORDINATES)) {
+            if (record.getLatitude() != null && record.getLongitude() != null) {
+                watermarks.add(formatLatLng(record.getLatitude(), record.getLongitude()));
+            }
+        }
+        if (configDto != null && configDto.hasField(Constants.WM_TIMESTAMP)) {
+            watermarks.add("时间：" + DATE_TIME_FORMATTER.format(record.getCreateTime()));
+        }
+        if (configDto != null && configDto.getCustomTexts() != null) {
+            configDto.getCustomTexts().forEach(text -> watermarks.add("备注：" + text));
+        }
+
+        vo.setPhotos(buildPhotoVo(record.getPhotos(), null, watermarks));
         return vo;
     }
 
@@ -191,6 +239,20 @@ public class InspectRecordService {
         records.forEach(vo -> vo.setCanEdit(canEditSimpleRecord(vo, currentUser)));
 
         return PageDto.of(records, total, page, size);
+    }
+
+    public Long findMyRejectedRecord(Long stationId, Long planProjectId) {
+        Long inspectorId = SecurityUtils.checkAndGetCurrentUserId();
+        InspectRecord record = recordMapper.selectOne(
+                new LambdaQueryWrapper<InspectRecord>()
+                        .eq(InspectRecord::getStationId, stationId)
+                        .eq(InspectRecord::getPlanProjectId, planProjectId)
+                        .eq(InspectRecord::getInspectorId, inspectorId)
+                        .eq(InspectRecord::getStatus, 2)
+                        .orderByDesc(InspectRecord::getId)
+                        .last("LIMIT 1")
+        );
+        return record != null ? record.getId() : null;
     }
 
     public void extendDeadline(Long id) {
@@ -209,9 +271,37 @@ public class InspectRecordService {
         recordMapper.updateEditDeadline(id, LocalDateTime.now().plusDays(2));
     }
 
+    @Transactional
+    public void rejectRecord(Long id, String reason) {
+        InspectRecord record = recordMapper.selectById(id);
+        if (record == null) {
+            throw new BusinessException("巡检记录不存在");
+        }
+        if (record.getStatus() == null || record.getStatus() != 1) {
+            throw new BusinessException("只能驳回已提交的记录");
+        }
 
-    // ---- Edit permission logic ----
-    // canEdit = planInProgress && (isAdmin || beforeEditDeadline || (isSubmitter && within2Days))
+        record.setStatus(2);
+        record.setRejectReason(reason);
+        recordMapper.updateById(record);
+
+        // 重新计算 planProject inspectedCount
+        planProjectMapper.updateInspectedCount(record.getPlanProjectId());
+
+        // 重新计算 plan inspectedCount
+        planMapper.updateInspectedCount(record.getPlanId());
+
+        // 处理 station lastInspectRecordId：重新查该 station 的最新 status=1 记录
+        InspectRecord latestApproved = recordMapper.selectOne(
+                new LambdaQueryWrapper<InspectRecord>()
+                        .eq(InspectRecord::getStationId, record.getStationId())
+                        .eq(InspectRecord::getStatus, 1)
+                        .orderByDesc(InspectRecord::getId)
+                        .last("LIMIT 1")
+        );
+        stationMapper.updateLastInspectRecordId(record.getStationId(),
+                latestApproved != null ? latestApproved.getId() : null);
+    }
 
     private boolean canEditRecord(InspectRecord record, SysUser currentUser) {
         InspectPlan plan = planMapper.selectById(record.getPlanId());
@@ -232,10 +322,12 @@ public class InspectRecordService {
         if (record.getEditDeadline() != null && !now.isAfter(record.getEditDeadline())) {
             return true;
         }
-        if (record.getInspectorId().equals(currentUser.getId())
-                && record.getCreateTime() != null
-                && !now.isAfter(record.getCreateTime().plusDays(2))) {
-            return true;
+        if (record.getInspectorId().equals(currentUser.getId())) {
+            if (record.getStatus() == 2) {
+                return true;
+            } else if (record.getCreateTime() != null && !now.isAfter(record.getCreateTime().plusDays(2))) {
+                return true;
+            }
         }
         return false;
     }
@@ -262,16 +354,14 @@ public class InspectRecordService {
         return false;
     }
 
-    private List<ChecklistSectionVo> buildChecklistVo(List<ChecklistSectionDto> sections,
-                                                      Map<Long, SectionViewVo> sectionMap,
-                                                      Map<Long, SectionItemViewVo> itemMap) {
+    private List<ChecklistSectionVo> buildChecklistVo(List<ChecklistSectionDto> sections) {
         if (sections == null) return Collections.emptyList();
         List<ChecklistSectionVo> result = new ArrayList<>();
         for (ChecklistSectionDto dto : sections) {
             ChecklistSectionVo vo = new ChecklistSectionVo();
             vo.setSectionId(dto.getSectionId());
 
-            SectionViewVo section = sectionMap.get(dto.getSectionId());
+            SectionViewVo section = sectionService.getSectionBySectionId(dto.getSectionId());
             if (section != null) {
                 vo.setSectionName(section.getSectionName());
                 vo.setSectionNo(section.getSectionNo());
@@ -286,7 +376,7 @@ public class InspectRecordService {
                     itemVo.setRemark(item.getRemark());
                     itemVo.setValue(item.getValue());
 
-                    SectionItemViewVo templateItem = itemMap.get(item.getItemId());
+                    SectionItemViewVo templateItem = sectionService.getSectionItemByItemId(item.getItemId());
                     if (templateItem != null) {
                         itemVo.setItemNo(templateItem.getItemNo());
                         itemVo.setContent(templateItem.getContent());
@@ -301,32 +391,28 @@ public class InspectRecordService {
         return result;
     }
 
-    private List<PhotoSectionVo> buildPhotoVo(List<PhotoSectionDto> photos,
-                                              Map<Long, SectionViewVo> sectionMap,
-                                              Map<Long, SectionItemViewVo> itemMap) {
+    private List<PhotoSectionVo> buildPhotoVo(List<PhotoSectionDto> photos, String style, List<String> watermarks) {
         if (photos == null) return Collections.emptyList();
         List<PhotoSectionVo> result = new ArrayList<>();
         for (PhotoSectionDto dto : photos) {
-            PhotoSectionVo vo = new PhotoSectionVo();
-            vo.setSectionId(dto.getSectionId());
-
-            SectionViewVo section = sectionMap.get(dto.getSectionId());
-            if (section != null) {
-                vo.setSectionName(section.getSectionName());
-            }
+            PhotoSectionVo vo = new PhotoSectionVo(dto.getSectionId());
+            vo.setSectionName(sectionService.getSectionNameBySectionId(dto.getSectionId()));
 
             if (dto.getItems() != null) {
                 List<PhotoItemVo> itemVos = new ArrayList<>();
-                for (com.yldlxj.pv.inspect.record.dto.PhotoItemDto item : dto.getItems()) {
-                    PhotoItemVo itemVo = new PhotoItemVo();
-                    itemVo.setItemId(item.getItemId());
-                    itemVo.setItemName(item.getItemName());
-                    itemVo.setUrls(item.getUrls());
-
-                    SectionItemViewVo templateItem = itemMap.get(item.getItemId());
-                    if (templateItem != null) {
-                        itemVo.setItemName(templateItem.getContent());
+                for (PhotoItemDto item : dto.getItems()) {
+                    PhotoItemVo itemVo = new PhotoItemVo(item.getItemId(), item.getItemName());
+                    Optional.ofNullable(sectionService.getSectionItemByItemId(item.getItemId())).map(SectionItemViewVo::getContent).ifPresent(itemVo::setItemName);
+                    if (style != null || watermarks == null) {
+                        itemVo.setUrls(item.getUrls().stream()
+                                .map(url -> storageService.getImageUrl(url, 100, style))
+                                .collect(Collectors.toList()));
+                    } else {
+                        itemVo.setUrls(item.getUrls().stream()
+                                .map(url -> storageService.getWatermarkedImageUrl(url, 100, watermarks))
+                                .collect(Collectors.toList()));
                     }
+
                     itemVos.add(itemVo);
                 }
                 vo.setItems(itemVos);
@@ -334,5 +420,35 @@ public class InspectRecordService {
             result.add(vo);
         }
         return result;
+    }
+
+    /**
+     * 格式化经纬度为：30.23°N 120.34°E
+     * 保留2位小数，中国默认 N、E
+     */
+    private String formatLatLng(BigDecimal latitude, BigDecimal longitude) {
+        // 保留2位小数，四舍五入
+        String latStr = latitude.setScale(2, RoundingMode.HALF_UP).toPlainString();
+        String lngStr = longitude.setScale(2, RoundingMode.HALF_UP).toPlainString();
+
+        return String.format("位置：%s°N  %s°E", latStr, lngStr);
+    }
+
+    private List<PhotoSectionDto> convertPhotoUrls(List<PhotoSectionDto> photos) {
+        if (photos == null) return null;
+        for (PhotoSectionDto section : photos) {
+            if (section.getItems() == null) continue;
+            for (PhotoItemDto item : section.getItems()) {
+                if (item.getUrls() == null) continue;
+                item.setUrls(item.getUrls().stream()
+                        .map(url -> {
+                            if (url == null || !url.startsWith("http")) return url;
+                            String key = storageService.extractObjectKey(url);
+                            return key != null ? key : url;
+                        })
+                        .collect(Collectors.toList()));
+            }
+        }
+        return photos;
     }
 }

@@ -4,12 +4,14 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.yldlxj.pv.inspect.common.enums.PlanStatus;
 import com.yldlxj.pv.inspect.common.exception.BusinessException;
 import com.yldlxj.pv.inspect.common.PageDto;
+import com.yldlxj.pv.inspect.convert.PlanConvert;
 import com.yldlxj.pv.inspect.plan.dto.PlanDto;
 import com.yldlxj.pv.inspect.plan.dto.PlanProjectViewVo;
 import com.yldlxj.pv.inspect.plan.dto.PlanViewVo;
 import com.yldlxj.pv.inspect.plan.dto.UpdatePlanDto;
 import com.yldlxj.pv.inspect.project.Project;
 import com.yldlxj.pv.inspect.project.ProjectMapper;
+import com.yldlxj.pv.inspect.project.ProjectService;
 import com.yldlxj.pv.inspect.station.StationMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,8 +29,9 @@ public class InspectPlanService {
 
     private final InspectPlanMapper planMapper;
     private final InspectPlanProjectMapper planProjectMapper;
-    private final ProjectMapper projectMapper;
     private final StationMapper stationMapper;
+
+    private final ProjectService projectService;
 
     public PageDto<PlanViewVo> listPlans(int page, int size, String keyword, Integer status) {
         long total = planMapper.countPlan(keyword, status);
@@ -46,7 +49,7 @@ public class InspectPlanService {
         validateTimeRange(dto.getStartTime(), dto.getEndTime());
 
         for (Long projectId : dto.getProjectIds()) {
-            if (projectMapper.selectById(projectId) == null) {
+            if (!projectService.existsById(projectId)) {
                 throw new BusinessException("项目不存在");
             }
             if (planProjectMapper.countActiveByProjectId(projectId) > 0) {
@@ -134,10 +137,6 @@ public class InspectPlanService {
             return null;
         }
 
-        List<InspectPlanProject> pps = planProjectMapper.selectList(
-                new LambdaQueryWrapper<InspectPlanProject>().eq(InspectPlanProject::getPlanId, planId)
-        );
-
         PlanViewVo vo = new PlanViewVo();
         vo.setPlanId(planId);
         vo.setPlanName(plan.getPlanName());
@@ -145,16 +144,12 @@ public class InspectPlanService {
         vo.setTotalCount(plan.getTotalCount());
         vo.setInspectedCount(plan.getInspectedCount());
 
-        List<PlanProjectViewVo> ranking = pps.stream().map(pp -> {
-            PlanProjectViewVo item = new PlanProjectViewVo();
-            item.setPlanProjectId(pp.getId());
-            item.setProjectId(pp.getProjectId());
-            item.setProjectName(getProjectName(pp.getProjectId()));
-            item.setTotalCount(pp.getTotalCount());
-            item.setInspectedCount(pp.getInspectedCount());
-            return item;
-        }).sorted((a, b) -> Double.compare(b.getCompletionRate(), a.getCompletionRate()))
-        .collect(Collectors.toList());
+        LambdaQueryWrapper<InspectPlanProject> query = new LambdaQueryWrapper<InspectPlanProject>().eq(InspectPlanProject::getPlanId, planId);
+        List<PlanProjectViewVo> ranking = planProjectMapper.selectList(query).stream().map(item -> {
+            PlanProjectViewVo viewVo = PlanConvert.INSTANCE.toViewVo(item);
+            viewVo.setProjectName(projectService.getNameByProjectId(viewVo.getProjectId()));
+            return viewVo;
+        }).sorted((a, b) -> Double.compare(b.getCompletionRate(), a.getCompletionRate())).collect(Collectors.toList());
 
         vo.setItems(ranking);
         return vo;
@@ -166,13 +161,12 @@ public class InspectPlanService {
         );
         if (pps.isEmpty()) return null;
         List<Long> planIds = pps.stream().map(InspectPlanProject::getPlanId).collect(Collectors.toList());
-        InspectPlan plan = planMapper.selectOne(
+        return planMapper.selectOne(
                 new LambdaQueryWrapper<InspectPlan>()
                         .in(InspectPlan::getId, planIds)
                         .eq(InspectPlan::getStatus, PlanStatus.IN_PROGRESS)
                         .last("LIMIT 1")
         );
-        return plan;
     }
 
     @Transactional
@@ -181,13 +175,10 @@ public class InspectPlanService {
         List<Long> activePlanIds = planMapper.selectList(
                 new LambdaQueryWrapper<InspectPlan>()
                         .in(InspectPlan::getStatus, PlanStatus.PENDING, PlanStatus.IN_PROGRESS)
-        ).stream().map(InspectPlan::getId).collect(Collectors.toList());
+        ).stream().map(InspectPlan::getId).toList();
 
-        if(!activePlanIds.isEmpty()){
-            planProjectMapper.selectList(
-                    new LambdaQueryWrapper<InspectPlanProject>()
-                            .in(InspectPlanProject::getPlanId, activePlanIds)
-            ).forEach(p -> planProjectMapper.recalculateCounts(p.getId()));
+        if (!activePlanIds.isEmpty()) {
+            activePlanIds.forEach(planProjectMapper::recalculateCounts);
             activePlanIds.forEach(planMapper::recalculateCounts);
         }
 
@@ -202,11 +193,6 @@ public class InspectPlanService {
         if (end.isBefore(start) || end.isEqual(start)) {
             throw new BusinessException("结束时间必须晚于开始时间");
         }
-    }
-
-    private String getProjectName(Long projectId) {
-        Project p = projectMapper.selectById(projectId);
-        return p != null ? p.getProjectName() : "未知项目";
     }
 
     public PlanProjectViewVo getActivePlanByProjectId(Long projectId) {

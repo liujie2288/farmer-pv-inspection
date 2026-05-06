@@ -22,3 +22,6 @@ aliyun:
     access-key-id: test-access-key
     access-key-secret: test-secret-key
     bucket: test-bucket
+
+playwright:
+  enabled: false

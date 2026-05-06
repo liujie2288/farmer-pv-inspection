@@ -1,4 +1,4 @@
-package com.yldlxj.pv.inspect.device;
+package com.yldlxj.pv.inspect.project;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;

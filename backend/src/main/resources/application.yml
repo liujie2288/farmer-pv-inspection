@@ -27,7 +27,7 @@ server:
   forward-headers-strategy: native
 
 jwt:
-  secret: ${JWT_SECRET:pv-inspection-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
+  secret: ${JWT_SECRET:yldl-pv-inspection-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256-0501}
   expiration: 5400000
   cookie-secure: ${JWT_COOKIE_SECURE:true}
   refresh-expiration-days: 7
@@ -41,4 +41,7 @@ aliyun:
 
 logging:
   level:
-    com.pv.inspection: DEBUG
+    com.yldlxj.pv.inspect: DEBUG
+
+playwright:
+  enabled: true

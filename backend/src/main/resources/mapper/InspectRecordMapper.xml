@@ -13,6 +13,8 @@
         <result column="inspector_time" property="inspectorTime"/>
         <result column="plan_status" property="planStatus"/>
         <result column="edit_deadline" property="editDeadline"/>
+        <result column="status" property="status"/>
+        <result column="reject_reason" property="rejectReason"/>
     </resultMap>
 
     <sql id="recordListColumns">
@@ -24,7 +26,9 @@
         r.inspector_id,
         u.real_name,
         r.create_time AS inspector_time,
-        r.edit_deadline
+        r.edit_deadline,
+        r.status,
+        r.reject_reason
     </sql>
 
     <sql id="recordListJoins">
@@ -44,7 +48,7 @@
                 AND r.plan_id = #{planId}
             </if>
             <if test="status != null">
-                AND p.status = #{status}
+                AND r.status = #{status}
             </if>
             <if test="inspectorId != null">
                 AND r.inspector_id = #{inspectorId}
@@ -54,6 +58,7 @@
                     pj.project_name LIKE CONCAT('%', #{keyword}, '%')
                     OR u.real_name LIKE CONCAT('%', #{keyword}, '%')
                     OR s.owner_name LIKE CONCAT('%', #{keyword}, '%')
+                    OR s.station_code LIKE CONCAT('%', #{keyword}, '%')
                 )
             </if>
         </where>
@@ -63,7 +68,7 @@
         SELECT <include refid="recordListColumns"/>
         <include refid="recordListJoins"/>
         <include refid="recordListConditions"/>
-        ORDER BY r.create_time DESC
+        ORDER BY r.id DESC
         LIMIT #{offset}, #{limit}
     </select>
 
@@ -80,7 +85,9 @@
             r.create_time AS inspector_time,
             p.plan_name,
             p.status AS plan_status,
-            u.real_name
+            u.real_name,
+            r.status,
+            r.reject_reason
         FROM inspect_record r
         JOIN inspect_plan p ON r.plan_id = p.id
         LEFT JOIN sys_user u ON r.inspector_id = u.id

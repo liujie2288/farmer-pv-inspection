@@ -1,16 +1,20 @@
-import { Menu, LogOut, User, SolarPanel } from 'lucide-react';
+import { Menu, LogOut, User, SolarPanel, ArrowLeft } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useSidebar } from './SidebarContext';
 import { useAuthStore } from '@/store/authStore';
-import { useNavigate } from 'react-router-dom';
 
-interface TopBarProps {
-  title?: string;
-}
+const ROOT_PATHS = new Set([
+  '/admin', '/admin/projects', '/admin/plans', '/admin/records', '/admin/users', '/admin/profile', '/admin/icons',
+  '/', '/records', '/profile',
+]);
 
-export default function TopBar({ title = '光伏巡检系统' }: TopBarProps) {
+export default function TopBar() {
   const { toggle, isDesktop } = useSidebar();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isRootPage = ROOT_PATHS.has(location.pathname);
 
   const handleLogout = () => {
     logout();
@@ -18,8 +22,18 @@ export default function TopBar({ title = '光伏巡检系统' }: TopBarProps) {
   };
 
   return (
-    <header className="h-14 bg-navy text-white flex items-center px-4 sticky top-0 z-30">
-      {!isDesktop && (
+    <header className="h-14 bg-navy text-white flex items-center px-4 fixed top-0 left-0 right-0 z-30">
+      {!isDesktop && !isRootPage && (
+        <button
+          onClick={() => navigate(-1)}
+          className="p-2 hover:bg-white/10 rounded-lg transition-colors mr-2"
+          aria-label="返回"
+        >
+          <ArrowLeft size={22} />
+        </button>
+      )}
+
+      {!isDesktop && isRootPage && (
         <button
           onClick={toggle}
           className="p-2 hover:bg-white/10 rounded-lg transition-colors mr-3"
@@ -35,7 +49,7 @@ export default function TopBar({ title = '光伏巡检系统' }: TopBarProps) {
         </div>
       )}
 
-      <h1 className="font-bold text-lg tracking-wide">{title}</h1>
+      <h1 className="font-bold text-lg tracking-wide">光伏巡检系统</h1>
 
       <div className="ml-auto flex items-center gap-3">
         {user && (

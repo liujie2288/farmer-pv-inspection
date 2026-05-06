@@ -107,7 +107,7 @@ export default function AppShell({ menuItems, children }: AppShellProps) {
     <SidebarProvider>
       <TopBar />
       <Sidebar menuItems={menuItems} />
-      <main className="lg:ml-64 p-4 min-h-[calc(100vh-3.5rem)] bg-gray-50">
+      <main className="lg:ml-64 p-4 bg-gray-50" style={{ paddingTop: '4.5rem' }}>
         {children}
       </main>
       {user?.needResetPwd && <ForceChangePasswordOverlay />}

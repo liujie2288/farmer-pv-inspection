@@ -1,4 +1,4 @@
-package com.yldlxj.pv.inspect.device;
+package com.yldlxj.pv.inspect.project;
 
 import com.yldlxj.pv.inspect.common.BaseEntity;
 import com.baomidou.mybatisplus.annotation.TableName;

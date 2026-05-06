@@ -35,7 +35,7 @@ import IconPreviewPage from '@/pages/admin/IconPreview/IconPreviewPage';
 const adminMenuItems = [
   { icon: LayoutDashboard, label: '数据概览', path: '/admin' },
   { icon: FolderOpen, label: '项目管理', path: '/admin/projects' },
-  { icon: Calendar, label: '任务管理', path: '/admin/plans' },
+  { icon: Calendar, label: '巡检任务', path: '/admin/plans' },
   { icon: ClipboardList, label: '巡检记录', path: '/admin/records' },
   { icon: Users, label: '用户管理', path: '/admin/users' },
   { icon: UserCircle, label: '个人中心', path: '/admin/profile' },

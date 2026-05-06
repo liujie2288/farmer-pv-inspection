@@ -3,6 +3,7 @@ package com.yldlxj.pv.inspect.station;
 import com.yldlxj.pv.inspect.common.ApiResponse;
 import com.yldlxj.pv.inspect.common.PageDto;
 import com.yldlxj.pv.inspect.station.dto.StationDto;
+import com.yldlxj.pv.inspect.station.dto.BatchDeleteDto;
 import com.yldlxj.pv.inspect.station.dto.StationViewVo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -11,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.Valid;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -66,8 +66,8 @@ public class StationController {
 
     @AdminOnly
     @DeleteMapping("/batch")
-    public ApiResponse<Map<String, Integer>> batchDeleteStations(@PathVariable Long projectId, @RequestBody Map<String, List<Long>> body) {
-        int count = stationService.batchDeleteStations(projectId, body.get("ids"));
+    public ApiResponse<Map<String, Integer>> batchDeleteStations(@PathVariable Long projectId, @Valid @RequestBody BatchDeleteDto dto) {
+        int count = stationService.batchDeleteStations(projectId, dto.getIds());
         return ApiResponse.success(Map.of("deletedCount", count));
     }
 

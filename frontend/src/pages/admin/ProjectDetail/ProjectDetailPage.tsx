@@ -8,9 +8,9 @@ import {
   getProject, type Project,
 } from '@/api/projects';
 import { getProjectSections, type Section } from '@/api/sections';
-import { getPresignedUrl } from '@/api/storage';
 import { showToast } from '@/components/ui/Toast';
 import { openImagePreview } from '@/components/ui/ImagePreview';
+import { getImageUrl } from '@/api/storage';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
 // --- Shared sub-components (same pattern as StationDetailPage) ---
@@ -69,24 +69,30 @@ function SectionCard({ title, icon, children }: SectionCardProps) {
 
 // --- Certificate image display ---
 
-function CertificateImage({ objectKey, label }: { objectKey: string; label: string }) {
-  const [url, setUrl] = useState('');
+function CertificateImage({ thumbnailUrl, objectKey, label }: { thumbnailUrl: string; objectKey: string; label: string }) {
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!objectKey) return;
-    let cancelled = false;
-    getPresignedUrl(objectKey).then(u => { if (!cancelled) setUrl(u); }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [objectKey]);
+  if (!thumbnailUrl) return <span className="text-sm text-gray-400">-</span>;
 
-  if (!url) return <span className="text-sm text-gray-400">-</span>;
+  const handleClick = async () => {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const largeUrl = await getImageUrl(objectKey, 'large');
+      openImagePreview(largeUrl, label);
+    } catch {
+      openImagePreview(thumbnailUrl, label);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <img
-      src={url}
+      src={thumbnailUrl}
       alt={label}
       className="h-[100px] rounded-lg border border-gray-200 object-contain cursor-pointer hover:opacity-80 transition-opacity"
-      onClick={() => openImagePreview(url, label)}
+      onClick={handleClick}
     />
   );
 }
@@ -175,7 +181,7 @@ function ProjectDetailPage() {
           <div>
             <p className="text-sm text-gray-700 mb-2">民用无人机驾驶合格证</p>
             {project.droneCertificateUrl ? (
-              <CertificateImage objectKey={project.droneCertificateUrl} label="民用无人机驾驶合格证" />
+              <CertificateImage thumbnailUrl={project.droneCertificateUrl} objectKey={project.droneCertificateUrl} label="民用无人机驾驶合格证" />
             ) : (
               <span className="text-sm text-gray-400">未上传</span>
             )}
@@ -183,7 +189,7 @@ function ProjectDetailPage() {
           <div>
             <p className="text-sm text-gray-700 mb-2">特种作业操作证</p>
             {project.specialOperationCertUrl ? (
-              <CertificateImage objectKey={project.specialOperationCertUrl} label="特种作业操作证" />
+              <CertificateImage thumbnailUrl={project.specialOperationCertUrl} objectKey={project.specialOperationCertUrl} label="特种作业操作证" />
             ) : (
               <span className="text-sm text-gray-400">未上传</span>
             )}

@@ -2,7 +2,6 @@ package com.yldlxj.pv.inspect.project;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.yldlxj.pv.inspect.common.BaseEntity;
-import com.yldlxj.pv.inspect.device.InspectDevice;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 

@@ -7,9 +7,9 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface InspectPlanProjectMapper extends BaseMapper<InspectPlanProject> {
 
-    void updateInspectedCount(@Param("id") Long id, @Param("inspectedCount") Long inspectedCount);
+    void updateInspectedCount(@Param("id") Long id);
 
-    void recalculateCounts(@Param("id") Long id);
+    void recalculateCounts(@Param("planId") Long planId);
 
     long countActiveByProjectId(@Param("projectId") Long projectId);
 

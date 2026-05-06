@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,7 +26,7 @@ public class InspectSectionService {
     private final InspectSectionItemMapper itemMapper;
 
     private final Cache<String, List<SectionViewVo>> sectionTreeCache = Caffeine.newBuilder()
-            .expireAfterWrite(12, java.util.concurrent.TimeUnit.HOURS)
+            .expireAfterWrite(12, TimeUnit.HOURS)
             .maximumSize(1)
             .build();
 
@@ -39,18 +41,16 @@ public class InspectSectionService {
                 .orElse(null);
     }
 
+    public String getSectionNameBySectionId(Long sectionId) {
+        return Optional.ofNullable(getSectionBySectionId(sectionId)).map(SectionViewVo::getSectionName).orElse(null);
+    }
+
     public SectionItemViewVo getSectionItemByItemId(Long itemId) {
         return listSectionTree().stream()
                 .flatMap(s -> s.getItems().stream())
                 .filter(i -> i.getId().equals(itemId))
                 .findFirst()
                 .orElse(null);
-    }
-
-    public List<InspectSection> listSections() {
-        return sectionMapper.selectList(
-                new LambdaQueryWrapper<InspectSection>().orderByAsc(InspectSection::getSectionNo)
-        );
     }
 
     public InspectSection getSectionById(Long id) {
@@ -93,6 +93,7 @@ public class InspectSectionService {
         if (section == null) {
             throw new BusinessException("大项不存在");
         }
+        itemMapper.delete(new LambdaQueryWrapper<InspectSectionItem>().eq(InspectSectionItem::getSectionId, id));
         sectionMapper.deleteById(id);
         sectionTreeCache.invalidateAll();
     }
@@ -109,7 +110,10 @@ public class InspectSectionService {
                 .stream().collect(Collectors.groupingBy(SectionItemViewVo::getSectionId));
 
         List<SectionViewVo> vos = SectionConvert.INSTANCE.toVoList(sections);
-        vos.forEach(vo -> vo.setItems(itemMap.getOrDefault(vo.getId(), List.of())));
+        for (SectionViewVo viewVo : vos) {
+            viewVo.setItems(itemMap.getOrDefault(viewVo.getId(), List.of()));
+        }
+
         return vos;
     }
 }

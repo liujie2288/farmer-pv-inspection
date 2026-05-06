@@ -5,6 +5,7 @@ import com.yldlxj.pv.inspect.common.ApiResponse;
 import com.yldlxj.pv.inspect.common.PageDto;
 import com.yldlxj.pv.inspect.common.annotation.AdminOnly;
 import com.yldlxj.pv.inspect.record.dto.InspectRecordDto;
+import com.yldlxj.pv.inspect.record.dto.RejectRecordDto;
 import com.yldlxj.pv.inspect.record.dto.vo.RecordDetailVo;
 import com.yldlxj.pv.inspect.record.dto.vo.RecordSimpleVo;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.Map;
 
 @Slf4j
@@ -24,14 +26,14 @@ public class InspectRecordController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<Map<String, Long>> submitRecord(@RequestBody InspectRecordDto recordDto) {
+    public ApiResponse<Map<String, Long>> submitRecord(@Valid @RequestBody InspectRecordDto recordDto) {
         Long id = recordService.submitRecord(recordDto);
         log.info("提交巡检记录: inspectorId={}, recordId={}, stationId={}", SecurityUtils.getCurrentUserId(), id, recordDto.getStationId());
         return ApiResponse.created(Map.of("id", id));
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<Void> updateRecord(@PathVariable Long id, @RequestBody InspectRecordDto recordDto) {
+    public ApiResponse<Void> updateRecord(@PathVariable Long id, @Valid @RequestBody InspectRecordDto recordDto) {
         recordService.updateRecord(id, recordDto);
         return ApiResponse.success();
     }
@@ -40,6 +42,13 @@ public class InspectRecordController {
     @PutMapping("/{id}/extend-deadline")
     public ApiResponse<Void> extendDeadline(@PathVariable Long id) {
         recordService.extendDeadline(id);
+        return ApiResponse.success();
+    }
+
+    @AdminOnly
+    @PutMapping("/{id}/reject")
+    public ApiResponse<Void> rejectRecord(@PathVariable Long id, @Valid @RequestBody RejectRecordDto dto) {
+        recordService.rejectRecord(id, dto.getReason());
         return ApiResponse.success();
     }
 
@@ -57,6 +66,14 @@ public class InspectRecordController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ApiResponse.success(recordService.listRecords(stationId, planId, keyword, status, page, size));
+    }
+
+    @GetMapping("/rejected-mine")
+    public ApiResponse<Map<String, Long>> findMyRejectedRecord(
+            @RequestParam Long stationId,
+            @RequestParam Long planProjectId) {
+        Long recordId = recordService.findMyRejectedRecord(stationId, planProjectId);
+        return ApiResponse.success(recordId != null ? Map.of("recordId", recordId) : null);
     }
 
 }

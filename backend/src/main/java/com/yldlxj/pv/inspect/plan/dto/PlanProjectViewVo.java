@@ -30,15 +30,13 @@ public class PlanProjectViewVo {
 
     private Integer inspectedCount;
 
-    public Double getCompletionRate() {
-        if (totalCount == null || totalCount <= 0) {
-            return null;
-        } else if (inspectedCount == null || inspectedCount <= 0) {
+    public double getCompletionRate() {
+        if (totalCount == null || totalCount <= 0 || inspectedCount == null || inspectedCount <= 0) {
             return 0.0;
         } else {
             return BigDecimal.valueOf(inspectedCount)
-                    .multiply(BigDecimal.valueOf(100))
-                    .divide(BigDecimal.valueOf(totalCount), 2, RoundingMode.HALF_UP)
+                    .divide(BigDecimal.valueOf(totalCount), 4, RoundingMode.HALF_UP)
+                    .movePointRight(2)
                     .doubleValue();
         }
     }

@@ -1,37 +1,39 @@
 package com.yldlxj.pv.inspect.export;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.yldlxj.pv.inspect.common.BaseEntity;
+import com.yldlxj.pv.inspect.config.ExportTaskFileTypeHandler;
+import com.yldlxj.pv.inspect.export.dto.ExportTaskFileDto;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
-@TableName("export_task")
-public class ExportTask {
+@EqualsAndHashCode(callSuper = true)
+@TableName(value = "export_task", autoResultMap = true)
+public class ExportTask extends BaseEntity {
 
-    @TableId(type = IdType.AUTO)
-    private Long id;
-
-    private Long planId;
-
-    private Long operatorId;
+    private String type;
 
     private Integer status;
 
-    private String fileUrl;
+    private Long planId;
 
-    private Long fileSize;
+    private Long projectId;
+
+    @TableField(typeHandler = ExportTaskFileTypeHandler.class)
+    private List<ExportTaskFileDto> files;
 
     private Integer totalCount;
 
-    private Integer exportType;
+    private String failReason;
 
-    private Integer processedCount;
+    private Long operatorId;
 
-    private String errorMessage;
-
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
-
-    private LocalDateTime completeTime;
+    private LocalDateTime finishTime;
 }

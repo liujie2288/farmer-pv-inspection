@@ -12,7 +12,6 @@ CREATE TABLE `station` (
   `capacity_kw` DECIMAL(10,2) DEFAULT NULL COMMENT '装机容量(kW)',
   `longitude` DECIMAL(12,8) DEFAULT NULL COMMENT '经度坐标',
   `latitude` DECIMAL(12,8) DEFAULT NULL COMMENT '纬度坐标',
-  `status` TINYINT NOT NULL DEFAULT 0 COMMENT '巡检状态: 0-未巡检 1-已巡检',
   `last_inspect_record_id` bigint DEFAULT NULL COMMENT '最后巡检记录id',
   `last_inspect_time` DATETIME DEFAULT NULL COMMENT '最后巡检时间',
   `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

@@ -20,7 +20,7 @@ export interface Station {
 
 export interface StationDetail extends Station {
   projectName: string;
-  records: Array<{ recordId: number; planName: string; inspectorName: string; inspectorTime: string }>;
+  records: Array<{ recordId: number; planName: string; inspectorName: string; inspectorTime: string; status?: number }>;
 }
 
 export function listStations(projectId: number, params?: {

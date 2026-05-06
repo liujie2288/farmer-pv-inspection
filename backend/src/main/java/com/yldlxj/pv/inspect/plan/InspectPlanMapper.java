@@ -23,7 +23,7 @@ public interface InspectPlanMapper extends BaseMapper<InspectPlan> {
 
     List<PlanProjectViewVo> findActiveByProjectIds(@Param("projectIds") List<Long> projectIds);
 
-    void updateInspectedCount(@Param("id") Long id, @Param("inspectedCount") Long inspectedCount);
+    void updateInspectedCount(@Param("id") Long id);
 
     void recalculateCounts(@Param("id") Long id);
 

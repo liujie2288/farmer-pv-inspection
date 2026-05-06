@@ -16,4 +16,6 @@ public class RecordSimpleVo {
     private LocalDateTime inspectorTime;
     private LocalDateTime editDeadline;
     private Boolean canEdit;
+    private Integer status;
+    private String rejectReason;
 }

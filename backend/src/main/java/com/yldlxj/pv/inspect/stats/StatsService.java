@@ -2,11 +2,11 @@ package com.yldlxj.pv.inspect.stats;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.yldlxj.pv.inspect.common.enums.PlanStatus;
+import com.yldlxj.pv.inspect.plan.*;
 import com.yldlxj.pv.inspect.record.InspectRecord;
 import com.yldlxj.pv.inspect.record.InspectRecordMapper;
 import com.yldlxj.pv.inspect.station.StationMapper;
 import com.yldlxj.pv.inspect.plan.InspectPlan;
-import com.yldlxj.pv.inspect.plan.InspectPlanMapper;
 import com.yldlxj.pv.inspect.project.Project;
 import com.yldlxj.pv.inspect.project.ProjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +25,7 @@ public class StatsService {
     private final ProjectMapper projectMapper;
     private final StationMapper stationMapper;
     private final InspectPlanMapper planMapper;
+    private final InspectPlanProjectMapper planProjectMapper;
     private final InspectRecordMapper recordMapper;
 
     public Map<String, Object> getGlobalStats() {
@@ -40,6 +41,7 @@ public class StatsService {
         long weekInspected = recordMapper.selectCount(
                 new LambdaQueryWrapper<InspectRecord>()
                         .ge(InspectRecord::getCreateTime, weekStart)
+                        .eq(InspectRecord::getStatus, 1)
         );
 
         // 本月已巡检
@@ -47,6 +49,7 @@ public class StatsService {
         long monthInspected = recordMapper.selectCount(
                 new LambdaQueryWrapper<InspectRecord>()
                         .ge(InspectRecord::getCreateTime, monthStart)
+                        .eq(InspectRecord::getStatus, 1)
         );
 
         // 进行中的计划
@@ -76,10 +79,17 @@ public class StatsService {
         Map<String, Object> stats = new HashMap<>();
         stats.put("stationCount", stationCount);
 
-        List<InspectPlan> activePlans = planMapper.selectList(
-                new LambdaQueryWrapper<InspectPlan>()
-                        .eq(InspectPlan::getStatus, PlanStatus.IN_PROGRESS)
-        );
+        List<Long> activePlanIds = planProjectMapper.selectList(
+                new LambdaQueryWrapper<InspectPlanProject>()
+                        .eq(InspectPlanProject::getProjectId, projectId)
+        ).stream().map(InspectPlanProject::getPlanId).toList();
+
+        List<InspectPlan> activePlans = activePlanIds.isEmpty() ? Collections.emptyList() :
+                planMapper.selectList(
+                        new LambdaQueryWrapper<InspectPlan>()
+                                .in(InspectPlan::getId, activePlanIds)
+                                .eq(InspectPlan::getStatus, PlanStatus.IN_PROGRESS)
+                );
         if (!activePlans.isEmpty()) {
             InspectPlan plan = activePlans.get(0);
             Map<String, Object> ap = new HashMap<>();

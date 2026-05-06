@@ -25,6 +25,11 @@ export interface PhotoSectionSubmit {
   items: PhotoItemSubmit[];
 }
 
+export interface WatermarkConfig {
+  fields?: string[];
+  customTexts?: string[];
+}
+
 export interface InspectionSubmit {
   planId: number;
   stationId: number;
@@ -34,6 +39,7 @@ export interface InspectionSubmit {
   deviceModel?: string;
   checklistResult: ChecklistSectionSubmit[];
   photos?: PhotoSectionSubmit[];
+  watermarkConfig?: WatermarkConfig;
 }
 
 // ---- API functions (→ /records) ----
@@ -48,6 +54,14 @@ export function updateInspection(id: number, data: Partial<InspectionSubmit>) {
 
 export function extendDeadline(id: number) {
   return client.put<any, { code: number }>(`/records/${id}/extend-deadline`);
+}
+
+export function rejectRecord(id: number, reason: string) {
+  return client.put<any, { code: number }>(`/records/${id}/reject`, { reason });
+}
+
+export function findMyRejectedRecord(stationId: number, planProjectId: number) {
+  return client.get<any, { code: number; data: { recordId: number } | null }>(`/records/rejected-mine`, { params: { stationId, planProjectId } });
 }
 
 export function getInspectionDetail(id: number) {

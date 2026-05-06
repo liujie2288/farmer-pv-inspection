@@ -7,6 +7,7 @@ import com.yldlxj.pv.inspect.convert.UserConvert;
 import com.yldlxj.pv.inspect.user.dto.UserCreateDto;
 import com.yldlxj.pv.inspect.user.dto.UserDto;
 import com.yldlxj.pv.inspect.user.dto.UserUpdateDto;
+import com.yldlxj.pv.inspect.user.dto.ToggleStatusDto;
 import com.yldlxj.pv.inspect.auth.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,9 +67,9 @@ public class UserController {
 
     @AdminOnly
     @PutMapping("/{id}/status")
-    public ApiResponse<Void> toggleStatus(@PathVariable Long id, @RequestBody Map<String, Integer> body) {
-        userService.toggleStatus(id, body.get("status"));
-        log.info("变更用户状态: operatorId={}, targetUserId={}, status={}", SecurityUtils.getCurrentUserId(), id, body.get("status"));
+    public ApiResponse<Void> toggleStatus(@PathVariable Long id, @Valid @RequestBody ToggleStatusDto dto) {
+        userService.toggleStatus(id, dto.getStatus());
+        log.info("变更用户状态: operatorId={}, targetUserId={}, status={}", SecurityUtils.getCurrentUserId(), id, dto.getStatus());
         return ApiResponse.success();
     }
 }
