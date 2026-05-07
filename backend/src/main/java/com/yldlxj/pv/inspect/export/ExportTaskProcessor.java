@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -150,10 +151,20 @@ public class ExportTaskProcessor {
                 String stationDir = projectName + "/" + station.getStationCode() + "_" + station.getOwnerName() + "/";
 
                 int photoIdx = 0;
-                if (record.getPhotos() == null) {
+                if (record.getPhotos() == null && record.getThermalImageUrl() == null) {
                     zos.putNextEntry(new ZipEntry(stationDir));
                     continue;
                 }
+
+                if (record.getThermalImageUrl() != null) {
+                    String entryName = String.format("%s%03d_%02d_红外热成像%s", stationDir, record.getId() % 1000, ++photoIdx, CommonUtils.getExtension(record.getThermalImageUrl()));
+                    downloadAndPutZip(zos, record.getThermalImageUrl(), entryName);
+                }
+
+                if (record.getPhotos() == null) {
+                    continue;
+                }
+
                 for (PhotoSectionDto section : record.getPhotos()) {
                     if (section.getItems() == null) continue;
 
@@ -169,24 +180,7 @@ public class ExportTaskProcessor {
                             String entryName = String.format("%s%03d_%02d_%s_%s%s", stationDir, record.getId() % 1000, ++photoIdx, sectionName, itemName, CommonUtils.getExtension(key));
 
                             // 先创建 entry，再尝试下载；任何异常都先关闭当前 entry 再写 .error.txt
-                            zos.putNextEntry(new ZipEntry(entryName));
-                            try {
-                                try (OSSObject ossObject = storageService.getObject(key);
-                                     InputStream is = ossObject.getObjectContent()) {
-                                    is.transferTo(zos);
-                                }
-                                zos.closeEntry();
-                            } catch (Exception e) {
-                                try {
-                                    zos.closeEntry();
-                                } catch (Exception ignored) {
-                                }
-                                String reason = e instanceof OSSException
-                                        ? ((OSSException) e).getErrorCode() : e.getMessage();
-                                zos.putNextEntry(new ZipEntry(entryName + ".error.txt"));
-                                zos.write(("下载失败原因：" + reason).getBytes(StandardCharsets.UTF_8));
-                                zos.closeEntry();
-                            }
+                            downloadAndPutZip(zos, key, entryName);
                         }
                     }
                 }
@@ -276,23 +270,7 @@ public class ExportTaskProcessor {
 
                 String entryName = projectName + "/" + station.getStationCode() + "_" + station.getOwnerName() + "_" + DATE_FORMATTER.format(record.getCreateTime()) + ".pdf";
 
-                zos.putNextEntry(new ZipEntry(entryName));
-                try {
-                    try (OSSObject ossObject = storageService.getObject(key);
-                         InputStream is = ossObject.getObjectContent()) {
-                        is.transferTo(zos);
-                    }
-                    zos.closeEntry();
-                } catch (Exception e) {
-                    try {
-                        zos.closeEntry();
-                    } catch (Exception ignored) {
-                    }
-                    String reason = e instanceof OSSException ? ((OSSException) e).getErrorCode() : e.getMessage();
-                    zos.putNextEntry(new ZipEntry(entryName + ".error.txt"));
-                    zos.write(("下载失败原因：" + reason).getBytes(StandardCharsets.UTF_8));
-                    zos.closeEntry();
-                }
+                downloadAndPutZip(zos, key, entryName);
             }
         }
     }
@@ -305,5 +283,26 @@ public class ExportTaskProcessor {
 
     private String buildExportOssKey(ExportTask task, ExportTaskFileDto fileDto) {
         return "export/" + task.getType() + "/" + task.getPlanId() + "_" + task.getProjectId() + "_" + fileDto.getFileName();
+    }
+
+    private void downloadAndPutZip(ZipOutputStream zos, String key, String entryName) throws IOException {
+        zos.putNextEntry(new ZipEntry(entryName));
+        try {
+            try (OSSObject ossObject = storageService.getObject(key);
+                 InputStream is = ossObject.getObjectContent()) {
+                is.transferTo(zos);
+            }
+            zos.closeEntry();
+        } catch (Exception e) {
+            try {
+                zos.closeEntry();
+            } catch (Exception ignored) {
+            }
+            String reason = e instanceof OSSException
+                    ? ((OSSException) e).getErrorCode() : e.getMessage();
+            zos.putNextEntry(new ZipEntry(entryName + ".error.txt"));
+            zos.write(("下载失败原因：" + reason).getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+        }
     }
 }

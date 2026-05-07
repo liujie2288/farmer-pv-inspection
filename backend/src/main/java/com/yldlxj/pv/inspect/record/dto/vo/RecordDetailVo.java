@@ -26,6 +26,7 @@ public class RecordDetailVo {
     private WatermarkConfigDto watermarkConfig;
     private List<ChecklistSectionVo> checklistResult;
     private List<PhotoSectionVo> photos;
+    private String thermalImageUrl;
     private BigDecimal longitude;
     private BigDecimal latitude;
     private Boolean canEdit;

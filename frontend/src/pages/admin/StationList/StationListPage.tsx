@@ -354,8 +354,8 @@ function StationListPage() {
           <div className="w-28">电站编号</div>
           <div className="w-24">户主姓名</div>
           <div className="w-32">发电户号</div>
-          <div className="w-20">状态</div>
           <div className="w-28">逆变器品牌型号</div>
+          <div className="w-20">状态</div>
           <div className="w-28">最后巡检时间</div>
           <div className="flex-1 text-right">操作</div>
         </div>
@@ -390,10 +390,10 @@ function StationListPage() {
                   <div className="w-28 text-sm font-mono text-gray-700 truncate">{f.stationCode}</div>
                   <div className="w-24 text-sm font-medium text-gray-900 truncate">{f.ownerName}</div>
                   <div className="w-32 text-sm text-gray-500 truncate">{f.powerAccount || '-'}</div>
+                  <div className="w-28 text-sm text-gray-500 truncate">{f.inverterBrand || '-'}</div>
                   <div className="w-20">
                     <StatusTag inspected={f.status === 1} />
                   </div>
-                  <div className="w-28 text-sm text-gray-500 truncate">{f.inverterBrand || '-'}</div>
                   <div className="w-28 text-sm text-gray-500 whitespace-nowrap">{f.lastInspectTime || '-'}</div>
                   <div className="flex-1 flex items-center justify-end" onClick={e => e.stopPropagation()}>
                     <button

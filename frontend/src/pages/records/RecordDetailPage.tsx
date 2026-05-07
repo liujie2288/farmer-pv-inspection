@@ -311,6 +311,22 @@ function RecordDetailPage() {
         </div>
       )}
 
+      {/* Thermal image */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-4 py-3 bg-navy/5 border-b border-gray-100">
+          <h2 className="text-sm font-semibold text-navy">红外热成像照片</h2>
+        </div>
+        <div className="px-4 py-3">
+          {detail.thermalImageUrl ? (
+            <div className="grid grid-cols-3 lg:grid-cols-8 gap-2">
+              <RecordPhoto url={detail.thermalImageUrl} alt="红外热成像照片" />
+            </div>
+          ) : (
+            <span className="text-sm text-gray-400">未上传</span>
+          )}
+        </div>
+      </div>
+
       <div className="pt-2 pb-2 flex flex-col gap-3">
         {isAdmin && detail.planStatus === 1 && detail.editDeadline && new Date(detail.editDeadline) > new Date() && (
           <div className="flex items-center justify-center gap-1.5 py-2.5 text-sm text-green-600">

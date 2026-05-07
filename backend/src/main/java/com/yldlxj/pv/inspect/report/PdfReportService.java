@@ -7,6 +7,9 @@ import com.microsoft.playwright.PlaywrightException;
 import com.microsoft.playwright.options.Margin;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.microsoft.playwright.options.WaitUntilState;
+import com.yldlxj.pv.inspect.project.Project;
+import com.yldlxj.pv.inspect.project.ProjectMapper;
+import com.yldlxj.pv.inspect.project.ProjectService;
 import com.yldlxj.pv.inspect.record.InspectRecord;
 import com.yldlxj.pv.inspect.record.InspectRecordMapper;
 import com.yldlxj.pv.inspect.record.InspectRecordService;
@@ -35,10 +38,13 @@ public class PdfReportService {
 
     private final Browser browser;
     private final ISpringTemplateEngine templateEngine;
-    private final InspectRecordService recordService;
+
     private final StationService stationService;
     private final StorageService storageService;
+
+    private final ProjectMapper projectMapper;
     private final InspectRecordMapper recordMapper;
+    private final InspectRecordService recordService;
 
     private static final int MAX_RETRY_COUNT = 3;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/");
@@ -107,9 +113,15 @@ public class PdfReportService {
         RecordDetailVo record = recordService.getReportDetail(recordId);
         Station station = stationService.getStation(record.getStationId());
 
+        Project project = projectMapper.selectById(record.getProjectId());
+        project.setDroneCertificateUrl(storageService.getImageUrl(project.getDroneCertificateUrl(), "large"));
+        project.setSpecialOperationCertUrl(storageService.getImageUrl(project.getSpecialOperationCertUrl(), "large"));
+
+
         Context context = new Context();
         context.setVariable("record", record);
         context.setVariable("station", station);
+        context.setVariable("recordProject", project);
 
         return templateEngine.process("report", context);
     }

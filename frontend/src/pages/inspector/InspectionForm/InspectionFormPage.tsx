@@ -11,6 +11,7 @@ import { getStationDetail } from '@/api/stations';
 import { getActivePlan } from '@/api/plans';
 import { getProject, type DeviceItem } from '@/api/projects';
 import InspectionChecklist from '@/components/InspectionChecklist';
+import ImageUpload from '@/components/ui/ImageUpload';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { showToast } from '@/components/ui/Toast';
 
@@ -63,6 +64,7 @@ function InspectionFormPage() {
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photos, setPhotos] = useState<PhotoSectionSubmit[]>([]);
   const [initialPhotos, setInitialPhotos] = useState<PhotoSectionSubmit[] | undefined>(undefined);
+  const [thermalImageUrl, setThermalImageUrl] = useState('');
   const [rejectReason, setRejectReason] = useState<string | null>(null);
 
   const selectedWeather = customWeather || weather;
@@ -120,6 +122,10 @@ function InspectionFormPage() {
 
           if (record.photos?.length) {
             setInitialPhotos(record.photos);
+          }
+
+          if (record.thermalImageUrl) {
+            setThermalImageUrl(record.thermalImageUrl);
           }
 
           if (record.watermarkConfig) {
@@ -221,6 +227,12 @@ function InspectionFormPage() {
       return;
     }
 
+    if (!thermalImageUrl) {
+      showToast({ icon: 'warning', content: '请上传红外热成像照片' });
+      document.getElementById('thermal-image-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
     setSubmitting(true);
     try {
       const checklistResult = (checklistData.sections || []).map(
@@ -252,6 +264,7 @@ function InspectionFormPage() {
           deviceModel: selectedDevice?.deviceModel,
           checklistResult,
           photos: photos.length > 0 ? photos : undefined,
+          thermalImageUrl,
           watermarkConfig: (watermarkFields.length > 0 || watermarkCustomTexts.some(t => t.trim()))
             ? { fields: watermarkFields.length > 0 ? watermarkFields : undefined, customTexts: watermarkCustomTexts.filter(t => t.trim()).length > 0 ? watermarkCustomTexts.filter(t => t.trim()) : undefined }
             : undefined,
@@ -274,6 +287,7 @@ function InspectionFormPage() {
           deviceModel: selectedDevice?.deviceModel,
           checklistResult,
           photos: photos.length > 0 ? photos : undefined,
+          thermalImageUrl,
           watermarkConfig: (watermarkFields.length > 0 || watermarkCustomTexts.some(t => t.trim()))
             ? { fields: watermarkFields.length > 0 ? watermarkFields : undefined, customTexts: watermarkCustomTexts.filter(t => t.trim()).length > 0 ? watermarkCustomTexts.filter(t => t.trim()) : undefined }
             : undefined,
@@ -470,6 +484,20 @@ function InspectionFormPage() {
           onUploadingChange={setPhotoUploading}
           initialPhotos={initialPhotos}
         />
+
+        {/* Thermal image */}
+        <div id="thermal-image-card" className="bg-white rounded-xl p-4 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-500 mb-3">
+            红外热成像照片 <span className="text-red-500">*</span>
+          </h3>
+          <ImageUpload
+            value={thermalImageUrl}
+            onChange={setThermalImageUrl}
+            placeholder="上传红外热成像照片"
+            uploadType="photo"
+            compact
+          />
+        </div>
       </div>
 
       {/* Submit button */}

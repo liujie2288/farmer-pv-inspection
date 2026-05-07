@@ -39,6 +39,7 @@ export interface InspectionSubmit {
   deviceModel?: string;
   checklistResult: ChecklistSectionSubmit[];
   photos?: PhotoSectionSubmit[];
+  thermalImageUrl: string;
   watermarkConfig?: WatermarkConfig;
 }
 

@@ -90,6 +90,7 @@ public class InspectRecordService {
         record.setWatermarkConfig(dto.getWatermarkConfig());
         record.setChecklistResult(dto.getChecklistResult());
         record.setPhotos(convertPhotoUrls(dto.getPhotos()));
+        record.setThermalImageUrl(stripOssHost(dto.getThermalImageUrl()));
         record.setLongitude(station.getLongitude());
         record.setLatitude(station.getLatitude());
         recordMapper.insert(record);
@@ -127,6 +128,7 @@ public class InspectRecordService {
         record.setWatermarkConfig(dto.getWatermarkConfig());
         record.setChecklistResult(dto.getChecklistResult());
         record.setPhotos(convertPhotoUrls(dto.getPhotos()));
+        record.setThermalImageUrl(stripOssHost(dto.getThermalImageUrl()));
         if (dto.getLongitude() != null) record.setLongitude(dto.getLongitude());
         if (dto.getLatitude() != null) record.setLatitude(dto.getLatitude());
         recordMapper.updateById(record);
@@ -160,6 +162,9 @@ public class InspectRecordService {
         vo.setInspectorName(userService.findRealNameByUserId(record.getInspectorId()));
         vo.setChecklistResult(buildChecklistVo(record.getChecklistResult()));
         vo.setPhotos(buildPhotoVo(record.getPhotos(), "small", null));
+        if (record.getThermalImageUrl() != null && !record.getThermalImageUrl().isEmpty()) {
+            vo.setThermalImageUrl(storageService.getImageUrl(record.getThermalImageUrl(), 100, "small"));
+        }
         vo.setLongitude(record.getLongitude());
         vo.setLatitude(record.getLatitude());
         vo.setWeather(record.getWeather());
@@ -225,6 +230,19 @@ public class InspectRecordService {
         }
 
         vo.setPhotos(buildPhotoVo(record.getPhotos(), null, watermarks));
+
+        if (vo.getChecklistResult() != null && vo.getPhotos() != null) {
+            Map<Long, List<PhotoItemVo>> photoMap = vo.getPhotos().stream().collect(Collectors.toMap(i -> i.getSectionId(), i -> i.getItems()));
+            for (ChecklistSectionVo checklist : vo.getChecklistResult()) {
+                checklist.setPhotos(photoMap.get(checklist.getSectionId()));
+            }
+        }
+
+        if (record.getThermalImageUrl() != null && !record.getThermalImageUrl().isEmpty()) {
+            vo.setThermalImageUrl(storageService.getImageUrl(record.getThermalImageUrl(), 100, "large"));
+        }
+
+
         return vo;
     }
 
@@ -379,6 +397,7 @@ public class InspectRecordService {
                     SectionItemViewVo templateItem = sectionService.getSectionItemByItemId(item.getItemId());
                     if (templateItem != null) {
                         itemVo.setItemNo(templateItem.getItemNo());
+                        itemVo.setCategory(templateItem.getCategory());
                         itemVo.setContent(templateItem.getContent());
                         itemVo.setItemType(templateItem.getItemType() != null ? templateItem.getItemType().getCode() : null);
                     }
@@ -441,14 +460,16 @@ public class InspectRecordService {
             for (PhotoItemDto item : section.getItems()) {
                 if (item.getUrls() == null) continue;
                 item.setUrls(item.getUrls().stream()
-                        .map(url -> {
-                            if (url == null || !url.startsWith("http")) return url;
-                            String key = storageService.extractObjectKey(url);
-                            return key != null ? key : url;
-                        })
+                        .map(this::stripOssHost)
                         .collect(Collectors.toList()));
             }
         }
         return photos;
+    }
+
+    private String stripOssHost(String url) {
+        if (url == null || !url.startsWith("http")) return url;
+        String key = storageService.extractObjectKey(url);
+        return key != null ? key : url;
     }
 }

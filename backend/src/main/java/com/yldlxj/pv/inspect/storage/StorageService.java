@@ -107,6 +107,10 @@ public class StorageService {
         }
     }
 
+    public String getImageUrl(String objectName, String style) {
+        return getImageUrl(objectName, 100, style);
+    }
+
     public String getImageUrl(String objectKey, int expiryMinutes, String style) {
         if (objectKey == null || objectKey.isEmpty()) return objectKey;
         if (objectKey.startsWith("http")) return objectKey;

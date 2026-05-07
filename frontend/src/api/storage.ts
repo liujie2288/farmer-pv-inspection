@@ -45,14 +45,6 @@ export async function uploadFileToOss(
   });
 }
 
-export async function getPresignedUrl(objectKey: string): Promise<string> {
-  const res = await client.get<any, { code: number; data: string }>(
-    '/storage/presigned-url',
-    { params: { objectKey } }
-  );
-  return res.data;
-}
-
 export async function getImageUrl(objectKey: string, style = 'thm_cert'): Promise<string> {
   const res = await client.get<any, { code: number; data: string }>(
     '/storage/image-url',

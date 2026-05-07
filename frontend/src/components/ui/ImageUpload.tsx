@@ -8,15 +8,17 @@ interface ImageUploadProps {
   value: string;
   onChange: (objectKey: string) => void;
   placeholder?: string;
+  uploadType?: 'certificate' | 'photo';
+  compact?: boolean;
 }
 
-export default function ImageUpload({ value, onChange, placeholder = '点击上传图片' }: ImageUploadProps) {
+export default function ImageUpload({ value, onChange, placeholder = '点击上传图片', uploadType = 'certificate', compact = false }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [localUrl, setLocalUrl] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const MAX_SIZE = 5 * 1024 * 1024;
+  const MAX_SIZE = 10 * 1024 * 1024;
 
   // 清理本地 blob URL
   useEffect(() => {
@@ -34,7 +36,7 @@ export default function ImageUpload({ value, onChange, placeholder = '点击上�
     if (!file) return;
 
     if (file.size > MAX_SIZE) {
-      showToast({ icon: 'warning', content: '图片不能超过5MB' });
+      showToast({ icon: 'warning', content: '图片不能超过10MB' });
       return;
     }
 
@@ -44,7 +46,7 @@ export default function ImageUpload({ value, onChange, placeholder = '点击上�
     setProgress(0);
 
     try {
-      const objectKey = await uploadFileToOss(file, 'certificate', {
+      const objectKey = await uploadFileToOss(file, uploadType, {
         onProgress: (p) => setProgress(p),
       });
       onChange(objectKey);
@@ -71,10 +73,12 @@ export default function ImageUpload({ value, onChange, placeholder = '点击上�
     if (previewUrl) openImagePreview(previewUrl);
   };
 
+  const sizeClass = compact ? 'max-w-[40%] lg:max-w-[20%]' : 'max-w-[40%]';
+
   return (
     <div className="flex flex-col gap-1.5">
       {value ? (
-        <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border border-gray-200 bg-gray-50 max-w-[40%] cursor-pointer"
+        <div className={`relative w-full aspect-[4/3] rounded-lg overflow-hidden border border-gray-200 bg-gray-50 ${sizeClass} cursor-pointer`}
              onClick={uploading ? undefined : handlePreview}>
           {previewUrl ? (
             <img src={previewUrl} alt="证书图片" className="w-full h-full object-contain" />
@@ -102,7 +106,7 @@ export default function ImageUpload({ value, onChange, placeholder = '点击上�
       ) : (
         <div
           onClick={() => !uploading && inputRef.current?.click()}
-          className="flex flex-col items-center justify-center gap-1.5 w-full aspect-[4/3] rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 cursor-pointer hover:border-teal-400 transition-colors max-w-[40%]"
+          className={`flex flex-col items-center justify-center gap-1.5 w-full aspect-[4/3] rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 cursor-pointer hover:border-teal-400 transition-colors ${sizeClass}`}
         >
           <input
             ref={inputRef}
@@ -120,7 +124,6 @@ export default function ImageUpload({ value, onChange, placeholder = '点击上�
             <>
               <Upload size={24} className="text-gray-400" />
               <span className="text-xs text-gray-400">{placeholder}</span>
-              <span className="text-xs text-gray-300">不超过5MB</span>
             </>
           )}
         </div>

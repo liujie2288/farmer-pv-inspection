@@ -12,4 +12,16 @@ public class ChecklistSectionVo {
     private String sectionName;
     private Integer sectionNo;
     private List<ChecklistItemVo> items;
+    private List<PhotoItemVo> photos;
+
+    public boolean hasCategory() {
+        if (items != null) {
+            for (ChecklistItemVo item : items) {
+                if (item.getCategory() != null && item.getCategory().equals(sectionName)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }

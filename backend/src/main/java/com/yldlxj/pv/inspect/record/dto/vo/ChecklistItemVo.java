@@ -8,6 +8,7 @@ import lombok.Data;
 public class ChecklistItemVo {
     private Long itemId;
     private Integer itemNo;
+    private String category;
     private String content;
     private Integer itemType;
     private Boolean result;

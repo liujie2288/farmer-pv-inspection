@@ -32,58 +32,84 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-navy via-navy-light to-navy-dark flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-teal to-teal-dark rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-            <SolarPanel size={28} className="text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-navy via-navy-light to-navy-dark flex flex-col p-4">
+      <div className="flex-1 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-teal to-teal-dark rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+              <SolarPanel size={28} className="text-white" />
+            </div>
+            <h1 className="text-xl font-bold text-navy">光伏巡检系统</h1>
+            <p className="text-sm text-gray-500 mt-1">分布式光伏发电项目管理平台</p>
           </div>
-          <h1 className="text-xl font-bold text-navy">光伏巡检系统</h1>
-          <p className="text-sm text-gray-500 mt-1">分布式光伏发电项目管理平台</p>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+              <div className="relative">
+                <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  placeholder="请输入用户名"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal focus:border-teal outline-none text-base transition"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">密码</label>
+              <div className="relative">
+                <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type={showPwd ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="请输入密码"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal focus:border-teal outline-none text-base transition"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd(!showPwd)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-teal to-teal-dark text-white py-3.5 rounded-lg font-bold text-base hover:shadow-lg transition-shadow disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? '登录中...' : '登 录'}
+            </button>
+          </form>
         </div>
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">用户名</label>
-            <div className="relative">
-              <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="请输入用户名"
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal focus:border-teal outline-none text-base transition"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">密码</label>
-            <div className="relative">
-              <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type={showPwd ? 'text' : 'password'}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="请输入密码"
-                className="w-full pl-10 pr-12 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-teal focus:border-teal outline-none text-base transition"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPwd(!showPwd)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-teal to-teal-dark text-white py-3.5 rounded-lg font-bold text-base hover:shadow-lg transition-shadow disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {loading ? '登录中...' : '登 录'}
-          </button>
-        </form>
       </div>
+      <footer className="py-4 text-center text-sm text-white/45 tracking-wide">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-3">
+          <a
+            href="https://beian.miit.gov.cn/"
+            target="_blank"
+            rel="noreferrer"
+            className="hover:text-white/80 transition-colors"
+          >
+            蜀ICP备2026022255号
+          </a>
+          {/* TODO: 公安备案号下发后取消注释
+          <span className="hidden sm:inline text-white/25">·</span>
+          <a
+            href="http://www.beian.gov.cn/portal/registerSystemInfo"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 hover:text-white/80 transition-colors"
+          >
+            <img src="/police-icon.png" alt="" className="w-4 h-4" />
+            川公网安备 XXXXXXXXXXXX号
+          </a>
+          */}
+        </div>
+      </footer>
     </div>
   );
 }

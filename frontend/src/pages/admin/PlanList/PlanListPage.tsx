@@ -115,6 +115,7 @@ function CreatePlanDialog({ onClose, onSuccess }: { onClose: () => void; onSucce
               </span>
               <input
                 type="date"
+                min={todayStr}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal"
                 value={form.startTime}
                 onChange={e => setForm(prev => ({ ...prev, startTime: e.target.value }))}

@@ -30,6 +30,9 @@ public class InspectRecordDto {
     @Valid
     private List<PhotoSectionDto> photos;
 
+    @NotBlank(message = "红外热成像照片必填")
+    private String thermalImageUrl;
+
     private BigDecimal longitude;
     private BigDecimal latitude;
 
